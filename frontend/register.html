@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaMonitor — Create Account</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:      #0D2353;
+      --navy-dark: #081535;
+      --navy-mid:  #163574;
+      --gold:      #D4A017;
+      --gold-light:#F2CC6B;
+      --gold-pale: #FDF3D3;
+      --water-1:   #1A6FA8;
+      --water-2:   #2C9AD1;
+      --water-pale:#EAF5FB;
+      --white:     #FFFFFF;
+      --off-white: #F8F9FC;
+      --text-dark: #0D1B3E;
+      --text-mid:  #4A5878;
+      --text-light:#8292B0;
+      --border:    #DDE3EE;
+      --error:     #C0392B;
+      --success:   #0F7050;
+    }
+
+    html, body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--off-white);
+    }
+
+    /* ───── LAYOUT ───── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+
+    /* ───── VISUAL PANEL ───── */
+    .visual {
+      background: var(--navy-dark);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 52px;
+    }
+
+    .wave-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .wave-bg svg { width: 100%; height: 100%; opacity: 0.10; }
+
+    .visual::before {
+      content: '';
+      position: absolute;
+      top: -120px; left: -80px;
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, rgba(212,160,23,0.18) 0%, transparent 70%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .visual-content { position: relative; z-index: 2; }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 56px;
+    }
+    .brand-icon {
+      width: 44px; height: 44px;
+      background: var(--gold);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .brand-icon svg { width: 26px; height: 26px; fill: var(--navy-dark); }
+    .brand-text .sys-name {
+      font-weight: 600; font-size: 15px;
+      color: var(--white); letter-spacing: 0.02em; line-height: 1;
+    }
+    .brand-text .org-name {
+      font-size: 11px; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px;
+    }
+
+    .visual-headline {
+      font-family: 'Playfair Display', serif;
+      font-size: 40px; font-weight: 700;
+      color: var(--white); line-height: 1.2; margin-bottom: 18px;
+    }
+    .visual-headline em { font-style: normal; color: var(--gold-light); }
+
+    .visual-sub {
+      font-size: 14px; color: rgba(255,255,255,0.52);
+      line-height: 1.75; max-width: 330px;
+    }
+
+    /* Role access cards */
+    .role-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 44px;
+    }
+    .r-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: transform 0.3s ease;
+    }
+    .r-card:hover { transform: translateX(4px); }
+    .r-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+    .r-badge.admin { background: rgba(212,160,23,0.22); color: var(--gold-light); }
+    .r-badge.gsu   { background: rgba(44,154,209,0.22); color: #7ED3F0; }
+    .r-badge.hsu   { background: rgba(61,214,140,0.18); color: #6EEDB4; }
+    .r-desc { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+    .r-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85); margin-bottom: 2px; }
+
+    .stats-row {
+      display: flex; gap: 28px; margin-top: 44px;
+    }
+    .stat {
+      border-left: 2px solid rgba(212,160,23,0.45);
+      padding-left: 14px;
+    }
+    .stat-num { font-size: 22px; font-weight: 600; color: var(--gold-light); }
+    .stat-label {
+      font-size: 11px; color: rgba(255,255,255,0.4);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px;
+    }
+
+    .visual-footer {
+      position: relative; z-index: 2;
+      font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 0.04em;
+    }
+
+    /* ───── FORM PANEL ───── */
+    .form-panel {
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 48px 60px;
+      position: relative;
+      overflow-y: auto;
+    }
+
+    .form-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle at top right, rgba(212,160,23,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .form-header { margin-bottom: 28px; }
+    .form-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 30px; font-weight: 700;
+      color: var(--text-dark); margin-bottom: 6px;
+    }
+    .form-header p { font-size: 14px; color: var(--text-mid); }
+
+    /* Two-column field grid */
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 16px;
+    }
+    .field-grid .field-full { grid-column: 1 / -1; }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--text-mid); margin-bottom: 7px;
+    }
+
+    .input-wrap { position: relative; }
+    .input-wrap .icon {
+      position: absolute; left: 13px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light); display: flex; align-items: center;
+    }
+    .input-wrap .icon svg {
+      width: 15px; height: 15px;
+      stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+    .input-wrap .eye-btn {
+      position: absolute; right: 11px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--text-light); padding: 4px; display: flex; align-items: center;
+      transition: color 0.2s;
+    }
+    .input-wrap .eye-btn:hover { color: var(--navy); }
+    .input-wrap .eye-btn svg {
+      width: 15px; height: 15px;
+      stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .field input[type="email"],
+    .field input[type="password"],
+    .field input[type="text"],
+    .field input[type="tel"],
+    .field select {
+      width: 100%; height: 46px;
+      padding: 0 14px 0 40px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px; color: var(--text-dark);
+      background: var(--off-white);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .field select { cursor: pointer; padding-right: 34px; }
+    .field input:focus, .field select:focus {
+      border-color: var(--navy-mid);
+      background: var(--white);
+      box-shadow: 0 0 0 3px rgba(22,53,116,0.08);
+    }
+    .field input.invalid { border-color: var(--error); }
+    .field input.valid   { border-color: #27AE60; }
+    .field input::placeholder { color: var(--text-light); }
+
+    /* Select chevron */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '';
+      position: absolute; right: 13px; top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-light);
+      pointer-events: none;
+    }
+
+    /* Password strength bar */
+    .strength-wrap { margin-top: 8px; }
+    .strength-bars {
+      display: flex; gap: 4px; margin-bottom: 4px;
+    }
+    .strength-bar {
+      flex: 1; height: 3px; border-radius: 2px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .strength-bar.active-weak   { background: #E74C3C; }
+    .strength-bar.active-fair   { background: #F39C12; }
+    .strength-bar.active-good   { background: #2ECC71; }
+    .strength-bar.active-strong { background: #27AE60; }
+    .strength-label {
+      font-size: 11px; color: var(--text-light);
+      transition: color 0.3s;
+    }
+    .strength-label.weak   { color: #E74C3C; }
+    .strength-label.fair   { color: #F39C12; }
+    .strength-label.good   { color: #2ECC71; }
+    .strength-label.strong { color: #27AE60; }
+
+    /* Field-level hint */
+    .field-hint {
+      font-size: 11px; color: var(--text-light);
+      margin-top: 5px; display: none;
+    }
+    .field-hint.show { display: block; }
+    .field-hint.err  { color: var(--error); }
+    .field-hint.ok   { color: var(--success); }
+
+    /* Terms checkbox */
+    .terms-row {
+      display: flex; align-items: flex-start;
+      gap: 10px; margin: 14px 0 20px;
+    }
+    .terms-row input[type="checkbox"] {
+      width: 15px; height: 15px; margin-top: 2px;
+      accent-color: var(--navy); cursor: pointer; flex-shrink: 0;
+    }
+    .terms-row label {
+      font-size: 12px; color: var(--text-mid);
+      cursor: pointer; line-height: 1.55;
+    }
+    .terms-row label a {
+      color: var(--water-1); font-weight: 500; text-decoration: none;
+    }
+    .terms-row label a:hover { color: var(--navy); }
+
+    /* Error / success banner */
+    .error-msg {
+      display: none; align-items: center; gap: 6px;
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; color: var(--error); margin-bottom: 14px;
+    }
+    .error-msg.show { display: flex; }
+    .success-msg {
+      display: none; align-items: center; gap: 8px;
+      background: #F0FBF5; border: 1px solid #A7DFC0;
+      border-radius: 8px; padding: 12px 16px;
+      font-size: 13px; color: var(--success); margin-bottom: 14px;
+    }
+    .success-msg.show { display: flex; }
+    .error-msg svg, .success-msg svg {
+      width: 15px; height: 15px;
+      stroke: currentColor; fill: none;
+      stroke-width: 2; flex-shrink: 0;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* CTA Button */
+    .btn-primary {
+      width: 100%; height: 50px;
+      background: var(--navy); color: var(--white);
+      border: none; border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 600; letter-spacing: 0.02em;
+      cursor: pointer; position: relative; overflow: hidden;
+      transition: background 0.2s, transform 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary:hover { background: var(--navy-mid); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    }
+    .btn-primary svg {
+      width: 16px; height: 16px;
+      stroke: currentColor; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* Divider */
+    .divider {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .divider span {
+      font-size: 12px; color: var(--text-light);
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+
+    /* Google Button */
+    .btn-google {
+      width: 100%; height: 48px;
+      background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 10px; font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 500; color: var(--text-dark);
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 10px;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .btn-google:hover {
+      background: var(--off-white); border-color: #B0BCD0;
+      transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .btn-google svg { width: 18px; height: 18px; }
+
+    .signin-row {
+      margin-top: 24px; text-align: center;
+      font-size: 13px; color: var(--text-mid);
+    }
+    .signin-row a {
+      color: var(--water-1); font-weight: 600; text-decoration: none; transition: color 0.2s;
+    }
+    .signin-row a:hover { color: var(--navy); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: none; width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .btn-primary.loading .spinner { display: block; }
+    .btn-primary.loading .btn-label { display: none; }
+
+    /* Fade-up entrance */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .form-panel > * { animation: fadeUp 0.5s ease both; }
+    .form-panel > *:nth-child(1) { animation-delay: 0.05s; }
+    .form-panel > *:nth-child(2) { animation-delay: 0.10s; }
+    .form-panel > *:nth-child(3) { animation-delay: 0.15s; }
+
+    /* Wave animations */
+    @keyframes waveMove {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .wave-anim  { animation: waveMove 18s linear infinite; }
+    .wave-anim2 { animation: waveMove 26s linear infinite reverse; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.55; transform: scale(0.8); }
+    }
+    .pulse-dot { animation: pulse 2.6s ease-in-out infinite; }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .visual { padding: 36px 32px; min-height: auto; }
+      .visual-headline { font-size: 30px; }
+      .role-cards { display: none; }
+      .form-panel { padding: 40px 28px; }
+      .field-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ─── VISUAL PANEL ─── -->
+  <div class="visual">
+
+    <div class="wave-bg">
+      <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2C9AD1"/>
+            <stop offset="100%" stop-color="#0D2353"/>
+          </linearGradient>
+        </defs>
+        <g class="wave-anim">
+          <path d="M0 500 Q150 440 300 500 Q450 560 600 500 Q750 440 900 500 Q1050 560 1200 500 L1200 800 L0 800 Z" fill="url(#wg1)"/>
+          <path d="M1200 500 Q1350 440 1500 500 Q1650 560 1800 500 Q1950 440 2100 500 Q2250 560 2400 500 L2400 800 L1200 800 Z" fill="url(#wg1)"/>
+        </g>
+        <g class="wave-anim2" opacity="0.6">
+          <path d="M0 560 Q200 490 400 560 Q600 630 800 560 Q1000 490 1200 560 L1200 800 L0 800 Z" fill="#163574"/>
+          <path d="M1200 560 Q1400 490 1600 560 Q1800 630 2000 560 Q2200 490 2400 560 L2400 800 L1200 800 Z" fill="#163574"/>
+        </g>
+        <g fill="rgba(255,255,255,0.22)">
+          <circle cx="80"  cy="120" r="1.5"/>
+          <circle cx="200" cy="80"  r="1.5"/>
+          <circle cx="320" cy="150" r="1.5"/>
+          <circle cx="440" cy="90"  r="1.5"/>
+          <circle cx="560" cy="130" r="1.5"/>
+          <circle cx="80"  cy="220" r="1.5"/>
+          <circle cx="200" cy="260" r="1.5"/>
+          <circle cx="320" cy="210" r="1.5"/>
+          <circle cx="440" cy="280" r="1.5"/>
+          <circle cx="160" cy="170" r="1"/>
+          <circle cx="280" cy="310" r="1"/>
+          <circle cx="400" cy="190" r="1"/>
+        </g>
+        <g stroke="rgba(255,255,255,0.13)" stroke-width="0.5" fill="none">
+          <line x1="80"  y1="120" x2="200" y2="80"/>
+          <line x1="200" y1="80"  x2="320" y2="150"/>
+          <line x1="320" y1="150" x2="440" y2="90"/>
+          <line x1="440" y1="90"  x2="560" y2="130"/>
+          <line x1="80"  y1="220" x2="200" y2="260"/>
+          <line x1="200" y1="260" x2="320" y2="210"/>
+          <line x1="320" y1="210" x2="440" y2="280"/>
+          <line x1="80"  y1="120" x2="80"  y2="220"/>
+          <line x1="200" y1="80"  x2="200" y2="260"/>
+          <line x1="320" y1="150" x2="320" y2="210"/>
+          <line x1="440" y1="90"  x2="440" y2="280"/>
+        </g>
+        <circle cx="200" cy="80"  r="5" fill="rgba(212,160,23,0.6)"/>
+        <circle cx="440" cy="90"  r="5" fill="rgba(44,154,209,0.6)"/>
+        <circle cx="320" cy="210" r="5" fill="rgba(212,160,23,0.6)"/>
+        <circle cx="200" cy="260" r="5" fill="rgba(61,214,140,0.5)"/>
+      </svg>
+    </div>
+
+    <!-- Top: brand + headline -->
+    <div class="visual-content">
+      <div class="brand-lockup">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/>
+            <path d="M9 16 Q12 20 15 16" stroke="#0D1B3E" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="sys-name">AquaSense</div>
+          <div class="org-name">CSPC · CCS · BSIT 4G 2026 · GANDARIA</div>
+        </div>
+      </div>
+
+      <h2 class="visual-headline">
+        Join the<br/>
+        <em>Water Safety</em><br/>
+        Network
+      </h2>
+      <p class="visual-sub">Create your account to monitor real-time water quality data across all CSPC campus buildings.</p>
+    </div>
+
+    <!-- Middle: role access cards -->
+    <div class="visual-content">
+      <div class="role-cards">
+        <div class="r-card">
+          <span class="r-badge gsu">GSU</span>
+          <div>
+            <div class="r-title">General Services Unit</div>
+            <div class="r-desc">Monitoring, maintenance logs, alert management</div>
+          </div>
+        </div>
+        <div class="r-card">
+          <span class="r-badge hsu">HSU</span>
+          <div>
+            <div class="r-title">Health Services Unit</div>
+            <div class="r-desc">Water quality reports and safety status view</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="visual-footer">
+      Camarines Sur Polytechnic Colleges — College of Computer Studies
+    </div>
+  </div>
+
+  <!-- ─── FORM PANEL ─── -->
+  <div class="form-panel">
+
+    <div class="form-header">
+      <h1>Create account</h1>
+      <p>Fill in your details to request system access</p>
+    </div>
+
+    <!-- Error / success banners -->
+    <div id="errorMsg" class="error-msg">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorText">Something went wrong. Please try again.</span>
+    </div>
+    <div id="successMsg" class="success-msg">
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span id="successText">Account created! Redirecting to login…</span>
+    </div>
+
+    <form id="registerForm" novalidate>
+      <div class="field-grid">
+
+        <!-- Full name -->
+        <div class="field field-full">
+          <label for="fullname">Full name</label>
+          <div class="input-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <input type="text" id="fullname" placeholder="e.g. Juan dela Cruz" autocomplete="name" required/>
+          </div>
+          <div class="field-hint" id="fullname-hint"></div>
+        </div>
+
+        <!-- Email -->
+        <div class="field field-full">
+          <label for="email">Email address</label>
+          <div class="input-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
+            </span>
+            <input type="email" id="email" placeholder="you@cspc.edu.ph" autocomplete="email" required/>
+          </div>
+          <div class="field-hint" id="email-hint"></div>
+        </div>
+
+        <!-- Phone -->
+        <div class="field">
+          <label for="phone">Phone number</label>
+          <div class="input-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </span>
+            <input type="tel" id="phone" placeholder="09XXXXXXXXX" autocomplete="tel"/>
+          </div>
+          <div class="field-hint" id="phone-hint"></div>
+        </div>
+
+        <!-- Role -->
+        <div class="field">
+          <label for="role">Role</label>
+          <div class="input-wrap select-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <select id="role" required>
+              <option value="" disabled selected>Select your role</option>
+              <option value="gsu">GSU — General Services Unit</option>
+              <option value="hsu">HSU — Health Services Unit</option>
+            </select>
+          </div>
+          <div class="field-hint" id="role-hint"></div>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" id="password" placeholder="Min. 8 characters" autocomplete="new-password" required/>
+            <button type="button" class="eye-btn" id="eyeBtn1" aria-label="Toggle password visibility">
+              <svg id="eyeIcon1" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="strength-wrap" id="strengthWrap" style="display:none">
+            <div class="strength-bars">
+              <div class="strength-bar" id="bar1"></div>
+              <div class="strength-bar" id="bar2"></div>
+              <div class="strength-bar" id="bar3"></div>
+              <div class="strength-bar" id="bar4"></div>
+            </div>
+            <span class="strength-label" id="strengthLabel"></span>
+          </div>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="field">
+          <label for="confirmPassword">Confirm password</label>
+          <div class="input-wrap">
+            <span class="icon">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </span>
+            <input type="password" id="confirmPassword" placeholder="Re-enter password" autocomplete="new-password" required/>
+            <button type="button" class="eye-btn" id="eyeBtn2" aria-label="Toggle confirm password visibility">
+              <svg id="eyeIcon2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="field-hint" id="confirm-hint"></div>
+        </div>
+
+      </div><!-- /field-grid -->
+
+      <!-- Terms -->
+      <div class="terms-row">
+        <input type="checkbox" id="terms" required/>
+        <label for="terms">
+          I agree to the <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a> of the AquaMonitor system
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary" id="registerBtn">
+        <span class="spinner"></span>
+        <span class="btn-label" style="display:flex;align-items:center;gap:8px;">
+          Create Account
+          <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </span>
+      </button>
+
+    </form>
+
+    <div class="divider"><span>or</span></div>
+
+    <button type="button" class="btn-google" id="googleBtn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Sign up with Google
+    </button>
+
+    <div class="signin-row">
+      Already have an account? <a href="login.html">Sign in</a>
+    </div>
+
+  </div><!-- /form-panel -->
+</div>
+
+<script src="register.js"></script>
+<script>
+  // ── Password visibility toggles ────────────────────────────────────────────
+  function makeToggle(btnId, inputId, iconId) {
+    const btn   = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    const icon  = document.getElementById(iconId);
+    btn.addEventListener('click', () => {
+      const hidden = input.type === 'password';
+      input.type = hidden ? 'text' : 'password';
+      icon.innerHTML = hidden
+        ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+        : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    });
+  }
+  makeToggle('eyeBtn1', 'password',        'eyeIcon1');
+  makeToggle('eyeBtn2', 'confirmPassword', 'eyeIcon2');
+
+  // ── Password strength meter ────────────────────────────────────────────────
+  document.getElementById('password').addEventListener('input', function () {
+    const val = this.value;
+    const wrap = document.getElementById('strengthWrap');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    let score = 0;
+    if (val.length >= 8)                    score++;
+    if (/[A-Z]/.test(val))                  score++;
+    if (/[0-9]/.test(val))                  score++;
+    if (/[^A-Za-z0-9]/.test(val))           score++;
+
+    const labels  = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+    const classes = ['', 'weak', 'fair', 'good', 'strong'];
+    const barClass= ['', 'active-weak', 'active-fair', 'active-good', 'active-strong'];
+
+    for (let i = 1; i <= 4; i++) {
+      const bar = document.getElementById('bar' + i);
+      bar.className = 'strength-bar' + (i <= score ? ' ' + barClass[score] : '');
+    }
+    const lbl = document.getElementById('strengthLabel');
+    lbl.textContent = labels[score];
+    lbl.className = 'strength-label ' + classes[score];
+
+    // Validate confirm if already typed
+    const conf = document.getElementById('confirmPassword').value;
+    if (conf) checkConfirm(val, conf);
+  });
+
+  // ── Confirm password live check ────────────────────────────────────────────
+  document.getElementById('confirmPassword').addEventListener('input', function () {
+    checkConfirm(document.getElementById('password').value, this.value);
+  });
+
+  function checkConfirm(pw, conf) {
+    const hint = document.getElementById('confirm-hint');
+    const input = document.getElementById('confirmPassword');
+    if (!conf) { hint.className = 'field-hint'; return; }
+    if (pw === conf) {
+      hint.textContent = '✓ Passwords match';
+      hint.className = 'field-hint show ok';
+      input.classList.remove('invalid'); input.classList.add('valid');
+    } else {
+      hint.textContent = 'Passwords do not match';
+      hint.className = 'field-hint show err';
+      input.classList.remove('valid'); input.classList.add('invalid');
+    }
+  }
+
+  // ── Form submit — calls register() from register.js ───────────────────────
+  document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await register();
+  });
+
+  // ── Google button ──────────────────────────────────────────────────────────
+  document.getElementById('googleBtn').addEventListener('click', () => {
+    window.location.href = 'http://localhost:5000/api/auth/google';
+  });
+</script>
+
+</body>
+</html>
