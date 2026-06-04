@@ -34,8 +34,10 @@ async function initDB() {
       fullname     VARCHAR(150) NOT NULL,
       email        VARCHAR(255) NOT NULL UNIQUE,
       phone_number VARCHAR(20)  DEFAULT NULL,
-      password     VARCHAR(255) NOT NULL,
-      role         VARCHAR(50)  NOT NULL,
+      password     VARCHAR(255) DEFAULT NULL,
+      role         VARCHAR(50)  NOT NULL DEFAULT 'user',
+      google_id    VARCHAR(255) DEFAULT NULL,
+      avatar       VARCHAR(500) DEFAULT NULL,
       created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
