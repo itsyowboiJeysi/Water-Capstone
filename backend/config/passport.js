@@ -65,7 +65,7 @@ passport.use(
 );
 
 // Passport session serialization (needed even if we don't use sessions for JWT)
-passport.serializeUser((user, done) => done(null, user.id));
+passport.serializeUser((user, done) => done(null, user.user.id));
 passport.deserializeUser(async (id, done) => {
   try {
     const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);

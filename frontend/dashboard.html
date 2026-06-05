@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AquaSense — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1100,8 +1101,21 @@
   </div><!-- /main -->
 
 </div><!-- /app -->
-
+  <script src="js/google-auth-handler.js"></script>
 <script>
+
+
+  // Wait for OAuth exchange to finish, THEN check token
+  handleGoogleCallback().then(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "login.html";
+      return;
+    }
+    // rest of your dashboard initialization here
+  });
+
+
   // ── Read user from storage and update sidebar footer ─────────────────────
   (function() {
     const stored = localStorage.getItem("user") || sessionStorage.getItem("user");

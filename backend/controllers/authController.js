@@ -201,4 +201,56 @@ async function resetPassword(req, res) {
   }
 }
 
-module.exports = { register, login, forgotPassword, validateResetToken, resetPassword };
+async function exchangeCode(req, res) {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ message: "Code is required." });
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT * FROM oauth_codes WHERE code = ? AND expires_at > NOW()",
+      [code]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired code." });
+    }
+
+    const { user_id } = rows[0];
+
+    await pool.query("DELETE FROM oauth_codes WHERE code = ?", [code]);
+
+    const [users] = await pool.query(
+      "SELECT user_id, fullname, email, role, avatar FROM users WHERE user_id = ?",  // ← user_id not id
+      [user_id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const user  = users[0];
+    const token = jwt.sign(
+      { id: user.user_id, email: user.email, role: user.role },  // ← user.user_id
+      process.env.JWT_SECRET || "aquamonitor_secret",
+      { expiresIn: "7d" }
+    );
+
+    res.json({ 
+      token, 
+      user: {
+        id:       user.user_id,   // ← user.user_id
+        fullname: user.fullname,
+        email:    user.email,
+        role:     user.role,
+        avatar:   user.avatar || null,
+      }
+    });
+
+  } catch (err) {
+    console.error("[AquaMonitor] exchangeCode error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+}
+
+module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode };
+

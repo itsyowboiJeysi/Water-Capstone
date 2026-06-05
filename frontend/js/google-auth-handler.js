@@ -1,17 +1,31 @@
-function handleGoogleCallback() {
+async function handleGoogleCallback() {
   const params = new URLSearchParams(window.location.search);
-  const token  = params.get("token");
-  const user   = params.get("user");
- 
-  if (token && user) {
-    // Save to localStorage (same as "remember me" in login.js)
-    localStorage.setItem("token", token);
-    localStorage.setItem("user",  user);
- 
-    // Clean the URL so the token isn't visible in the address bar
-    const cleanURL = window.location.origin + window.location.pathname;
-    window.history.replaceState({}, document.title, cleanURL);
- 
-    console.log("[AquaMonitor] Google login successful, token saved.");
+  const code   = params.get("code");
+
+  if (!code) return; // not a Google callback, resolve immediately
+
+  try {
+    const res  = await fetch("http://localhost:5000/api/auth/exchange-code", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ code }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.token) {
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user",  JSON.stringify(data.user));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      console.error("[OAuth] Exchange failed:", data.message);
+      window.location.href = "login.html?error=auth_failed";
+    }
+
+  } catch (err) {
+    console.error("[OAuth] Network error:", err);
+    window.location.href = "login.html?error=network_error";
   }
-};
+}
+
+// NO auto-call here anymore — dashboard.html calls it explicitly
