@@ -12,9 +12,10 @@ const googleRoutes   = require("./routes/google");
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "*",
+  origin: ["http://127.0.0.1:5500", "http://localhost:5500"],
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,

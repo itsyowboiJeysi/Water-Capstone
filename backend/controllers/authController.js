@@ -1,13 +1,15 @@
 // authController.js — AquaMonitor Auth
 const bcrypt   = require("bcryptjs");
 const jwt      = require("jsonwebtoken");
+const crypto   = require("crypto");
 const { pool } = require("../config/db");
+const { sendPasswordResetEmail } = require("../services/mailer");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/register
 // Body: { fullname, email, phone_number, password, role }
 // ─────────────────────────────────────────────────────────────────────────────
-exports.register = async (req, res) => {
+async function register(req, res) {
   const { fullname, email, phone_number, password, role } = req.body || {};
 
   // ── Validation ─────────────────────────────────────────────────────────────
@@ -57,14 +59,14 @@ exports.register = async (req, res) => {
     console.error("[AquaMonitor] Register error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
-};
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/login
 // Body: { email, password }
 // Returns: { token, user: { user_id, fullname, email, role } }
 // ─────────────────────────────────────────────────────────────────────────────
-exports.login = async (req, res) => {
+async function login(req, res) {
   const { email, password } = req.body || {};
 
   if (!email || !password) {
@@ -113,4 +115,90 @@ exports.login = async (req, res) => {
     console.error("[AquaMonitor] Login error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
-};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/forgot-password  { email }
+// ─────────────────────────────────────────────────────────────────────────────
+async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required." });
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT user_id FROM users WHERE email = ?", [email]
+    );
+
+    // Always respond OK — never confirm if email exists (security)
+    if (rows.length === 0) return res.json({ message: "If that email exists, a reset link has been sent." });
+
+    const token  = crypto.randomBytes(32).toString("hex");
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await pool.query(
+      "UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?",
+      [token, expiry, email]
+    );
+
+    const resetLink = `${process.env.FRONTEND_RESET_URL}#token=${token}`;
+   
+    await sendPasswordResetEmail(email, resetLink);
+
+    res.json({ message: "If that email exists, a reset link has been sent." });
+  } catch (err) {
+    console.error("forgotPassword error:", err);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/auth/validate-reset-token?token=xxx
+// ─────────────────────────────────────────────────────────────────────────────
+async function validateResetToken(req, res) {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ message: "Token is required." });
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT user_id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()",
+      [token]
+    );
+    if (rows.length === 0) return res.status(400).json({ message: "Token is invalid or expired." });
+    res.json({ valid: true });
+  } catch (err) {
+    console.error("validateResetToken error:", err);
+    res.status(500).json({ message: "Server error." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/reset-password  { token, newPassword }
+// ─────────────────────────────────────────────────────────────────────────────
+async function resetPassword(req, res) {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ message: "Token and new password are required." });
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT user_id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()",
+      [token]
+    );
+    if (rows.length === 0) return res.status(400).json({ message: "Token is invalid or expired." });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+
+    await pool.query(
+      `UPDATE users
+       SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL
+       WHERE user_id = ?`,
+      [hashed, rows[0].user_id]
+    );
+
+    res.json({ message: "Password updated successfully." });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    res.status(500).json({ message: "Server error. Please try again." });
+  }
+}
+
+module.exports = { register, login, forgotPassword, validateResetToken, resetPassword };
