@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaSense — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0D2353;
+      --navy-dark:  #081535;
+      --navy-mid:   #163574;
+      --navy-light: #1E4080;
+      --gold:       #D4A017;
+      --gold-light: #F2CC6B;
+      --gold-pale:  #FDF3D3;
+      --water-1:    #1A6FA8;
+      --water-2:    #2C9AD1;
+      --water-pale: #EAF5FB;
+      --white:      #FFFFFF;
+      --off-white:  #F8F9FC;
+      --text-dark:  #0D1B3E;
+      --text-mid:   #4A5878;
+      --text-light: #8292B0;
+      --border:     #DDE3EE;
+      --error:      #C0392B;
+      --success:    #0F7050;
+      --warn:       #C97A00;
+
+      --sidebar-w:  260px;
+    }
+
+    html, body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--off-white);
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+    ═══════════════════════════════════════════ */
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--navy-dark);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* wave decoration in sidebar */
+    .sidebar::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 180px;
+      background: radial-gradient(ellipse at bottom center, rgba(44,154,209,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* subtle gold glow top-left */
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: -80px; left: -80px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(212,160,23,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Brand ── */
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      position: relative;
+      z-index: 1;
+    }
+    .brand-icon {
+      width: 40px; height: 40px;
+      background: var(--gold);
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-icon svg { width: 24px; height: 24px; fill: var(--navy-dark); }
+    .brand-text .sys-name {
+      font-weight: 600; font-size: 14px;
+      color: var(--white); letter-spacing: 0.01em;
+    }
+    .brand-text .org-name {
+      font-size: 10px; color: rgba(255,255,255,0.38);
+      letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px;
+    }
+
+    /* ── Nav ── */
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      overflow-y: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .sidebar-nav::-webkit-scrollbar { width: 0; }
+
+    .nav-section-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+      padding: 0 10px;
+      margin: 18px 0 6px;
+    }
+    .nav-section-label:first-child { margin-top: 4px; }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 9px 12px;
+      border-radius: 9px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.18s, color 0.18s;
+      position: relative;
+      user-select: none;
+    }
+    .nav-item svg {
+      width: 16px; height: 16px;
+      stroke: currentColor; fill: none;
+      stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.85);
+    }
+    .nav-item.active {
+      background: rgba(44,154,209,0.18);
+      color: var(--white);
+    }
+    .nav-item.active svg { stroke: var(--water-2); }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 6px; bottom: 6px;
+      width: 3px;
+      background: var(--water-2);
+      border-radius: 0 2px 2px 0;
+    }
+
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(239,68,68,0.9);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 10px;
+      line-height: 1.6;
+    }
+
+    /* ── Sidebar footer (user info) ── */
+    .sidebar-footer {
+      padding: 14px 16px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .user-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--water-1), var(--navy-mid));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name {
+      font-size: 12.5px; font-weight: 600; color: var(--white);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-role {
+      font-size: 10px; color: rgba(255,255,255,0.38);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .logout-btn {
+      background: none; border: none; cursor: pointer;
+      color: rgba(255,255,255,0.35);
+      padding: 5px; border-radius: 6px;
+      display: flex; align-items: center;
+      transition: color 0.2s, background 0.2s;
+    }
+    .logout-btn:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.07); }
+    .logout-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ═══════════════════════════════════════════
+       MAIN CONTENT
+    ═══════════════════════════════════════════ */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 64px;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .page-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--text-dark);
+    }
+    .page-subtitle {
+      font-size: 12px; color: var(--text-light);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--off-white); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 12px; font-weight: 500; color: var(--text-mid);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    .status-dot.live {
+      background: #3DD68C;
+      box-shadow: 0 0 0 2px rgba(61,214,140,0.25);
+      animation: pulse-dot 2.4s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.75); }
+    }
+
+    .icon-btn {
+      width: 36px; height: 36px;
+      background: var(--off-white); border: 1px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-mid); position: relative;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .icon-btn:hover { background: var(--water-pale); border-color: var(--water-2); color: var(--water-1); }
+    .icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-btn .notif-dot {
+      position: absolute; top: 6px; right: 6px;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #EF4444; border: 1.5px solid var(--white);
+    }
+
+    /* ── Scrollable content area ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px 40px;
+    }
+    .content::-webkit-scrollbar { width: 6px; }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ═══════════════════════════════════════════
+       STAT CARDS ROW
+    ═══════════════════════════════════════════ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 20px 18px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .stat-card:hover { box-shadow: 0 4px 20px rgba(13,35,83,0.08); transform: translateY(-1px); }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .stat-card.safe::before  { background: linear-gradient(90deg, #3DD68C, #27AE60); }
+    .stat-card.warn::before  { background: linear-gradient(90deg, var(--gold), #F39C12); }
+    .stat-card.danger::before { background: linear-gradient(90deg, #EF4444, #C0392B); }
+    .stat-card.info::before  { background: linear-gradient(90deg, var(--water-2), var(--water-1)); }
+
+    .stat-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .stat-icon-wrap {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stat-icon-wrap.safe   { background: rgba(61,214,140,0.12); color: #0F7050; }
+    .stat-icon-wrap.warn   { background: rgba(212,160,23,0.12);  color: var(--warn); }
+    .stat-icon-wrap.danger { background: rgba(239,68,68,0.12);   color: #DC2626; }
+    .stat-icon-wrap.info   { background: rgba(44,154,209,0.12);  color: var(--water-1); }
+    .stat-icon-wrap svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .stat-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 3px 8px; border-radius: 20px;
+    }
+    .stat-badge.safe   { background: rgba(61,214,140,0.12);  color: #0F7050; }
+    .stat-badge.warn   { background: rgba(212,160,23,0.15);  color: var(--warn); }
+    .stat-badge.danger { background: rgba(239,68,68,0.12);   color: #DC2626; }
+    .stat-badge.info   { background: rgba(44,154,209,0.12);  color: var(--water-1); }
+
+    .stat-value {
+     font-family: 'Inter', sans-serif;
+      font-size: 30px; font-weight: 700;
+      color: var(--text-dark); line-height: 1;
+    }
+    .stat-unit { font-size: 13px; font-weight: 400; color: var(--text-light); margin-left: 3px; }
+    .stat-label { font-size: 12px; color: var(--text-mid); margin-top: 4px; }
+    .stat-sub { font-size: 11px; color: var(--text-light); margin-top: 6px; }
+
+    /* ═══════════════════════════════════════════
+       TWO-COLUMN GRID (Charts + Alerts)
+    ═══════════════════════════════════════════ */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    /* ── Panel / Card base ── */
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 14px; font-weight: 600; color: var(--text-dark);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title svg { width: 15px; height: 15px; stroke: var(--water-1); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .panel-action {
+      font-size: 12px; color: var(--water-1); cursor: pointer;
+      background: none; border: none; font-family: 'DM Sans', sans-serif;
+      font-weight: 500; padding: 0; transition: color 0.2s;
+    }
+    .panel-action:hover { color: var(--navy); }
+    .panel-body { padding: 20px; }
+
+    /* ── Sensor parameter tiles ── */
+    .params-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .param-tile {
+      background: var(--off-white);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .param-tile:hover { box-shadow: 0 2px 12px rgba(13,35,83,0.07); }
+    .param-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .param-name { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-light); }
+    .param-status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .param-status-dot.safe   { background: #3DD68C; box-shadow: 0 0 5px rgba(61,214,140,0.5); animation: pulse-dot 2.8s ease-in-out infinite; }
+    .param-status-dot.warn   { background: var(--gold); box-shadow: 0 0 5px rgba(212,160,23,0.5); animation: pulse-dot 3.2s ease-in-out infinite; }
+    .param-status-dot.danger { background: #EF4444; box-shadow: 0 0 5px rgba(239,68,68,0.5); animation: pulse-dot 1.8s ease-in-out infinite; }
+
+    .param-val {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px; font-weight: 700;
+      color: var(--text-dark); line-height: 1;
+    }
+    .param-unit { font-size: 11px; font-weight: 400; color: var(--text-light); margin-left: 2px; }
+    .param-range { font-size: 10.5px; color: var(--text-light); margin-top: 5px; }
+
+    /* Mini bar */
+    .param-bar-wrap { margin-top: 10px; background: var(--border); border-radius: 3px; height: 4px; overflow: hidden; }
+    .param-bar { height: 100%; border-radius: 3px; transition: width 1s ease; }
+    .param-bar.safe   { background: linear-gradient(90deg, #3DD68C, #27AE60); }
+    .param-bar.warn   { background: linear-gradient(90deg, var(--gold), #F39C12); }
+    .param-bar.danger { background: linear-gradient(90deg, #EF4444, #C0392B); }
+
+    /* ── Sparkline chart (SVG) ── */
+    .chart-wrap {
+      width: 100%;
+      height: 200px;
+      background: var(--off-white);
+      border-radius: 10px;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      padding: 10px 12px 0;
+      gap: 4px;
+    }
+
+    /* ── Alerts panel ── */
+    .alert-list { display: flex; flex-direction: column; gap: 0; }
+    .alert-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-item:hover { background: var(--off-white); }
+    .alert-dot-wrap {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .alert-dot-wrap.critical { background: rgba(239,68,68,0.12); }
+    .alert-dot-wrap.high     { background: rgba(212,160,23,0.15); }
+    .alert-dot-wrap.medium   { background: rgba(44,154,209,0.12); }
+    .alert-dot-wrap.low      { background: rgba(61,214,140,0.12); }
+    .alert-dot-wrap svg { width: 15px; height: 15px; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .alert-dot-wrap.critical svg { stroke: #DC2626; }
+    .alert-dot-wrap.high     svg { stroke: var(--warn); }
+    .alert-dot-wrap.medium   svg { stroke: var(--water-1); }
+    .alert-dot-wrap.low      svg { stroke: #0F7050; }
+
+    .alert-info { flex: 1; min-width: 0; }
+    .alert-title { font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 2px; }
+    .alert-meta  { font-size: 11px; color: var(--text-light); }
+    .alert-level {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+      align-self: center;
+    }
+    .alert-level.critical { background: rgba(239,68,68,0.1);  color: #DC2626; }
+    .alert-level.high     { background: rgba(212,160,23,0.12); color: var(--warn); }
+    .alert-level.medium   { background: rgba(44,154,209,0.1);  color: var(--water-1); }
+
+    /* ═══════════════════════════════════════════
+       BOTTOM ROW: Buildings + Recent Readings
+    ═══════════════════════════════════════════ */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Building location cards */
+    .building-list { display: flex; flex-direction: column; gap: 0; }
+    .building-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    .building-item:last-child { border-bottom: none; }
+    .building-item:hover { background: var(--off-white); cursor: pointer; }
+    .building-num {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--navy-dark); color: var(--gold-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .building-info { flex: 1; min-width: 0; }
+    .building-name { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+    .building-area { font-size: 11px; color: var(--text-light); margin-top: 1px; }
+    .building-status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11.5px; font-weight: 500;
+    }
+    .building-status.safe   { color: #0F7050; }
+    .building-status.warn   { color: var(--warn); }
+    .building-status.danger { color: #DC2626; }
+    .b-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .b-dot.safe   { background: #3DD68C; }
+    .b-dot.warn   { background: var(--gold); }
+    .b-dot.danger { background: #EF4444; }
+
+    /* Recent readings table */
+    .reading-table { width: 100%; border-collapse: collapse; }
+    .reading-table th {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-light);
+      padding: 0 20px 10px; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .reading-table td {
+      font-size: 12.5px; color: var(--text-dark);
+      padding: 11px 20px;
+      border-bottom: 1px solid rgba(221,227,238,0.5);
+    }
+    .reading-table tr:last-child td { border-bottom: none; }
+    .reading-table tr:hover td { background: var(--off-white); }
+    .r-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; padding: 2px 8px; border-radius: 20px;
+    }
+    .r-status.safe   { background: rgba(61,214,140,0.1);  color: #0F7050; }
+    .r-status.warn   { background: rgba(212,160,23,0.12); color: var(--warn); }
+    .r-status.danger { background: rgba(239,68,68,0.1);   color: #DC2626; }
+
+    /* ═══════════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════════ */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .stats-grid  { animation: fadeUp 0.45s ease both; }
+    .dash-grid   { animation: fadeUp 0.5s 0.05s ease both; }
+    .bottom-grid { animation: fadeUp 0.5s 0.1s ease both; }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 1100px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .dash-grid  { grid-template-columns: 1fr; }
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 780px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { display: none; }
+      .params-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+  <aside class="sidebar">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/>
+          <path d="M9 16 Q12 20 15 16" stroke="#0D1B3E" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="sys-name">AquaSense</div>
+        <div class="org-name">CSPC · CCS · 4G 2026</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+
+      <div class="nav-section-label">Overview</div>
+      <a class="nav-item active" href="dashboard.html">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Live Monitoring
+      </a>
+
+      <div class="nav-section-label">Water Quality</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
+        Sensor Readings
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Analytics
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Alerts
+        <span class="nav-badge">3</span>
+      </a>
+
+      <div class="nav-section-label">Management</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Locations
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Devices
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Maintenance Logs
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        SMS Logs
+      </a>
+
+      <div class="nav-section-label">System</div>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Thresholds
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        User Management
+      </a>
+      <a class="nav-item" href="#">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+
+    </nav>
+
+    <!-- User footer -->
+    <div class="sidebar-footer">
+      <div class="user-avatar">G</div>
+      <div class="user-info">
+        <div class="user-name">GSU Admin</div>
+        <div class="user-role">General Services Unit</div>
+      </div>
+      <button class="logout-btn" title="Sign out" onclick="window.location.href='login.html'">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════ MAIN ═══════════════════ -->
+  <div class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="page-title">Water Quality Dashboard</div>
+          <div class="page-subtitle">Camarines Sur Polytechnic Colleges — Real-time monitoring</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="status-pill">
+          <div class="status-dot live"></div>
+          Live · updated just now
+        </div>
+        <button class="icon-btn" title="Notifications">
+          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-dot"></span>
+        </button>
+        <button class="icon-btn" title="Export report">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="icon-btn" title="Refresh">
+          <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Scrollable content -->
+    <div class="content">
+
+      <!-- ── Stat Cards ── -->
+      <div class="stats-grid">
+
+        <div class="stat-card safe">
+          <div class="stat-header">
+            <div class="stat-icon-wrap safe">
+              <svg viewBox="0 0 24 24"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/></svg>
+            </div>
+            <span class="stat-badge safe">Safe</span>
+          </div>
+          <div class="stat-value">7.2<span class="stat-unit">pH</span></div>
+          <div class="stat-label">pH Level</div>
+          <div class="stat-sub">Safe range: 6.5 – 8.5</div>
+        </div>
+
+        <div class="stat-card safe">
+          <div class="stat-header">
+            <div class="stat-icon-wrap safe">
+              <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <span class="stat-badge safe">Safe</span>
+          </div>
+          <div class="stat-value">2.4<span class="stat-unit">NTU</span></div>
+          <div class="stat-label">Turbidity</div>
+          <div class="stat-sub">Safe range: 0 – 5 NTU</div>
+        </div>
+
+        <div class="stat-card warn">
+          <div class="stat-header">
+            <div class="stat-icon-wrap warn">
+              <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <span class="stat-badge warn">Warning</span>
+          </div>
+          <div class="stat-value">448<span class="stat-unit">ppm</span></div>
+          <div class="stat-label">TDS</div>
+          <div class="stat-sub">Safe range: 0 – 500 ppm</div>
+        </div>
+
+        <div class="stat-card info">
+          <div class="stat-header">
+            <div class="stat-icon-wrap info">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.45-5.55"/></svg>
+            </div>
+            <span class="stat-badge info">Active</span>
+          </div>
+          <div class="stat-value">4<span class="stat-unit">devices</span></div>
+          <div class="stat-label">Online Devices</div>
+          <div class="stat-sub">1 offline · 0 maintenance</div>
+        </div>
+
+      </div>
+
+      <!-- ── Main dash grid ── -->
+      <div class="dash-grid">
+
+        <!-- Left: Sensor params + water consumption chart -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+          <!-- Sensor parameter tiles -->
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Live Sensor Parameters
+              </div>
+              <button class="panel-action">View all →</button>
+            </div>
+            <div class="panel-body">
+              <div class="params-grid">
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">pH Level</span>
+                    <div class="param-status-dot safe"></div>
+                  </div>
+                  <div class="param-val">7.2<span class="param-unit">pH</span></div>
+                  <div class="param-range">Range: 6.5 – 8.5</div>
+                  <div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div>
+                </div>
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">Turbidity</span>
+                    <div class="param-status-dot safe"></div>
+                  </div>
+                  <div class="param-val">2.4<span class="param-unit">NTU</span></div>
+                  <div class="param-range">Range: 0 – 5 NTU</div>
+                  <div class="param-bar-wrap"><div class="param-bar safe" style="width:48%"></div></div>
+                </div>
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">TDS</span>
+                    <div class="param-status-dot warn"></div>
+                  </div>
+                  <div class="param-val">448<span class="param-unit">ppm</span></div>
+                  <div class="param-range">Range: 0 – 500 ppm</div>
+                  <div class="param-bar-wrap"><div class="param-bar warn" style="width:89%"></div></div>
+                </div>
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">Temperature</span>
+                    <div class="param-status-dot safe"></div>
+                  </div>
+                  <div class="param-val">28.3<span class="param-unit">°C</span></div>
+                  <div class="param-range">Range: 0 – 35 °C</div>
+                  <div class="param-bar-wrap"><div class="param-bar safe" style="width:81%"></div></div>
+                </div>
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">Ammonia</span>
+                    <div class="param-status-dot safe"></div>
+                  </div>
+                  <div class="param-val">0.12<span class="param-unit">mg/L</span></div>
+                  <div class="param-range">Range: 0 – 0.50 mg/L</div>
+                  <div class="param-bar-wrap"><div class="param-bar safe" style="width:24%"></div></div>
+                </div>
+
+                <div class="param-tile">
+                  <div class="param-top">
+                    <span class="param-name">Flow Rate</span>
+                    <div class="param-status-dot safe"></div>
+                  </div>
+                  <div class="param-val">34.7<span class="param-unit">L/min</span></div>
+                  <div class="param-range">Range: 0 – 100 L/min</div>
+                  <div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Water consumption chart -->
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                Water Consumption — Last 7 Days
+              </div>
+              <button class="panel-action">Export →</button>
+            </div>
+            <div class="panel-body" style="padding-bottom:8px;">
+              <svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:180px;overflow:visible;">
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2C9AD1" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#1A6FA8" stop-opacity="0.7"/>
+                  </linearGradient>
+                  <linearGradient id="warnGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#D4A017" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#C97A00" stop-opacity="0.7"/>
+                  </linearGradient>
+                  <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#3DD68C"/>
+                    <stop offset="100%" stop-color="#0F7050"/>
+                  </linearGradient>
+                </defs>
+                <!-- Y grid lines -->
+                <line x1="50" y1="20"  x2="580" y2="20"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="50" y1="60"  x2="580" y2="60"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="50" y1="100" x2="580" y2="100" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+                <line x1="50" y1="140" x2="580" y2="140" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+                <!-- Y labels -->
+                <text x="40" y="23"  font-size="10" fill="#8292B0" text-anchor="end">500L</text>
+                <text x="40" y="63"  font-size="10" fill="#8292B0" text-anchor="end">375L</text>
+                <text x="40" y="103" font-size="10" fill="#8292B0" text-anchor="end">250L</text>
+                <text x="40" y="143" font-size="10" fill="#8292B0" text-anchor="end">125L</text>
+                <!-- Bars: Mon–Sun with varying heights -->
+                <!-- Mon -->
+                <rect x="58"  y="60"  width="48" height="80"  rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="82"  y="158" font-size="10" fill="#8292B0" text-anchor="middle">Mon</text>
+                <!-- Tue -->
+                <rect x="126" y="40"  width="48" height="100" rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="150" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Tue</text>
+                <!-- Wed -->
+                <rect x="194" y="70"  width="48" height="70"  rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="218" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Wed</text>
+                <!-- Thu - warning (high usage) -->
+                <rect x="262" y="20"  width="48" height="120" rx="5" fill="url(#warnGrad)" opacity="0.9"/>
+                <text x="286" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Thu</text>
+                <!-- Fri -->
+                <rect x="330" y="50"  width="48" height="90"  rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="354" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Fri</text>
+                <!-- Sat -->
+                <rect x="398" y="90"  width="48" height="50"  rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="422" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Sat</text>
+                <!-- Sun (today) -->
+                <rect x="466" y="75"  width="48" height="65"  rx="5" fill="url(#barGrad)" opacity="0.9"/>
+                <text x="490" y="158" font-size="10" fill="#8292B0" text-anchor="middle">Sun</text>
+                <!-- Threshold line -->
+                <line x1="50" y1="30" x2="580" y2="30" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>
+                <text x="582" y="34" font-size="9" fill="#EF4444" opacity="0.7">Limit</text>
+              </svg>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Alerts panel -->
+        <div class="panel" style="display:flex;flex-direction:column;">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Active Alerts
+            </div>
+            <span class="nav-badge" style="background:rgba(239,68,68,0.9);">3</span>
+          </div>
+          <div class="alert-list" style="flex:1;overflow-y:auto;">
+
+            <div class="alert-item">
+              <div class="alert-dot-wrap critical">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">TDS near maximum threshold</div>
+                <div class="alert-meta">Admin Bldg · Device ESP-001 · 2m ago</div>
+              </div>
+              <span class="alert-level critical">Critical</span>
+            </div>
+
+            <div class="alert-item">
+              <div class="alert-dot-wrap high">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">Abnormal water consumption — Thursday spike</div>
+                <div class="alert-meta">CCS Building · Device ESP-003 · 14m ago</div>
+              </div>
+              <span class="alert-level high">High</span>
+            </div>
+
+            <div class="alert-item">
+              <div class="alert-dot-wrap medium">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">Device ESP-004 went offline</div>
+                <div class="alert-meta">Gymnasium · 1h 22m ago</div>
+              </div>
+              <span class="alert-level medium">Medium</span>
+            </div>
+
+            <div class="alert-item" style="opacity:0.55;">
+              <div class="alert-dot-wrap low">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">pH level returned to normal range</div>
+                <div class="alert-meta">Library Bldg · Device ESP-002 · 2h ago · Resolved</div>
+              </div>
+            </div>
+
+            <div class="alert-item" style="opacity:0.55;">
+              <div class="alert-dot-wrap low">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="alert-info">
+                <div class="alert-title">Scheduled maintenance completed</div>
+                <div class="alert-meta">Admin Bldg · GSU Team · Yesterday · Resolved</div>
+              </div>
+            </div>
+
+          </div>
+          <div style="padding:12px 20px; border-top:1px solid var(--border);">
+            <button class="panel-action" style="font-size:13px;">View all alerts →</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Bottom row ── -->
+      <div class="bottom-grid">
+
+        <!-- Buildings / Locations -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Monitored Buildings
+            </div>
+            <button class="panel-action">Manage →</button>
+          </div>
+          <div class="building-list">
+            <div class="building-item">
+              <div class="building-num">01</div>
+              <div class="building-info">
+                <div class="building-name">Administration Building</div>
+                <div class="building-area">Main Campus · Comfort Rooms 1F–3F</div>
+              </div>
+              <div class="building-status warn">
+                <div class="b-dot warn"></div> Warning
+              </div>
+            </div>
+            <div class="building-item">
+              <div class="building-num">02</div>
+              <div class="building-info">
+                <div class="building-name">Library Building</div>
+                <div class="building-area">Main Campus · Comfort Rooms GF–2F</div>
+              </div>
+              <div class="building-status safe">
+                <div class="b-dot safe"></div> Safe
+              </div>
+            </div>
+            <div class="building-item">
+              <div class="building-num">03</div>
+              <div class="building-info">
+                <div class="building-name">CCS Building</div>
+                <div class="building-area">Main Campus · Lab & Comfort Rooms</div>
+              </div>
+              <div class="building-status safe">
+                <div class="b-dot safe"></div> Safe
+              </div>
+            </div>
+            <div class="building-item">
+              <div class="building-num">04</div>
+              <div class="building-info">
+                <div class="building-name">Gymnasium</div>
+                <div class="building-area">Main Campus · Locker & CR Facilities</div>
+              </div>
+              <div class="building-status danger">
+                <div class="b-dot danger"></div> Offline
+              </div>
+            </div>
+            <div class="building-item">
+              <div class="building-num">05</div>
+              <div class="building-info">
+                <div class="building-name">Engineering Building</div>
+                <div class="building-area">Main Campus · Workshop & CRs</div>
+              </div>
+              <div class="building-status safe">
+                <div class="b-dot safe"></div> Safe
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent readings table -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Recent Sensor Readings
+            </div>
+            <button class="panel-action">View all →</button>
+          </div>
+          <table class="reading-table">
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>pH</th>
+                <th>Turbidity</th>
+                <th>Temp</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>ESP-001</strong><br/><span style="font-size:11px;color:var(--text-light);">Admin Bldg</span></td>
+                <td>7.2</td>
+                <td>2.4 NTU</td>
+                <td>28.3 °C</td>
+                <td><span class="r-status warn">Warning</span></td>
+              </tr>
+              <tr>
+                <td><strong>ESP-002</strong><br/><span style="font-size:11px;color:var(--text-light);">Library</span></td>
+                <td>7.0</td>
+                <td>1.8 NTU</td>
+                <td>27.6 °C</td>
+                <td><span class="r-status safe">Safe</span></td>
+              </tr>
+              <tr>
+                <td><strong>ESP-003</strong><br/><span style="font-size:11px;color:var(--text-light);">CCS Bldg</span></td>
+                <td>6.8</td>
+                <td>3.1 NTU</td>
+                <td>29.1 °C</td>
+                <td><span class="r-status safe">Safe</span></td>
+              </tr>
+              <tr>
+                <td><strong>ESP-004</strong><br/><span style="font-size:11px;color:var(--text-light);">Gymnasium</span></td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td><span class="r-status danger">Offline</span></td>
+              </tr>
+              <tr>
+                <td><strong>ESP-005</strong><br/><span style="font-size:11px;color:var(--text-light);">Engineering</span></td>
+                <td>7.4</td>
+                <td>2.0 NTU</td>
+                <td>28.8 °C</td>
+                <td><span class="r-status safe">Safe</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </div><!-- /content -->
+
+  </div><!-- /main -->
+
+</div><!-- /app -->
+
+<script>
+  // ── Read user from storage and update sidebar footer ─────────────────────
+  (function() {
+    const stored = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!stored) return;
+    try {
+      const user = JSON.parse(stored);
+      const nameEl = document.querySelector('.user-name');
+      const roleEl = document.querySelector('.user-role');
+      const avatarEl = document.querySelector('.user-avatar');
+      if (nameEl && user.fullname) nameEl.textContent = user.fullname;
+      if (roleEl && user.role) roleEl.textContent = user.role.toUpperCase();
+      if (avatarEl && user.fullname) avatarEl.textContent = user.fullname.charAt(0).toUpperCase();
+    } catch(e) {}
+  })();
+
+  // ── Active nav highlight ──────────────────────────────────────────────────
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      if (this.getAttribute('href') === '#') {
+        e.preventDefault();
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+      }
+    });
+  });
+
+  // ── Refresh button: animate & fake-update values ─────────────────────────
+  document.querySelector('.icon-btn[title="Refresh"]').addEventListener('click', function() {
+    this.style.transform = 'rotate(360deg)';
+    this.style.transition = 'transform 0.5s ease';
+    setTimeout(() => { this.style.transform = ''; this.style.transition = ''; }, 500);
+  });
+</script>
+
+</body>
+</html>

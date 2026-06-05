@@ -61,7 +61,7 @@ async function login() {
       setSuccess();
 
       setTimeout(() => {
-        window.location.href = "dashboard.html";
+        window.location.href = "/frontend/dashboard.html";
       }, 900);
 
     } else {
