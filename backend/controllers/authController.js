@@ -248,9 +248,32 @@ async function exchangeCode(req, res) {
 
   } catch (err) {
     console.error("[AquaMonitor] exchangeCode error:", err);
+    res.status(500
+    ).json({ message: "Server error." });
+  }
+}
+
+
+// GET /api/auth/me  (requires JWT in Authorization header)
+async function getMe(req, res) {
+  try {
+    const [rows] = await pool.query(
+      "SELECT user_id, fullname, email, phone_number, role, avatar FROM users WHERE user_id = ?",
+      [req.user.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    res.json({ user: rows[0] });
+
+  } catch (err) {
+    console.error("[AquaSense] getMe error:", err);
     res.status(500).json({ message: "Server error." });
   }
 }
 
-module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode };
+module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode, getMe };
+
 
