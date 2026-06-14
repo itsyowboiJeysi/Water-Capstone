@@ -489,12 +489,7 @@
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Recent Sensor Readings</div><button class="panel-action" onclick="navigate('readings')">View all →</button></div>
             <table class="data-table">
               <thead><tr><th>Device</th><th>pH</th><th>Turbidity</th><th>Temp</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td><strong>ESP-001</strong><br/><span style="font-size:11px;color:var(--text-light)">Admin Bldg</span></td><td>7.2</td><td>2.4 NTU</td><td>28.3 °C</td><td><span class="r-status warn">Warning</span></td></tr>
-                <tr><td><strong>ESP-002</strong><br/><span style="font-size:11px;color:var(--text-light)">Library</span></td><td>7.0</td><td>1.8 NTU</td><td>27.6 °C</td><td><span class="r-status safe">Safe</span></td></tr>
-                <tr><td><strong>ESP-003</strong><br/><span style="font-size:11px;color:var(--text-light)">CCS Bldg</span></td><td>6.8</td><td>3.1 NTU</td><td>29.1 °C</td><td><span class="r-status safe">Safe</span></td></tr>
-                <tr><td><strong>ESP-004</strong><br/><span style="font-size:11px;color:var(--text-light)">Gymnasium</span></td><td>—</td><td>—</td><td>—</td><td><span class="r-status offline">Offline</span></td></tr>
-                <tr><td><strong>ESP-005</strong><br/><span style="font-size:11px;color:var(--text-light)">Engineering</span></td><td>7.4</td><td>2.0 NTU</td><td>28.8 °C</td><td><span class="r-status safe">Safe</span></td></tr>
+               <tbody id="dashboard-recent-readings">
               </tbody>
             </table>
           </div>
@@ -504,22 +499,13 @@
       <!-- ════════════════════════ VIEW: LIVE MONITORING ════════════════════════ -->
       <div class="view" id="view-live">
         <div class="section-header"><h2>Live Monitoring</h2><p>Real-time sensor feed from all active ESP32 devices on campus</p></div>
-        <div class="stats-grid">
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="stat-badge safe">Normal</span></div><div class="stat-value">7.2<span class="stat-unit">pH</span></div><div class="stat-label">pH Level</div><div class="stat-sub">Admin Bldg · ESP-001</div></div>
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><span class="stat-badge safe">Clear</span></div><div class="stat-value">2.4<span class="stat-unit">NTU</span></div><div class="stat-label">Turbidity</div><div class="stat-sub">Last 5 min avg</div></div>
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><span class="stat-badge safe">Normal</span></div><div class="stat-value">28.3<span class="stat-unit">°C</span></div><div class="stat-label">Temperature</div><div class="stat-sub">Within safe range</div></div>
-          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge warn">High</span></div><div class="stat-value">34.7<span class="stat-unit">L/min</span></div><div class="stat-label">Flow Rate</div><div class="stat-sub">Elevated — monitor closely</div></div>
+     <div class="stats-grid" id="live-stats">
         </div>
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>All Sensor Parameters — Current Readings</div><div style="font-size:12px;color:var(--text-light)">Auto-refreshes every 30s</div></div>
           <div class="panel-body">
-            <div class="params-grid" style="grid-template-columns:repeat(3,1fr);">
-              <div class="param-tile"><div class="param-top"><span class="param-name">pH Level</span><div class="param-status-dot safe"></div></div><div class="param-val">7.2<span class="param-unit">pH</span></div><div class="param-range">Safe: 6.5 – 8.5 | PNSDW 2017</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div></div>
-              <div class="param-tile"><div class="param-top"><span class="param-name">Turbidity</span><div class="param-status-dot safe"></div></div><div class="param-val">2.4<span class="param-unit">NTU</span></div><div class="param-range">Safe: 0 – 5 NTU</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:48%"></div></div></div>
-              <div class="param-tile"><div class="param-top"><span class="param-name">TDS</span><div class="param-status-dot warn"></div></div><div class="param-val">448<span class="param-unit">ppm</span></div><div class="param-range">Safe: 0 – 500 ppm</div><div class="param-bar-wrap"><div class="param-bar warn" style="width:89%"></div></div></div>
-              <div class="param-tile"><div class="param-top"><span class="param-name">Temperature</span><div class="param-status-dot safe"></div></div><div class="param-val">28.3<span class="param-unit">°C</span></div><div class="param-range">Safe: 0 – 35 °C</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:81%"></div></div></div>
-              <div class="param-tile"><div class="param-top"><span class="param-name">Ammonia</span><div class="param-status-dot safe"></div></div><div class="param-val">0.12<span class="param-unit">mg/L</span></div><div class="param-range">Safe: 0 – 0.50 mg/L</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:24%"></div></div></div>
-              <div class="param-tile"><div class="param-top"><span class="param-name">Flow Rate</span><div class="param-status-dot safe"></div></div><div class="param-val">34.7<span class="param-unit">L/min</span></div><div class="param-range">Safe: 0 – 100 L/min</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div></div>
+            <div class="params-grid" id="live-params" style="grid-template-columns:repeat(3,1fr);">
+             
             </div>
           </div>
         </div>
@@ -532,14 +518,8 @@
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>All Sensor Readings Log</div><div style="display:flex;gap:8px;"><button class="panel-action">Filter</button><button class="panel-action">Export CSV →</button></div></div>
           <table class="data-table">
             <thead><tr><th>Reading ID</th><th>Device</th><th>pH</th><th>Turbidity</th><th>TDS</th><th>Temp</th><th>Ammonia</th><th>Flow</th><th>Status</th><th>Time</th></tr></thead>
-            <tbody>
-              <tr><td>#10045</td><td><strong>ESP-001</strong> / Admin Bldg</td><td>7.2</td><td>2.4 NTU</td><td>448 ppm</td><td>28.3°C</td><td>0.12 mg/L</td><td>34.7 L/m</td><td><span class="r-status warn">Warning</span></td><td style="color:var(--text-light);font-size:11px">2 min ago</td></tr>
-              <tr><td>#10044</td><td><strong>ESP-002</strong> / Library</td><td>7.0</td><td>1.8 NTU</td><td>312 ppm</td><td>27.6°C</td><td>0.08 mg/L</td><td>22.1 L/m</td><td><span class="r-status safe">Safe</span></td><td style="color:var(--text-light);font-size:11px">5 min ago</td></tr>
-              <tr><td>#10043</td><td><strong>ESP-003</strong> / CCS Bldg</td><td>6.8</td><td>3.1 NTU</td><td>280 ppm</td><td>29.1°C</td><td>0.15 mg/L</td><td>19.4 L/m</td><td><span class="r-status safe">Safe</span></td><td style="color:var(--text-light);font-size:11px">8 min ago</td></tr>
-              <tr><td>#10042</td><td><strong>ESP-005</strong> / Engineering</td><td>7.4</td><td>2.0 NTU</td><td>198 ppm</td><td>28.8°C</td><td>0.09 mg/L</td><td>28.0 L/m</td><td><span class="r-status safe">Safe</span></td><td style="color:var(--text-light);font-size:11px">11 min ago</td></tr>
-              <tr><td>#10041</td><td><strong>ESP-001</strong> / Admin Bldg</td><td>7.1</td><td>2.6 NTU</td><td>441 ppm</td><td>28.1°C</td><td>0.11 mg/L</td><td>33.2 L/m</td><td><span class="r-status warn">Warning</span></td><td style="color:var(--text-light);font-size:11px">32 min ago</td></tr>
-              <tr><td>#10040</td><td><strong>ESP-002</strong> / Library</td><td>7.3</td><td>1.5 NTU</td><td>295 ppm</td><td>27.2°C</td><td>0.07 mg/L</td><td>21.8 L/m</td><td><span class="r-status safe">Safe</span></td><td style="color:var(--text-light);font-size:11px">1h ago</td></tr>
-              <tr><td>#10039</td><td><strong>ESP-003</strong> / CCS Bldg</td><td>6.9</td><td>3.4 NTU</td><td>310 ppm</td><td>29.3°C</td><td>0.14 mg/L</td><td>20.1 L/m</td><td><span class="r-status safe">Safe</span></td><td style="color:var(--text-light);font-size:11px">1h 15m ago</td></tr>
+            <tbody id="readings-tbody">
+             
             </tbody>
           </table>
         </div>
@@ -612,13 +592,8 @@
         </div>
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>All Alerts</div></div>
-          <div class="alert-list">
-            <div class="alert-item"><div class="alert-dot-wrap critical"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="alert-info"><div class="alert-title">TDS level near maximum threshold (448 ppm)</div><div class="alert-meta">Admin Building · Device ESP-001 · Type: TDS · June 5, 2026 · 10:12 AM</div></div><span class="alert-level critical">Critical</span></div>
-            <div class="alert-item"><div class="alert-dot-wrap high"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="alert-info"><div class="alert-title">Abnormal water consumption spike detected (Thursday)</div><div class="alert-meta">CCS Building · Device ESP-003 · Type: Flow Rate · June 5, 2026 · 9:58 AM</div></div><span class="alert-level high">High</span></div>
-            <div class="alert-item"><div class="alert-dot-wrap medium"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="alert-info"><div class="alert-title">Device ESP-004 connection lost</div><div class="alert-meta">Gymnasium · Type: Water Supply · June 5, 2026 · 8:50 AM</div></div><span class="alert-level medium">Medium</span></div>
-            <div class="alert-item" style="opacity:.6;"><div class="alert-dot-wrap low"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="alert-info"><div class="alert-title">pH level returned to normal range (was 8.6 pH)</div><div class="alert-meta">Library Building · Device ESP-002 · Type: pH · June 5, 2026 · 7:30 AM</div></div><span class="alert-level resolved">Resolved</span></div>
-            <div class="alert-item" style="opacity:.6;"><div class="alert-dot-wrap low"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="alert-info"><div class="alert-title">Turbidity briefly exceeded 5 NTU threshold</div><div class="alert-meta">CCS Building · Device ESP-003 · Type: Turbidity · June 4, 2026 · 3:15 PM</div></div><span class="alert-level resolved">Resolved</span></div>
-            <div class="alert-item" style="opacity:.6;"><div class="alert-dot-wrap low"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="alert-info"><div class="alert-title">Scheduled maintenance completed — Admin Bldg</div><div class="alert-meta">Admin Building · GSU Team · June 4, 2026 · 11:00 AM</div></div><span class="alert-level resolved">Resolved</span></div>
+            <div class="alert-list" id="alerts-full-list">
+              <!-- populated by dashboard-data.js -->
           </div>
         </div>
       </div>
@@ -630,12 +605,7 @@
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>All Monitored Buildings</div></div>
           <table class="data-table">
             <thead><tr><th>#</th><th>Building Name</th><th>Area / Zone</th><th>Description</th><th>Devices</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td>01</td><td><strong>Administration Building</strong></td><td>Main Campus</td><td>Comfort rooms 1F–3F, admin offices</td><td>1 device</td><td><span class="r-status warn">Warning</span></td></tr>
-              <tr><td>02</td><td><strong>Library Building</strong></td><td>Main Campus</td><td>Comfort rooms GF–2F, reading areas</td><td>1 device</td><td><span class="r-status safe">Safe</span></td></tr>
-              <tr><td>03</td><td><strong>CCS Building</strong></td><td>Main Campus</td><td>Computer labs, comfort rooms, faculty</td><td>1 device</td><td><span class="r-status safe">Safe</span></td></tr>
-              <tr><td>04</td><td><strong>Gymnasium</strong></td><td>Main Campus</td><td>Locker rooms, comfort rooms, courts</td><td>1 device</td><td><span class="r-status offline">Offline</span></td></tr>
-              <tr><td>05</td><td><strong>Engineering Building</strong></td><td>Main Campus</td><td>Workshops, labs, comfort rooms</td><td>1 device</td><td><span class="r-status safe">Safe</span></td></tr>
+            <tbody id="locations-tbody">
             </tbody>
           </table>
         </div>
@@ -644,22 +614,14 @@
       <!-- ════════════════════════ VIEW: DEVICES ════════════════════════ -->
       <div class="view" id="view-devices">
         <div class="section-header"><h2>Devices</h2><p>All ESP32 IoT devices registered in the AquaSense monitoring network</p></div>
-        <div class="stats-grid">
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><span class="stat-badge safe">Online</span></div><div class="stat-value">4</div><div class="stat-label">Online Devices</div></div>
-          <div class="stat-card danger"><div class="stat-header"><div class="stat-icon-wrap danger"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><span class="stat-badge danger">Offline</span></div><div class="stat-value">1</div><div class="stat-label">Offline Devices</div></div>
-          <div class="stat-card navy"><div class="stat-header"><div class="stat-icon-wrap navy"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg></div><span class="stat-badge navy">Total</span></div><div class="stat-value">5</div><div class="stat-label">Total Devices</div></div>
-          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="stat-badge warn">Pending</span></div><div class="stat-value">0</div><div class="stat-label">In Maintenance</div></div>
+           <div class="stats-grid" id="devices-stats">
+
         </div>
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Device Registry</div></div>
           <table class="data-table">
-            <thead><tr><th>Device ID</th><th>ESP32 UID</th><th>Location</th><th>Installed</th><th>Last Reading</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td><strong>DEV-001</strong></td><td style="font-family:monospace;font-size:12px">ESP32-A1B2C3D4</td><td>Admin Building</td><td>Jan 15, 2026</td><td>2 min ago</td><td><span class="device-badge online"><span class="device-badge-dot"></span>Online</span></td></tr>
-              <tr><td><strong>DEV-002</strong></td><td style="font-family:monospace;font-size:12px">ESP32-E5F6G7H8</td><td>Library Building</td><td>Jan 15, 2026</td><td>5 min ago</td><td><span class="device-badge online"><span class="device-badge-dot"></span>Online</span></td></tr>
-              <tr><td><strong>DEV-003</strong></td><td style="font-family:monospace;font-size:12px">ESP32-I9J0K1L2</td><td>CCS Building</td><td>Jan 20, 2026</td><td>8 min ago</td><td><span class="device-badge online"><span class="device-badge-dot"></span>Online</span></td></tr>
-              <tr><td><strong>DEV-004</strong></td><td style="font-family:monospace;font-size:12px">ESP32-M3N4O5P6</td><td>Gymnasium</td><td>Jan 22, 2026</td><td>1h 22m ago</td><td><span class="device-badge offline"><span class="device-badge-dot"></span>Offline</span></td></tr>
-              <tr><td><strong>DEV-005</strong></td><td style="font-family:monospace;font-size:12px">ESP32-Q7R8S9T0</td><td>Engineering Building</td><td>Feb 1, 2026</td><td>11 min ago</td><td><span class="device-badge online"><span class="device-badge-dot"></span>Online</span></td></tr>
+             <thead><tr><th>Device ID</th><th>Device Name</th><th>Location</th><th>Last Seen</th><th>Status</th></tr></thead>
+              <tbody id="devices-tbody">
             </tbody>
           </table>
         </div>
@@ -670,11 +632,7 @@
         <div class="section-header"><h2>Maintenance Logs</h2><p>Records of all maintenance and repair activities on campus water devices</p></div>
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Maintenance History</div><button class="panel-action">+ Add Log</button></div>
-          <div>
-            <div class="maint-item"><div class="maint-header"><div class="maint-title">Sensor Calibration — Admin Building (DEV-001)</div><div class="maint-date">June 4, 2026</div></div><div class="maint-detail">Routine calibration of pH, TDS, and turbidity sensors. pH sensor offset corrected by +0.1. TDS probe cleaned and re-calibrated using 500 ppm standard solution. All readings verified within ±2% of reference.</div><div class="maint-tags"><span class="maint-tag">pH Sensor</span><span class="maint-tag">TDS Probe</span><span class="maint-tag">Calibration</span><span class="maint-tag">Repaired by: Juan dela Cruz</span></div></div>
-            <div class="maint-item"><div class="maint-header"><div class="maint-title">Device Replacement — Gymnasium (DEV-004)</div><div class="maint-date">June 3, 2026</div></div><div class="maint-detail">ESP32 microcontroller replaced due to Wi-Fi module failure. New unit flashed with latest firmware v2.1.4. Flow sensor reconnected and tested. Device currently offline pending final network configuration.</div><div class="maint-tags"><span class="maint-tag">ESP32 Replacement</span><span class="maint-tag">Firmware Update</span><span class="maint-tag">Flow Sensor</span><span class="maint-tag">Repaired by: Pedro Santos</span></div></div>
-            <div class="maint-item"><div class="maint-header"><div class="maint-title">Pipe Inspection — CCS Building</div><div class="maint-date">May 28, 2026</div></div><div class="maint-detail">Inspection of water supply pipes on 2F comfort rooms following elevated turbidity reading (4.8 NTU). Minor sediment buildup found in pipe joints. Flushed and cleaned. Turbidity returned to normal within 2 hours.</div><div class="maint-tags"><span class="maint-tag">Pipe Inspection</span><span class="maint-tag">Turbidity Issue</span><span class="maint-tag">Repaired by: Maria Reyes</span></div></div>
-            <div class="maint-item"><div class="maint-header"><div class="maint-title">Flow Sensor Cleaning — Library Building (DEV-002)</div><div class="maint-date">May 20, 2026</div></div><div class="maint-detail">Flow sensor rotor cleaned and lubricated after reporting inconsistent flow rate readings. Verified flow rate accuracy against manual measurement. Error reduced from ±8% to ±1.5%.</div><div class="maint-tags"><span class="maint-tag">Flow Sensor</span><span class="maint-tag">Cleaning</span><span class="maint-tag">Repaired by: Juan dela Cruz</span></div></div>
+          <div id="maintenance-list">
           </div>
         </div>
       </div>
@@ -771,6 +729,7 @@
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
+<script src="js/dashboard-data.js"></script>
 <script src="js/google-auth-handler.js"></script>
 <script>
 
