@@ -436,28 +436,9 @@
 
       <!-- ════════════════════════ VIEW: DASHBOARD ════════════════════════ -->
       <div class="view active" id="view-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card safe">
-            <div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/></svg></div><span class="stat-badge safe">Safe</span></div>
-            <div class="stat-value">7.2<span class="stat-unit">pH</span></div>
-            <div class="stat-label">pH Level</div><div class="stat-sub">Range: 6.5 – 8.5</div>
-          </div>
-          <div class="stat-card safe">
-            <div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><span class="stat-badge safe">Safe</span></div>
-            <div class="stat-value">2.4<span class="stat-unit">NTU</span></div>
-            <div class="stat-label">Turbidity</div><div class="stat-sub">Range: 0 – 5 NTU</div>
-          </div>
-          <div class="stat-card warn">
-            <div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge warn">Warning</span></div>
-            <div class="stat-value">448<span class="stat-unit">ppm</span></div>
-            <div class="stat-label">TDS</div><div class="stat-sub">Range: 0 – 500 ppm</div>
-          </div>
-          <div class="stat-card info">
-            <div class="stat-header"><div class="stat-icon-wrap info"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><span class="stat-badge info">Active</span></div>
-            <div class="stat-value">4<span class="stat-unit">online</span></div>
-            <div class="stat-label">Devices</div><div class="stat-sub">1 offline · 0 maintenance</div>
-          </div>
-        </div>
+        <div class="stats-grid" id="dashboard-stats">
+        <!-- populated by dashboard-data.js -->
+      </div>
         <div class="dash-grid">
           <div style="display:flex;flex-direction:column;gap:16px;">
             <div class="panel">
@@ -466,14 +447,9 @@
                 <button class="panel-action" onclick="navigate('live')">View all →</button>
               </div>
               <div class="panel-body">
-                <div class="params-grid">
-                  <div class="param-tile"><div class="param-top"><span class="param-name">pH Level</span><div class="param-status-dot safe"></div></div><div class="param-val">7.2<span class="param-unit">pH</span></div><div class="param-range">6.5 – 8.5</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div></div>
-                  <div class="param-tile"><div class="param-top"><span class="param-name">Turbidity</span><div class="param-status-dot safe"></div></div><div class="param-val">2.4<span class="param-unit">NTU</span></div><div class="param-range">0 – 5 NTU</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:48%"></div></div></div>
-                  <div class="param-tile"><div class="param-top"><span class="param-name">TDS</span><div class="param-status-dot warn"></div></div><div class="param-val">448<span class="param-unit">ppm</span></div><div class="param-range">0 – 500 ppm</div><div class="param-bar-wrap"><div class="param-bar warn" style="width:89%"></div></div></div>
-                  <div class="param-tile"><div class="param-top"><span class="param-name">Temperature</span><div class="param-status-dot safe"></div></div><div class="param-val">28.3<span class="param-unit">°C</span></div><div class="param-range">0 – 35 °C</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:81%"></div></div></div>
-                  <div class="param-tile"><div class="param-top"><span class="param-name">Ammonia</span><div class="param-status-dot safe"></div></div><div class="param-val">0.12<span class="param-unit">mg/L</span></div><div class="param-range">0 – 0.50 mg/L</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:24%"></div></div></div>
-                  <div class="param-tile"><div class="param-top"><span class="param-name">Flow Rate</span><div class="param-status-dot safe"></div></div><div class="param-val">34.7<span class="param-unit">L/min</span></div><div class="param-range">0 – 100 L/min</div><div class="param-bar-wrap"><div class="param-bar safe" style="width:35%"></div></div></div>
-                </div>
+               <div class="params-grid" id="dashboard-params">
+                <!-- populated by dashboard-data.js -->
+              </div>
               </div>
             </div>
             <div class="panel">
@@ -497,24 +473,17 @@
           </div>
           <div class="panel" style="display:flex;flex-direction:column;">
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Active Alerts</div><span class="nav-badge" style="background:rgba(239,68,68,0.9);">3</span></div>
-            <div class="alert-list" style="flex:1;overflow-y:auto;">
-              <div class="alert-item"><div class="alert-dot-wrap critical"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="alert-info"><div class="alert-title">TDS near maximum threshold</div><div class="alert-meta">Admin Bldg · ESP-001 · 2m ago</div></div><span class="alert-level critical">Critical</span></div>
-              <div class="alert-item"><div class="alert-dot-wrap high"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div class="alert-info"><div class="alert-title">Abnormal water consumption — Thu spike</div><div class="alert-meta">CCS Building · ESP-003 · 14m ago</div></div><span class="alert-level high">High</span></div>
-              <div class="alert-item"><div class="alert-dot-wrap medium"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="alert-info"><div class="alert-title">Device ESP-004 went offline</div><div class="alert-meta">Gymnasium · 1h 22m ago</div></div><span class="alert-level medium">Medium</span></div>
-              <div class="alert-item" style="opacity:.55;"><div class="alert-dot-wrap low"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="alert-info"><div class="alert-title">pH level returned to normal</div><div class="alert-meta">Library · ESP-002 · 2h ago · Resolved</div></div></div>
-              <div class="alert-item" style="opacity:.55;"><div class="alert-dot-wrap low"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><div class="alert-info"><div class="alert-title">Scheduled maintenance completed</div><div class="alert-meta">Admin Bldg · Yesterday · Resolved</div></div></div>
+            <div class="alert-list" id="dashboard-alerts" style="flex:1;overflow-y:auto;">
+              <!-- populated by dashboard-data.js -->
             </div>
             <div style="padding:12px 20px;border-top:1px solid var(--border);"><button class="panel-action" onclick="navigate('alerts')">View all alerts →</button></div>
           </div>
         </div>
         <div class="bottom-grid">
           <div class="panel">
-            <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Monitored Buildings</div><button class="panel-action" onclick="navigate('locations')">Manage →</button></div>
-            <div class="building-item"><div class="building-num">01</div><div class="building-info"><div class="building-name">Administration Building</div><div class="building-area">Comfort Rooms 1F–3F</div></div><div class="building-status warn"><div class="b-dot warn"></div>Warning</div></div>
-            <div class="building-item"><div class="building-num">02</div><div class="building-info"><div class="building-name">Library Building</div><div class="building-area">Comfort Rooms GF–2F</div></div><div class="building-status safe"><div class="b-dot safe"></div>Safe</div></div>
-            <div class="building-item"><div class="building-num">03</div><div class="building-info"><div class="building-name">CCS Building</div><div class="building-area">Lab & Comfort Rooms</div></div><div class="building-status safe"><div class="b-dot safe"></div>Safe</div></div>
-            <div class="building-item"><div class="building-num">04</div><div class="building-info"><div class="building-name">Gymnasium</div><div class="building-area">Locker & CR Facilities</div></div><div class="building-status danger"><div class="b-dot danger"></div>Offline</div></div>
-            <div class="building-item"><div class="building-num">05</div><div class="building-info"><div class="building-name">Engineering Building</div><div class="building-area">Workshop & CRs</div></div><div class="building-status safe"><div class="b-dot safe"></div>Safe</div></div>
+        <div id="dashboard-buildings">
+          <!-- populated by dashboard-data.js -->
+        </div>
           </div>
           <div class="panel">
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Recent Sensor Readings</div><button class="panel-action" onclick="navigate('readings')">View all →</button></div>

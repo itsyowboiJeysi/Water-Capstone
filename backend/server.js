@@ -8,10 +8,14 @@ const passport       = require("./config/passport");
 const { initDB }     = require("./config/db");
 const authRoutes     = require("./routes/authRoutes");
 const googleRoutes   = require("./routes/google");
+const { generalLimiter } = require("./middleware/rateLimiter");
+const dataRoutes = require("./routes/dataRoutes");
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Trust proxy (needed for accurate IPs behind a proxy/load balancer) ───────
+app.set("trust proxy", 1);
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -20,7 +24,8 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: "10kb" }));
+app.use(generalLimiter);
 
 // Session required by Passport (even though we issue JWTs)
 app.use(session({
@@ -35,7 +40,7 @@ app.use(passport.session());
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", googleRoutes);   // GET /api/auth/google  &  /api/auth/google/callback
-
+app.use("/api", dataRoutes);
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "AquaMonitor", time: new Date().toISOString() });
