@@ -526,77 +526,75 @@
       </div>
 
       <!-- ════════════════════════ VIEW: ANALYTICS ════════════════════════ -->
-      <div class="view" id="view-analytics">
-        <div class="section-header"><h2>Analytics</h2><p>Water quality trends and consumption insights across CSPC campus</p></div>
-        <div class="stats-grid">
-          <div class="stat-card info"><div class="stat-header"><div class="stat-icon-wrap info"><svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></div><span class="stat-badge info">This Week</span></div><div class="stat-value">2,840<span class="stat-unit">L</span></div><div class="stat-label">Total Consumption</div><div class="stat-sub">↑ 12% vs last week</div></div>
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="stat-badge safe">Good</span></div><div class="stat-value">98.2<span class="stat-unit">%</span></div><div class="stat-label">Uptime (30 days)</div><div class="stat-sub">4 of 5 devices online</div></div>
-          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><span class="stat-badge warn">This Month</span></div><div class="stat-value">14<span class="stat-unit">alerts</span></div><div class="stat-label">Total Alerts</div><div class="stat-sub">3 unresolved</div></div>
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/></svg></div><span class="stat-badge safe">Avg</span></div><div class="stat-value">7.1<span class="stat-unit">pH</span></div><div class="stat-label">Avg pH (7 days)</div><div class="stat-sub">Within PNSDW 2017 standard</div></div>
-        </div>
-        <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>Daily Water Consumption Per Building</div></div>
-          <div class="panel-body">
-            <svg viewBox="0 0 700 200" style="width:100%;height:200px;overflow:visible;">
-              <defs><linearGradient id="b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2C9AD1" stop-opacity=".85"/><stop offset="100%" stop-color="#1A6FA8" stop-opacity=".6"/></linearGradient><linearGradient id="b2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D4A017" stop-opacity=".85"/><stop offset="100%" stop-color="#C97A00" stop-opacity=".6"/></linearGradient><linearGradient id="b3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3DD68C" stop-opacity=".85"/><stop offset="100%" stop-color="#0F7050" stop-opacity=".6"/></linearGradient></defs>
-              <line x1="60" y1="20"  x2="680" y2="20"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,3"/>
-              <line x1="60" y1="70"  x2="680" y2="70"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,3"/>
-              <line x1="60" y1="120" x2="680" y2="120" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,3"/>
-              <line x1="60" y1="165" x2="680" y2="165" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,3"/>
-              <text x="55" y="23" font-size="10" fill="#8292B0" text-anchor="end">600L</text><text x="55" y="73" font-size="10" fill="#8292B0" text-anchor="end">450L</text><text x="55" y="123" font-size="10" fill="#8292B0" text-anchor="end">300L</text><text x="55" y="168" font-size="10" fill="#8292B0" text-anchor="end">150L</text>
-              <!-- Admin Bldg (blue) -->
-              <rect x="70"  y="55"  width="28" height="110" rx="4" fill="url(#b1)"/>
-              <rect x="170" y="35"  width="28" height="130" rx="4" fill="url(#b1)"/>
-              <rect x="270" y="75"  width="28" height="90"  rx="4" fill="url(#b1)"/>
-              <rect x="370" y="25"  width="28" height="140" rx="4" fill="url(#b1)"/>
-              <rect x="470" y="60"  width="28" height="105" rx="4" fill="url(#b1)"/>
-              <rect x="570" y="80"  width="28" height="85"  rx="4" fill="url(#b1)"/>
-              <!-- Library (gold) -->
-              <rect x="100" y="90"  width="28" height="75"  rx="4" fill="url(#b2)"/>
-              <rect x="200" y="70"  width="28" height="95"  rx="4" fill="url(#b2)"/>
-              <rect x="300" y="100" width="28" height="65"  rx="4" fill="url(#b2)"/>
-              <rect x="400" y="60"  width="28" height="105" rx="4" fill="url(#b2)"/>
-              <rect x="500" y="95"  width="28" height="70"  rx="4" fill="url(#b2)"/>
-              <rect x="600" y="105" width="28" height="60"  rx="4" fill="url(#b2)"/>
-              <!-- CCS Bldg (green) -->
-              <rect x="130" y="110" width="28" height="55"  rx="4" fill="url(#b3)"/>
-              <rect x="230" y="95"  width="28" height="70"  rx="4" fill="url(#b3)"/>
-              <rect x="330" y="120" width="28" height="45"  rx="4" fill="url(#b3)"/>
-              <rect x="430" y="80"  width="28" height="85"  rx="4" fill="url(#b3)"/>
-              <rect x="530" y="115" width="28" height="50"  rx="4" fill="url(#b3)"/>
-              <rect x="630" y="125" width="28" height="40"  rx="4" fill="url(#b3)"/>
-              <!-- X labels -->
-              <text x="114" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Mon</text>
-              <text x="214" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Tue</text>
-              <text x="314" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Wed</text>
-              <text x="414" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Thu</text>
-              <text x="514" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Fri</text>
-              <text x="614" y="185" font-size="10" fill="#8292B0" text-anchor="middle">Sat</text>
-              <!-- Legend -->
-              <rect x="70" y="198" width="10" height="10" rx="2" fill="url(#b1)"/><text x="84" y="207" font-size="10" fill="#4A5878">Admin Bldg</text>
-              <rect x="155" y="198" width="10" height="10" rx="2" fill="url(#b2)"/><text x="169" y="207" font-size="10" fill="#4A5878">Library</text>
-              <rect x="220" y="198" width="10" height="10" rx="2" fill="url(#b3)"/><text x="234" y="207" font-size="10" fill="#4A5878">CCS Bldg</text>
-            </svg>
-          </div>
-        </div>
+     <div class="view" id="view-analytics">
+  <div class="section-header"><h2>Analytics</h2><p>Water quality trends and consumption insights across CSPC campus</p></div>
+ 
+  <!-- Stat cards — populated by loadAnalytics() -->
+  <div class="stats-grid" id="analytics-stats" style="grid-template-columns:repeat(4,1fr);">
+    <!-- JS will fill this -->
+  </div>
+ 
+  <!-- Daily consumption chart — populated by renderAnalyticsChart() -->
+  <div class="panel-full">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Daily Water Consumption — Last 7 Days
       </div>
+    </div>
+    <div class="panel-body">
+      <div id="analytics-chart">
+        <!-- JS renders SVG bars here -->
+      </div>
+    </div>
+  </div>
+ 
+  <!-- Per-building breakdown table -->
+  <div class="panel-full" style="margin-top:16px;">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Consumption by Building
+      </div>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Building</th>
+          <th>Total (7 days)</th>
+          <th>Share</th>
+        </tr>
+      </thead>
+      <tbody id="analytics-building-table">
+        <!-- JS fills this -->
+      </tbody>
+    </table>
+  </div>
+</div>
 
       <!-- ════════════════════════ VIEW: ALERTS ════════════════════════ -->
-      <div class="view" id="view-alerts">
-        <div class="section-header"><h2>Alerts</h2><p>All system-generated alerts for water quality anomalies and device issues</p></div>
-        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
-          <div class="stat-card danger"><div class="stat-header"><div class="stat-icon-wrap danger"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><span class="stat-badge danger">Unresolved</span></div><div class="stat-value">3</div><div class="stat-label">Active Alerts</div></div>
-          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><span class="stat-badge warn">This Month</span></div><div class="stat-value">14</div><div class="stat-label">Total Alerts</div></div>
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div><span class="stat-badge safe">Resolved</span></div><div class="stat-value">11</div><div class="stat-label">Resolved Alerts</div></div>
-          <div class="stat-card info"><div class="stat-header"><div class="stat-icon-wrap info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="stat-badge info">Avg</span></div><div class="stat-value">18<span class="stat-unit">min</span></div><div class="stat-label">Avg Response Time</div></div>
-        </div>
-        <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>All Alerts</div></div>
-            <div class="alert-list" id="alerts-full-list">
-              <!-- populated by dashboard-data.js -->
-          </div>
-        </div>
+     <div class="view" id="view-alerts">
+  <div class="section-header"><h2>Alerts</h2><p>All system-generated alerts for water quality anomalies and device issues</p></div>
+ 
+  <!-- Stat cards — populated by loadAlertsView() -->
+  <div class="stats-grid" id="alerts-stats" style="grid-template-columns:repeat(4,1fr);">
+    <!-- JS will fill this -->
+  </div>
+ 
+  <!-- Full alert list — populated by loadAlerts() -->
+  <div class="panel-full">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        All Alerts
       </div>
+    </div>
+    <div class="alert-list" id="alerts-full-list">
+      <!-- JS fills this -->
+    </div>
+  </div>
+</div>
 
       <!-- ════════════════════════ VIEW: LOCATIONS ════════════════════════ -->
       <div class="view" id="view-locations">
@@ -638,23 +636,32 @@
       </div>
 
       <!-- ════════════════════════ VIEW: SMS LOGS ════════════════════════ -->
-      <div class="view" id="view-sms">
-        <div class="section-header"><h2>SMS Logs</h2><p>History of all SMS notifications sent to GSU and HSU personnel</p></div>
-        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><span class="stat-badge safe">Sent</span></div><div class="stat-value">38</div><div class="stat-label">Messages Sent</div></div>
-          <div class="stat-card danger"><div class="stat-header"><div class="stat-icon-wrap danger"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/></svg></div><span class="stat-badge danger">Failed</span></div><div class="stat-value">2</div><div class="stat-label">Failed</div></div>
-          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="stat-badge warn">Pending</span></div><div class="stat-value">1</div><div class="stat-label">Pending</div></div>
-        </div>
-        <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>SMS Notification History</div></div>
-          <div>
-            <div class="sms-item"><div class="sms-icon-wrap"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="sms-info"><div class="sms-msg">[CRITICAL] AquaSense: TDS level at Admin Bldg reached 448ppm — near max threshold of 500ppm. Immediate inspection advised.</div><div class="sms-meta">To: +63917-xxx-xxxx (GSU Admin) · Provider: Semaphore · June 5, 2026 10:13 AM</div></div><span class="sms-status sent">Sent</span></div>
-            <div class="sms-item"><div class="sms-icon-wrap"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="sms-info"><div class="sms-msg">[HIGH] AquaSense: Abnormal water flow detected at CCS Bldg (34.7 L/min). Possible leak — please verify.</div><div class="sms-meta">To: +63917-xxx-xxxx (GSU Admin) · Provider: Semaphore · June 5, 2026 9:59 AM</div></div><span class="sms-status sent">Sent</span></div>
-            <div class="sms-item"><div class="sms-icon-wrap" style="background:rgba(239,68,68,.1)"><svg viewBox="0 0 24 24" style="stroke:#DC2626"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="sms-info"><div class="sms-msg">[MEDIUM] AquaSense: Device ESP-004 at Gymnasium is offline. Sensor data unavailable.</div><div class="sms-meta">To: +63917-xxx-xxxx (GSU Admin) · Provider: Semaphore · June 5, 2026 8:51 AM</div></div><span class="sms-status failed">Failed</span></div>
-            <div class="sms-item"><div class="sms-icon-wrap"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div><div class="sms-info"><div class="sms-msg">[INFO] AquaSense: pH level at Library Bldg has returned to safe range (7.0 pH). No further action required.</div><div class="sms-meta">To: +63917-xxx-xxxx (HSU Officer) · Provider: Semaphore · June 5, 2026 7:31 AM</div></div><span class="sms-status sent">Sent</span></div>
-          </div>
-        </div>
+      
+<div class="view" id="view-sms">
+  <div class="section-header">
+    <h2>SMS Logs</h2>
+    <p>History of all SMS notifications sent to GSU and HSU personnel</p>
+  </div>
+ 
+  <!-- Stat cards — populated by loadSmsLogs() -->
+  <div class="stats-grid" id="sms-stats" style="grid-template-columns:repeat(3,1fr);">
+    <!-- JS will fill this -->
+  </div>
+ 
+  <!-- Log list — populated by loadSmsLogs() -->
+  <div class="panel-full">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        SMS Notification History
       </div>
+    </div>
+    <!-- JS renders .sms-item rows here -->
+    <div id="sms-list"></div>
+  </div>
+</div>
 
       <!-- ════════════════════════ VIEW: THRESHOLDS ════════════════════════ -->
       <div class="view" id="view-thresholds">
@@ -729,24 +736,26 @@
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
+
 <script src="js/dashboard-data.js"></script>
 <script src="js/google-auth-handler.js"></script>
 <script>
-
+ 
 const roleLabels = {
   admin: "Administrator",
   gsu:   "General Services Unit",
   hsu:   "Health Services Unit"
 };
-
+ 
 function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
   sessionStorage.removeItem("token");
   sessionStorage.removeItem("user");
+  sessionStorage.removeItem("activeView"); // ← clear saved view on logout
   window.location.replace("login.html");
 }
-
+ 
 function loadUserIntoSidebar(u) {
   if (u.fullname) {
     document.getElementById("userName").textContent   = u.fullname;
@@ -756,14 +765,14 @@ function loadUserIntoSidebar(u) {
     document.getElementById("userRole").textContent = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
   }
 }
-
+ 
 handleGoogleCallback().then(async () => {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   if (!token) {
     window.location.replace("login.html");
     return;
   }
-
+ 
   // Block back button after logout
   window.history.pushState(null, "", window.location.href);
   window.addEventListener("popstate", () => {
@@ -774,29 +783,26 @@ handleGoogleCallback().then(async () => {
       window.history.pushState(null, "", window.location.href);
     }
   });
-
-  // ── Fetch fresh user data from DB ────────────────────────────────────────
+ 
+  // Fetch fresh user data from DB
   try {
-    const res  = await fetch("http://localhost:5000/api/auth/me", {
+    const res = await fetch("http://localhost:5000/api/auth/me", {
       headers: { "Authorization": `Bearer ${token}` }
     });
-
+ 
     if (res.status === 401 || res.status === 403) {
-      // Token expired or invalid — force logout
       logout();
       return;
     }
-
+ 
     const data = await res.json();
     if (data.user) {
-      // Update storage with fresh data from DB
       const storage = localStorage.getItem("token") ? localStorage : sessionStorage;
       storage.setItem("user", JSON.stringify(data.user));
       loadUserIntoSidebar(data.user);
     }
-
+ 
   } catch (err) {
-    // If DB fetch fails, fall back to stored user data
     console.warn("[AquaSense] Could not fetch user from DB, using cached data.");
     const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
     if (raw) {
@@ -804,62 +810,77 @@ handleGoogleCallback().then(async () => {
     }
   }
 });
-
-
-  // ── Page metadata per view ─────────────────────────────────────────────────
-  const pageMeta = {
-    dashboard:   { title: 'Water Quality Dashboard',  subtitle: 'Camarines Sur Polytechnic Colleges — Real-time monitoring' },
-    live:        { title: 'Live Monitoring',           subtitle: 'Real-time sensor feed from all active ESP32 devices' },
-    readings:    { title: 'Sensor Readings',           subtitle: 'All recorded readings from ESP32 devices on campus' },
-    analytics:   { title: 'Analytics',                subtitle: 'Water quality trends and consumption insights' },
-    alerts:      { title: 'Alerts',                   subtitle: 'System-generated alerts for quality anomalies and device issues' },
-    locations:   { title: 'Locations',                subtitle: 'CSPC campus buildings monitored by AquaSense' },
-    devices:     { title: 'Devices',                  subtitle: 'ESP32 IoT devices registered in the monitoring network' },
-    maintenance: { title: 'Maintenance Logs',         subtitle: 'Records of all maintenance and repair activities' },
-    sms:         { title: 'SMS Logs',                 subtitle: 'History of SMS notifications sent to GSU and HSU personnel' },
-    thresholds:  { title: 'Threshold Settings',       subtitle: 'Configure safe range limits per PNSDW 2017 standards' },
-    users:       { title: 'User Management',          subtitle: 'Manage system accounts for Admin, GSU, and HSU roles' },
-    settings:    { title: 'Settings',                 subtitle: 'System configuration and notification preferences' },
-  };
-
-  function navigate(viewKey) {
-    // Hide all views
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    // Show target view
-    const target = document.getElementById('view-' + viewKey);
-    if (target) target.classList.add('active');
-
-    // Update nav active state
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('active', item.dataset.view === viewKey);
-    });
-
-    // Update topbar
-    const meta = pageMeta[viewKey] || {};
-    document.getElementById('pageTitle').textContent    = meta.title    || viewKey;
-    document.getElementById('pageSubtitle').textContent = meta.subtitle || '';
-
-    // Scroll content to top
-    document.querySelector('.content').scrollTop = 0;
+ 
+// ── Page metadata per view ──────────────────────────────────────────────────
+const pageMeta = {
+  dashboard:   { title: 'Water Quality Dashboard',  subtitle: 'Camarines Sur Polytechnic Colleges — Real-time monitoring' },
+  live:        { title: 'Live Monitoring',           subtitle: 'Real-time sensor feed from all active ESP32 devices' },
+  readings:    { title: 'Sensor Readings',           subtitle: 'All recorded readings from ESP32 devices on campus' },
+  analytics:   { title: 'Analytics',                subtitle: 'Water quality trends and consumption insights' },
+  alerts:      { title: 'Alerts',                   subtitle: 'System-generated alerts for quality anomalies and device issues' },
+  locations:   { title: 'Locations',                subtitle: 'CSPC campus buildings monitored by AquaSense' },
+  devices:     { title: 'Devices',                  subtitle: 'ESP32 IoT devices registered in the monitoring network' },
+  maintenance: { title: 'Maintenance Logs',         subtitle: 'Records of all maintenance and repair activities' },
+  sms:         { title: 'SMS Logs',                 subtitle: 'History of SMS notifications sent to GSU and HSU personnel' },
+  thresholds:  { title: 'Threshold Settings',       subtitle: 'Configure safe range limits per PNSDW 2017 standards' },
+  users:       { title: 'User Management',          subtitle: 'Manage system accounts for Admin, GSU, and HSU roles' },
+  settings:    { title: 'Settings',                 subtitle: 'System configuration and notification preferences' },
+};
+ 
+// ── navigate() — now saves active view to sessionStorage ───────────────────
+function navigate(viewKey) {
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+ 
+  // Show target view
+  const target = document.getElementById('view-' + viewKey);
+  if (target) target.classList.add('active');
+ 
+  // Update nav active state
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.view === viewKey);
+  });
+ 
+  // Update topbar
+  const meta = pageMeta[viewKey] || {};
+  document.getElementById('pageTitle').textContent    = meta.title    || viewKey;
+  document.getElementById('pageSubtitle').textContent = meta.subtitle || '';
+ 
+  // Scroll content to top
+  document.querySelector('.content').scrollTop = 0;
+ 
+  // ← SAVE the active view so browser refresh restores it
+  sessionStorage.setItem('activeView', viewKey);
+}
+ 
+// ── Attach click handlers to nav items ─────────────────────────────────────
+document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+  item.addEventListener('click', () => navigate(item.dataset.view));
+});
+ 
+// ── Refresh button — reloads data for whatever view is currently open ───────
+document.getElementById('refreshBtn').addEventListener('click', function () {
+  const svg = this.querySelector('svg');
+  svg.style.transition = 'transform 0.6s ease';
+  svg.style.transform  = 'rotate(360deg)';
+  setTimeout(() => { svg.style.transform = ''; svg.style.transition = ''; }, 650);
+ 
+  // Find the currently active view and reload its data
+  const active = document.querySelector('.view.active');
+  if (active) {
+    const key = active.id.replace('view-', '');
+    if (window.viewLoaders && window.viewLoaders[key]) {
+      window.viewLoaders[key]();
+    }
   }
-
-  // ── Attach click handlers to nav items ─────────────────────────────────────
-  document.querySelectorAll('.nav-item[data-view]').forEach(item => {
-    item.addEventListener('click', () => navigate(item.dataset.view));
-  });
-
-  // ── Refresh button ─────────────────────────────────────────────────────────
-  document.getElementById('refreshBtn').addEventListener('click', function() {
-    const svg = this.querySelector('svg');
-    svg.style.transition = 'transform 0.6s ease';
-    svg.style.transform  = 'rotate(360deg)';
-    setTimeout(() => { svg.style.transform = ''; svg.style.transition = ''; }, 650);
-  });
-
-
-   
-
-  
+});
+ 
+// ── On page load: restore last visited view, or default to dashboard ────────
+document.addEventListener('DOMContentLoaded', () => {
+  const savedView = sessionStorage.getItem('activeView') || 'dashboard';
+  navigate(savedView);
+});
+ 
 </script>
 </body>
 </html>

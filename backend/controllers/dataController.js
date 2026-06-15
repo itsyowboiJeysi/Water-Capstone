@@ -212,6 +212,110 @@ async function getLocations(req, res) {
   }
 }
 
+async function getAnalyticsSummary(req, res) {
+  try {
+    // ── 1. Total water consumed this week ────────────────────────────────
+    const [weekConsumption] = await pool.query(`
+      SELECT COALESCE(SUM(water_consumed), 0) AS total_week
+      FROM sensor_readings
+      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    `);
+ 
+    // ── 2. Average pH over last 7 days ───────────────────────────────────
+    const [avgPh] = await pool.query(`
+      SELECT ROUND(AVG(ph_level), 2) AS avg_ph
+      FROM sensor_readings
+      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        AND ph_level IS NOT NULL
+    `);
+ 
+    // ── 3. Device uptime (online devices / total devices × 100) ─────────
+    const [deviceStats] = await pool.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(status = 'online') AS online
+      FROM devices
+    `);
+    const total  = deviceStats[0].total  || 0;
+    const online = deviceStats[0].online || 0;
+    const uptime = total > 0 ? ((online / total) * 100).toFixed(1) : "0.0";
+ 
+    // ── 4. Alert counts: total this month, unresolved ────────────────────
+    const [alertStats] = await pool.query(`
+      SELECT
+        COUNT(*) AS total_month,
+        SUM(status = 'unresolved') AS unresolved,
+        SUM(status = 'resolved')   AS resolved
+      FROM alerts
+      WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')
+    `);
+ 
+    // ── 5. Per-building daily consumption — last 7 days ──────────────────
+    // Groups by building name + day so the chart can render grouped bars.
+    const [buildingDaily] = await pool.query(`
+      SELECT
+        l.building_name,
+        DATE(sr.recorded_at) AS day,
+        ROUND(SUM(sr.water_consumed), 2) AS consumed
+      FROM sensor_readings sr
+      JOIN devices d ON sr.device_id = d.device_id
+      LEFT JOIN locations l ON d.location_id = l.location_id
+      WHERE sr.recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        AND l.location_id <= 5
+      GROUP BY l.building_name, DATE(sr.recorded_at)
+      ORDER BY day ASC, l.building_name ASC
+    `);
+ 
+    // ── 6. Daily totals across all buildings (for the single bar chart) ──
+    const [dailyTotals] = await pool.query(`
+      SELECT
+        DATE(recorded_at) AS day,
+        DAYNAME(recorded_at) AS day_name,
+        ROUND(SUM(water_consumed), 2) AS consumed
+      FROM sensor_readings
+      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY DATE(recorded_at)
+      ORDER BY day ASC
+    `);
+ 
+    res.json({
+      totalWeekConsumption: weekConsumption[0].total_week,
+      avgPh:                avgPh[0].avg_ph,
+      uptimePercent:        uptime,
+      onlineDevices:        online,
+      totalDevices:         total,
+      alertStats:           alertStats[0],
+      buildingDaily,
+      dailyTotals,
+    });
+  } catch (err) {
+    console.error("[AquaSense] getAnalyticsSummary error:", err);
+    res.status(500).json({ message: "Server error fetching analytics." });
+  }
+}
+
+
+async function getSmsLogs(req, res) {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+ 
+    const [rows] = await pool.query(
+      `SELECT s.*, d.device_name, l.building_name
+       FROM sms_logs s
+       LEFT JOIN devices d ON s.device_id = d.device_id
+       LEFT JOIN locations l ON d.location_id = l.location_id
+       ORDER BY s.created_at DESC
+       LIMIT ?`,
+      [limit]
+    );
+ 
+    res.json(rows);
+  } catch (err) {
+    console.error("[AquaSense] getSmsLogs error:", err);
+    res.status(500).json({ message: "Server error fetching SMS logs." });
+  }
+}
+
 module.exports = {
   getDashboardSummary,
   getLatestReadings,
@@ -220,4 +324,6 @@ module.exports = {
   resolveAlert,
   getDevices,
   getLocations,
+  getAnalyticsSummary,
+   getSmsLogs, 
 };

@@ -1,4 +1,4 @@
-// dashboard-data.js — AquaSense live data binder
+// dashboard-data.js — AquaSense live data binder  (PATCHED — Analytics + Alerts connected)
 // Matches real schema: smart_water_monitoring.sql
 // sensor_readings has NO water_status column — status is computed from threshold_settings
 // alerts uses: level, status ('unresolved'/'resolved'), parameter, message
@@ -65,7 +65,6 @@ function paramStatus(paramName, value) {
   if (!t || value === null || value === undefined) return "safe";
   const v = Number(value);
   if (v < t.min || v > t.max) return "danger";
-  // warn if within 10% of max
   const range = t.max - t.min;
   if (range > 0 && v > t.max - range * 0.10) return "warn";
   return "safe";
@@ -106,7 +105,7 @@ function statusLabel(s) {
   return "Safe";
 }
 
-// Map alerts.level → CSS class (schema uses 'critical'|'high'|'medium'|'low')
+// Map alerts.level → CSS class
 function alertClass(level) {
   if (level === "critical") return "critical";
   if (level === "high")     return "high";
@@ -274,7 +273,6 @@ async function loadBuildingsPreview() {
     const rows = await apiGet("/api/locations");
     if (!rows) return;
 
-    // Only show the 5 real buildings (IDs 1–5); skip duplicates
     const real = rows.filter(l => l.location_id <= 5);
 
     if (real.length === 0) {
@@ -406,15 +404,16 @@ async function loadSensorReadingsLog() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ALERTS  — schema: level, status ('unresolved'/'resolved'), parameter, message
+// ALERTS VIEW  ← NOW FULLY CONNECTED TO DATABASE
 // ═════════════════════════════════════════════════════════════════════════════
+
+// loadAlerts: shared helper used by dashboard preview + full alerts view
 async function loadAlerts(status = "all", containerId = "alerts-full-list", isPreview = false) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
   try {
-    // API accepts: status=unresolved | resolved | all
-    const apiStatus = status === "active" ? "unresolved" : status;
+    const apiStatus  = status === "active" ? "unresolved" : status;
     const limitParam = isPreview ? "&limit=5" : "&limit=50";
     const rows = await apiGet(`/api/alerts?status=${apiStatus}${limitParam}`);
     if (!rows) return;
@@ -455,8 +454,229 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
   }
 }
 
+// Full alerts page view: loads stat cards + full list  ← NEW
+async function loadAlertsView() {
+  try {
+    // Fetch all alerts for the stat counts
+    const [allAlerts, unresolvedAlerts] = await Promise.all([
+      apiGet("/api/alerts?status=all&limit=200"),
+      apiGet("/api/alerts?status=unresolved&limit=200"),
+    ]);
+    if (!allAlerts) return;
+
+    const total      = allAlerts.length;
+    const unresolved = unresolvedAlerts ? unresolvedAlerts.length : 0;
+    const resolved   = total - unresolved;
+
+    // ── Stat cards ────────────────────────────────────────────────────────
+    const statsEl = document.getElementById("alerts-stats");
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="stat-card danger">
+          <div class="stat-header">
+            <div class="stat-icon-wrap danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <span class="stat-badge danger">Unresolved</span>
+          </div>
+          <div class="stat-value">${unresolved}</div>
+          <div class="stat-label">Active Alerts</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-header">
+            <div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <span class="stat-badge warn">This Month</span>
+          </div>
+          <div class="stat-value">${total}</div>
+          <div class="stat-label">Total Alerts</div>
+        </div>
+        <div class="stat-card safe">
+          <div class="stat-header">
+            <div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <span class="stat-badge safe">Resolved</span>
+          </div>
+          <div class="stat-value">${resolved}</div>
+          <div class="stat-label">Resolved Alerts</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-header">
+            <div class="stat-icon-wrap info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <span class="stat-badge info">Coverage</span>
+          </div>
+          <div class="stat-value">${total > 0 ? Math.round((resolved / total) * 100) : 0}<span class="stat-unit">%</span></div>
+          <div class="stat-label">Resolution Rate</div>
+        </div>`;
+    }
+
+    // ── Update nav badge with live count ──────────────────────────────────
+    const navBadge = document.querySelector('.nav-item[data-view="alerts"] .nav-badge');
+    if (navBadge) navBadge.textContent = unresolved > 0 ? unresolved : "";
+
+    // ── Full alert list ───────────────────────────────────────────────────
+    await loadAlerts("all", "alerts-full-list", false);
+
+  } catch (err) {
+    console.error("[AquaSense] loadAlertsView error:", err);
+  }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
-// DEVICES VIEW — device_id is VARCHAR; no installed_date; no esp32_uid
+// ANALYTICS VIEW  ← NOW FULLY CONNECTED TO DATABASE
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadAnalytics() {
+  try {
+    // Fetch analytics summary from the new backend endpoint
+    const data = await apiGet("/api/analytics/summary");
+    if (!data) return;
+
+    // ── Stat cards ────────────────────────────────────────────────────────
+    const statsEl = document.getElementById("analytics-stats");
+    if (statsEl) {
+      const uptimeClass = Number(data.uptimePercent) >= 80 ? "safe" : "warn";
+      const alertClass_ = (data.alertStats.unresolved || 0) > 0 ? "warn" : "safe";
+
+      statsEl.innerHTML = `
+        <div class="stat-card info">
+          <div class="stat-header">
+            <div class="stat-icon-wrap info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></div>
+            <span class="stat-badge info">This Week</span>
+          </div>
+          <div class="stat-value">${fmt(data.totalWeekConsumption, 0)}<span class="stat-unit">L</span></div>
+          <div class="stat-label">Total Consumption</div>
+          <div class="stat-sub">Last 7 days across all buildings</div>
+        </div>
+        <div class="stat-card ${uptimeClass}">
+          <div class="stat-header">
+            <div class="stat-icon-wrap ${uptimeClass}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <span class="stat-badge ${uptimeClass}">${uptimeClass === "safe" ? "Good" : "Degraded"}</span>
+          </div>
+          <div class="stat-value">${data.uptimePercent}<span class="stat-unit">%</span></div>
+          <div class="stat-label">Device Uptime</div>
+          <div class="stat-sub">${data.onlineDevices} of ${data.totalDevices} devices online</div>
+        </div>
+        <div class="stat-card ${alertClass_}">
+          <div class="stat-header">
+            <div class="stat-icon-wrap ${alertClass_}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+            <span class="stat-badge ${alertClass_}">This Month</span>
+          </div>
+          <div class="stat-value">${data.alertStats.total_month || 0}<span class="stat-unit">alerts</span></div>
+          <div class="stat-label">Total Alerts</div>
+          <div class="stat-sub">${data.alertStats.unresolved || 0} unresolved</div>
+        </div>
+        <div class="stat-card safe">
+          <div class="stat-header">
+            <div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/></svg></div>
+            <span class="stat-badge safe">Avg</span>
+          </div>
+          <div class="stat-value">${data.avgPh !== null ? fmt(data.avgPh) : "—"}<span class="stat-unit">pH</span></div>
+          <div class="stat-label">Avg pH (7 days)</div>
+          <div class="stat-sub">Within PNSDW 2017 standard (6.5–8.5)</div>
+        </div>`;
+    }
+
+    // ── Bar chart: daily consumption ──────────────────────────────────────
+    renderAnalyticsChart(data.dailyTotals, data.buildingDaily);
+
+  } catch (err) {
+    console.error("[AquaSense] loadAnalytics error:", err);
+    const statsEl = document.getElementById("analytics-stats");
+    if (statsEl) statsEl.innerHTML = `<div class="stat-card navy" style="grid-column:1/-1;"><div class="stat-label" style="text-align:center;padding:20px;">Unable to load analytics data.</div></div>`;
+  }
+}
+
+// ── Analytics chart renderer ─────────────────────────────────────────────────
+function renderAnalyticsChart(dailyTotals, buildingDaily) {
+  const chartEl = document.getElementById("analytics-chart");
+  if (!chartEl) return;
+
+  if (!dailyTotals || dailyTotals.length === 0) {
+    chartEl.innerHTML = emptyPanel("No consumption data available yet. Data will appear once ESP32 devices report water_consumed values.");
+    return;
+  }
+
+  // Find max value for scaling
+  const maxVal = Math.max(...dailyTotals.map(d => Number(d.consumed) || 0), 1);
+  const chartH = 140; // usable bar height in px
+  const svgW   = 600;
+  const svgH   = 190;
+  const leftPad = 50;
+  const days    = dailyTotals.length;
+  const slotW   = (svgW - leftPad - 10) / Math.max(days, 1);
+  const barW    = Math.min(slotW * 0.55, 48);
+
+  // Y-axis labels
+  const yLabels = [maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25].map(v => Math.round(v));
+  const yPositions = [20, 55, 90, 125];
+
+  let gridLines = yLabels.map((val, i) => `
+    <line x1="${leftPad}" y1="${yPositions[i]}" x2="${svgW - 5}" y2="${yPositions[i]}" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="${leftPad - 5}" y="${yPositions[i] + 4}" font-size="10" fill="#8292B0" text-anchor="end">${val}L</text>
+  `).join("");
+
+  let bars = dailyTotals.map((d, i) => {
+    const x       = leftPad + i * slotW + (slotW - barW) / 2;
+    const val     = Number(d.consumed) || 0;
+    const barH    = Math.max((val / maxVal) * chartH, 2);
+    const y       = 20 + chartH - barH;
+    const dayName = d.day_name ? d.day_name.slice(0, 3) : `D${i + 1}`;
+    const isMax   = val === maxVal;
+    const fill    = isMax ? "url(#wg1)" : "url(#bg1)";
+    const cx      = x + barW / 2;
+
+    return `
+      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="5" fill="${fill}"/>
+      <text x="${cx}" y="${svgH - 25}" font-size="10" fill="#8292B0" text-anchor="middle">${dayName}</text>
+      ${val > 0 ? `<text x="${cx}" y="${y - 4}" font-size="9" fill="#4A5878" text-anchor="middle">${Math.round(val)}</text>` : ""}
+    `;
+  }).join("");
+
+  chartEl.innerHTML = `
+    <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:${svgH}px;overflow:visible;">
+      <defs>
+        <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2C9AD1" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#1A6FA8" stop-opacity=".7"/>
+        </linearGradient>
+        <linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#D4A017" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#C97A00" stop-opacity=".7"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${bars}
+    </svg>`;
+
+  // ── Per-building breakdown table ──────────────────────────────────────
+  const tableEl = document.getElementById("analytics-building-table");
+  if (!tableEl || !buildingDaily || buildingDaily.length === 0) return;
+
+  // Aggregate total per building
+  const buildingMap = {};
+  buildingDaily.forEach(row => {
+    const name = row.building_name || "Unknown";
+    buildingMap[name] = (buildingMap[name] || 0) + Number(row.consumed || 0);
+  });
+
+  const grandTotal = Object.values(buildingMap).reduce((a, b) => a + b, 0) || 1;
+
+  tableEl.innerHTML = Object.entries(buildingMap).map(([name, total], i) => {
+    const pct = ((total / grandTotal) * 100).toFixed(1);
+    return `<tr>
+      <td>${String(i + 1).padStart(2, "0")}</td>
+      <td><strong>${name}</strong></td>
+      <td>${fmt(total, 1)} L</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#2C9AD1,#1A6FA8);border-radius:3px;"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text-mid);width:36px;text-align:right;">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DEVICES VIEW
 // ═════════════════════════════════════════════════════════════════════════════
 async function loadDevices() {
   const tbody   = document.getElementById("devices-tbody");
@@ -486,7 +706,6 @@ async function loadDevices() {
       return;
     }
 
-    // device_id is VARCHAR like 'ESP-001' — use it directly; last_online is the timestamp column
     tbody.innerHTML = rows.map(d => {
       const lastSeen = d.last_reading_at
         ? timeAgo(d.last_reading_at)
@@ -511,7 +730,7 @@ async function loadDevices() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// LOCATIONS VIEW — filter to IDs 1–5 to skip duplicate rows
+// LOCATIONS VIEW
 // ═════════════════════════════════════════════════════════════════════════════
 async function loadLocations(containerId = "locations-tbody") {
   const el = document.getElementById(containerId);
@@ -521,7 +740,6 @@ async function loadLocations(containerId = "locations-tbody") {
     const rows = await apiGet("/api/locations");
     if (!rows) return;
 
-    // Only real buildings (IDs 1–5); duplicates are location_id > 5
     const real = rows.filter(l => l.location_id <= 5);
 
     if (real.length === 0) {
@@ -551,23 +769,123 @@ async function loadLocations(containerId = "locations-tbody") {
 async function loadMaintenanceLogs() {
   const el = document.getElementById("maintenance-list");
   if (!el) return;
-
-  // Maintenance logs don't have a dedicated API endpoint yet,
-  // so we show a placeholder until /api/maintenance is added.
-  // The data IS in the DB (maintenance_logs table).
-  // TODO: add GET /api/maintenance to dataRoutes.js
   el.innerHTML = emptyPanel("Maintenance log API not yet wired. Add GET /api/maintenance to dataRoutes.js.");
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SMS LOGS VIEW
 // ═════════════════════════════════════════════════════════════════════════════
-async function loadSmsLogs() {
-  const el = document.getElementById("sms-list");
-  if (!el) return;
 
-  // TODO: add GET /api/sms-logs to dataRoutes.js
-  el.innerHTML = emptyPanel("SMS log API not yet wired. Add GET /api/sms-logs to dataRoutes.js.");
+async function loadSmsLogs() {
+  // ── Stat cards ──────────────────────────────────────────────────────────
+  const statsEl = document.getElementById("sms-stats");
+ 
+  // ── Log list ────────────────────────────────────────────────────────────
+  const listEl = document.getElementById("sms-list");
+ 
+  try {
+    const rows = await apiGet("/api/sms-logs?limit=50");
+    if (!rows) return;
+ 
+    // ── Compute counts ────────────────────────────────────────────────────
+    const sent    = rows.filter(r => r.status === "sent").length;
+    const failed  = rows.filter(r => r.status === "failed").length;
+    const pending = rows.filter(r => r.status === "pending").length;
+ 
+    // ── Render stat cards ─────────────────────────────────────────────────
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="stat-card safe">
+          <div class="stat-header">
+            <div class="stat-icon-wrap safe">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </div>
+            <span class="stat-badge safe">Sent</span>
+          </div>
+          <div class="stat-value">${sent}</div>
+          <div class="stat-label">Messages Sent</div>
+        </div>
+ 
+        <div class="stat-card danger">
+          <div class="stat-header">
+            <div class="stat-icon-wrap danger">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <span class="stat-badge danger">Failed</span>
+          </div>
+          <div class="stat-value">${failed}</div>
+          <div class="stat-label">Failed</div>
+        </div>
+ 
+        <div class="stat-card warn">
+          <div class="stat-header">
+            <div class="stat-icon-wrap warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <span class="stat-badge warn">Pending</span>
+          </div>
+          <div class="stat-value">${pending}</div>
+          <div class="stat-label">Pending</div>
+        </div>`;
+    }
+ 
+    // ── Render log list ───────────────────────────────────────────────────
+    if (!listEl) return;
+ 
+    if (rows.length === 0) {
+      listEl.innerHTML = emptyPanel("No SMS notifications sent yet.");
+      return;
+    }
+ 
+    const phoneIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>`;
+ 
+    listEl.innerHTML = rows.map(s => {
+      const statusClass = s.status === "sent"    ? "sent"
+                        : s.status === "failed"  ? "failed"
+                        : "pending";
+ 
+      const iconBg = s.status === "failed"
+        ? "background:rgba(239,68,68,.1);stroke:#DC2626"
+        : "background:rgba(44,154,209,.1);stroke:var(--water-1)";
+ 
+      const location = s.building_name
+        ? `${s.building_name}${s.device_id ? " · " + s.device_id : ""}`
+        : (s.device_id || "—");
+ 
+      const sentAt = s.created_at
+        ? new Date(s.created_at).toLocaleString("en-PH", {
+            month: "short", day: "numeric", year: "numeric",
+            hour: "numeric", minute: "2-digit", hour12: true,
+          })
+        : "—";
+ 
+      return `
+        <div class="sms-item">
+          <div class="sms-icon-wrap" style="${iconBg}">${phoneIcon}</div>
+          <div class="sms-info">
+            <div class="sms-msg">${s.message}</div>
+            <div class="sms-meta">
+              To: ${s.recipient} · ${location} · Provider: ${s.provider || "Semaphore"} · ${sentAt}
+            </div>
+          </div>
+          <span class="sms-status ${statusClass}">${s.status.charAt(0).toUpperCase() + s.status.slice(1)}</span>
+        </div>`;
+    }).join("");
+ 
+  } catch (err) {
+    console.error("[AquaSense] loadSmsLogs error:", err);
+    if (listEl) listEl.innerHTML = emptyPanel("Unable to load SMS logs.");
+    if (statsEl) statsEl.innerHTML = "";
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -577,7 +895,8 @@ const viewLoaders = {
   dashboard:   loadDashboard,
   live:        loadLiveMonitoring,
   readings:    loadSensorReadingsLog,
-  alerts:      () => loadAlerts("all", "alerts-full-list", false),
+  analytics:   loadAnalytics,                             // ← NOW CONNECTED
+  alerts:      loadAlertsView,                            // ← NOW CONNECTED
   devices:     loadDevices,
   locations:   () => loadLocations("locations-tbody"),
   maintenance: loadMaintenanceLogs,
@@ -597,7 +916,6 @@ function startAutoRefresh(viewKey) {
 
 // ── Wire into dashboard.html's navigate() ────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  // Wrap the existing navigate() to also trigger data loads
   const _originalNavigate = window.navigate;
   window.navigate = function (viewKey) {
     if (typeof _originalNavigate === "function") _originalNavigate(viewKey);
@@ -605,19 +923,15 @@ document.addEventListener("DOMContentLoaded", () => {
     startAutoRefresh(viewKey);
   };
 
-  // Patch nav item clicks so they go through the new navigate()
   document.querySelectorAll(".nav-item[data-view]").forEach(item => {
-    // remove the old listener by cloning
     const clone = item.cloneNode(true);
     item.parentNode.replaceChild(clone, item);
     clone.addEventListener("click", () => navigate(clone.dataset.view));
   });
 
-  // Initial load
   loadDashboard();
   startAutoRefresh("dashboard");
 
-  // Refresh button
   document.getElementById("refreshBtn")?.addEventListener("click", () => {
     const active = document.querySelector(".view.active");
     if (active) {
