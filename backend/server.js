@@ -14,7 +14,14 @@ const dataRoutes = require("./routes/dataRoutes");
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+const path = require("path");
+// ...
+app.use(express.json());
 
+// Serve the frontend folder — no more Live Server needed
+app.use(express.static(path.join(__dirname, "..", "frontend"), {
+  index: "login.html"   // your frontend/index.html is empty, so point "/" at login.html instead
+}));
 
 // ── Trust proxy (needed for accurate IPs behind a proxy/load balancer) ───────
 app.set("trust proxy", 1);
