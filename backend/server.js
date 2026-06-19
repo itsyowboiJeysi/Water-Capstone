@@ -13,7 +13,9 @@ const dataRoutes = require("./routes/dataRoutes");
 const locationRoutes = require("./routes/locationRoutes"); 
 const deviceRoutes   = require("./routes/deviceRoutes");
 
-
+// ── MQTT BROKER  ───────
+const mqtt = require('mqtt');
+const { pool } = require('./config/db');
 
 
 const app  = express();
@@ -33,7 +35,7 @@ console.log("deviceRoutes:", typeof deviceRoutes);
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: ["http://127.0.0.1:5500", "http://localhost:5500"],
+  origin: ["http://127.0.0.1:5500","http://192.168.1.8:5000" , "http://localhost:5500"], 
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -76,3 +78,49 @@ app.get("/api/health", (req, res) => {
     process.exit(1);
   }
 })();
+// Public broker — no Mosquitto install needed, works from any internet
+// connection. Must match mqtt_server/mqtt_port in the ESP32 firmware.
+//
+// Topic convention: esp32/aquasense/<device-uid>
+// The device's unique id lives in the TOPIC, not the JSON payload —
+// the minimal firmware only sends raw sensor numbers in the payload.
+const client = mqtt.connect('mqtt://broker.hivemq.com:1883');
+
+client.on('connect', () => {
+  client.subscribe('esp32/aquasense/+');  // all devices under this prefix
+  console.log('[MQTT] Subscriber ready (public broker)');
+});
+
+client.on('message', async (topic, message) => {
+  let d;
+  try {
+    d = JSON.parse(message.toString());
+  } catch (err) {
+    console.error('[MQTT] Bad JSON payload on', topic, err.message);
+    return;
+  }
+
+  // Extract device uid from the topic: esp32/aquasense/<uid> → <uid>
+  const esp32Uid = topic.split('/').pop();
+  if (!esp32Uid) return;
+
+  // Resolve internal device_id from esp32_uid
+  const [[dev]] = await pool.query(
+    'SELECT device_id FROM devices WHERE esp32_uid = ?',
+    [esp32Uid]
+  );
+  if (!dev) {
+    console.warn('[MQTT] Unregistered device, skipping:', esp32Uid);
+    return;
+  }
+
+  await pool.query(
+    `INSERT INTO sensor_readings
+     (device_id, ph_level, turbidity, tds, temperature,
+      ammonia, flow_rate, water_consumed)
+     VALUES (?,?,?,?,?,?,?,?)`,
+    [dev.device_id, d.ph_level, d.turbidity, d.tds,
+     d.temperature, d.ammonia, d.flow_rate,
+     d.water_consumed]
+  );
+});

@@ -21,8 +21,9 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.11.0",
+    "mqtt": "^5.15.1",
     "mysql2": "^3.22.4",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^9.0.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0"
   }

@@ -24,15 +24,13 @@ async function getDevices(req, res) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/devices
-// Body: { device_id, device_name, location_id, status, mqtt_topic }
+// Body: { device_name, location_id, status, mqtt_topic }
+// device_id is auto-assigned by MySQL — do NOT send it from the client.
 // Admin only — enforce with verifyToken + requireRole("admin") middleware on the route
 // ─────────────────────────────────────────────────────────────────────────────
 async function createDevice(req, res) {
-  const { device_id, device_name, location_id, status, mqtt_topic } = req.body || {};
+  const { device_name, location_id, status, mqtt_topic } = req.body || {};
 
-  if (!device_id || !device_id.trim()) {
-    return res.status(400).json({ message: "Device ID is required." });
-  }
   if (!device_name || !device_name.trim()) {
     return res.status(400).json({ message: "Device name is required." });
   }
@@ -53,26 +51,28 @@ async function createDevice(req, res) {
       return res.status(400).json({ message: "Selected location does not exist." });
     }
 
-    // Prevent duplicate device_id
-    const [existing] = await pool.query(
-      "SELECT device_id FROM devices WHERE device_id = ?",
-      [device_id.trim()]
+    // Prevent duplicate mqtt_topic (device_id is now auto-assigned, so this
+    // is the new uniqueness check that matters)
+    const [existingTopic] = await pool.query(
+      "SELECT device_id FROM devices WHERE mqtt_topic = ?",
+      [mqtt_topic.trim()]
     );
-    if (existing.length > 0) {
-      return res.status(409).json({ message: "A device with this ID is already registered." });
+    if (existingTopic.length > 0) {
+      return res.status(409).json({ message: "A device with this MQTT topic is already registered." });
     }
 
-    await pool.query(
-      `INSERT INTO devices (device_id, device_name, location_id, status, mqtt_topic, last_online)
-       VALUES (?, ?, ?, ?, ?, NULL)`,
+    const [result] = await pool.query(
+      `INSERT INTO devices (device_name, location_id, status, mqtt_topic, last_online)
+       VALUES (?, ?, ?, ?, NULL)`,
       [
-        device_id.trim(),
         device_name.trim(),
         location_id,
         status || "offline",
         mqtt_topic.trim(),
       ]
     );
+
+    const newDeviceId = result.insertId;
 
     const [newRow] = await pool.query(
       `SELECT d.device_id, d.device_name, d.location_id, d.status,
@@ -81,7 +81,7 @@ async function createDevice(req, res) {
        FROM devices d
        LEFT JOIN locations l ON d.location_id = l.location_id
        WHERE d.device_id = ?`,
-      [device_id.trim()]
+      [newDeviceId]
     );
 
     return res.status(201).json({
@@ -100,8 +100,12 @@ async function createDevice(req, res) {
 // Body: { device_name, location_id, status, mqtt_topic }
 // ─────────────────────────────────────────────────────────────────────────────
 async function updateDevice(req, res) {
-  const { id } = req.params; // device_id
+  const { id } = req.params; // device_id (now an auto-increment int)
   const { device_name, location_id, status, mqtt_topic } = req.body || {};
+
+  if (!/^\d+$/.test(id)) {
+    return res.status(400).json({ message: "Invalid device ID." });
+  }
 
   try {
     const [existing] = await pool.query("SELECT device_id FROM devices WHERE device_id = ?", [id]);
@@ -130,8 +134,12 @@ async function updateDevice(req, res) {
 // Used by the MQTT broker/bridge service to mark a device online/offline
 // ─────────────────────────────────────────────────────────────────────────────
 async function updateDeviceStatus(req, res) {
-  const { id } = req.params; // device_id
+  const { id } = req.params; // device_id (now an auto-increment int)
   const { status } = req.body || {};
+
+  if (!/^\d+$/.test(id)) {
+    return res.status(400).json({ message: "Invalid device ID." });
+  }
 
   const validStatuses = ["online", "offline", "maintenance"];
   if (!status || !validStatuses.includes(status)) {
@@ -163,7 +171,11 @@ async function updateDeviceStatus(req, res) {
 // DELETE /api/devices/:id
 // ─────────────────────────────────────────────────────────────────────────────
 async function deleteDevice(req, res) {
-  const { id } = req.params; // device_id
+  const { id } = req.params; // device_id (now an auto-increment int)
+
+  if (!/^\d+$/.test(id)) {
+    return res.status(400).json({ message: "Invalid device ID." });
+  }
 
   try {
     const [existing] = await pool.query("SELECT device_id FROM devices WHERE device_id = ?", [id]);
