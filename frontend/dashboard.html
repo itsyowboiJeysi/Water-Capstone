@@ -1017,29 +1017,16 @@
           <!-- Form body -->
           <div class="modal-body">
 
-            <!-- Row 1: Device ID + Device Name -->
-            <div class="modal-field-row">
-              <div class="modal-field">
-                <label for="mDeviceId">Device ID <span class="modal-required">*</span></label>
-                <div class="modal-input-wrap">
-                  <span class="modal-input-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
-                  </span>
-                  <input type="text" id="mDeviceId" placeholder="e.g. ESP-006" maxlength="50"/>
-                </div>
-                <div class="modal-hint">Unique identifier — must match the ESP32 firmware config</div>
+            <!-- Row 1: Device Name (Device ID is now auto-assigned by the database) -->
+            <div class="modal-field">
+              <label for="mDeviceName">Device Name <span class="modal-required">*</span></label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                </span>
+                <input type="text" id="mDeviceName" placeholder="e.g. ESP32 Faculty Building" maxlength="100"/>
               </div>
-
-              <div class="modal-field">
-                <label for="mDeviceName">Device Name <span class="modal-required">*</span></label>
-                <div class="modal-input-wrap">
-                  <span class="modal-input-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                  </span>
-                  <input type="text" id="mDeviceName" placeholder="e.g. ESP32 Faculty Building" maxlength="100"/>
-                </div>
-                <div class="modal-hint">Human-readable label shown in the dashboard</div>
-              </div>
+              <div class="modal-hint">Human-readable label shown in the dashboard — device ID is auto-assigned</div>
             </div>
 
             <!-- Row 2: Location -->
@@ -1075,7 +1062,7 @@
             <!-- MQTT preview chip -->
             <div class="mqtt-preview" id="mqttPreview">
               <div class="mqtt-preview-label">Registration preview</div>
-              <div class="mqtt-preview-code" id="mqttPreviewCode">Fill in Device ID and Topic above to see the config</div>
+              <div class="mqtt-preview-code" id="mqttPreviewCode">Fill in Device Name and Topic above to see the config</div>
             </div>
 
           </div><!-- /modal-body -->
@@ -1387,22 +1374,22 @@ async function populateLocationDropdown() {
 
 // Live MQTT preview
 function updateMqttPreview() {
-  const deviceId = document.getElementById('mDeviceId').value.trim();
-  const topic    = document.getElementById('mMqttTopic').value.trim();
-  const preview  = document.getElementById('mqttPreviewCode');
+  const deviceName = document.getElementById('mDeviceName').value.trim();
+  const topic      = document.getElementById('mMqttTopic').value.trim();
+  const preview    = document.getElementById('mqttPreviewCode');
 
-  if (!deviceId && !topic) {
-    preview.textContent = 'Fill in Device ID and Topic above to see the config';
+  if (!deviceName && !topic) {
+    preview.textContent = 'Fill in Device Name and Topic above to see the config';
     return;
   }
 
   preview.textContent =
-    `device_id  : "${deviceId || '—'}"\n` +
-    `mqtt_topic : "${topic    || '—'}"`;
+    `device_name : "${deviceName || '—'}"\n` +
+    `mqtt_topic  : "${topic      || '—'}"`;
 }
 
 // Wire preview on any input change
-['mDeviceId','mDeviceName','mMqttTopic'].forEach(id => {
+['mDeviceName','mMqttTopic'].forEach(id => {
   document.getElementById(id)?.addEventListener('input', updateMqttPreview);
 });
 
@@ -1411,7 +1398,7 @@ function openAddDeviceModal() {
   resetModalForm();
   document.getElementById('addDeviceModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-  setTimeout(() => document.getElementById('mDeviceId')?.focus(), 80);
+  setTimeout(() => document.getElementById('mDeviceName')?.focus(), 80);
 }
 
 function closeAddDeviceModal() {
@@ -1424,13 +1411,13 @@ function handleModalBackdropClick(e) {
 }
 
 function resetModalForm() {
-  ['mDeviceId','mDeviceName','mMqttTopic'].forEach(id => {
+  ['mDeviceName','mMqttTopic'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.classList.remove('m-error'); }
   });
   const locationEl = document.getElementById('mLocationId');
   if (locationEl) locationEl.value = '';
-  document.getElementById('mqttPreviewCode').textContent = 'Fill in Device ID and Topic above to see the config';
+  document.getElementById('mqttPreviewCode').textContent = 'Fill in Device Name and Topic above to see the config';
   hideModalError();
   setModalLoading(false);
 }
@@ -1458,7 +1445,6 @@ async function submitAddDevice() {
   hideModalError();
 
   // ── Grab values ────────────────────────────────────────────────────────────
-  const deviceId   = document.getElementById('mDeviceId').value.trim();
   const deviceName = document.getElementById('mDeviceName').value.trim();
   const locationId = document.getElementById('mLocationId').value;
   const mqttTopic  = document.getElementById('mMqttTopic').value.trim();
@@ -1474,7 +1460,6 @@ async function submitAddDevice() {
   document.querySelectorAll('.modal-input-wrap input, .modal-input-wrap select')
     .forEach(el => el.classList.remove('m-error'));
 
-  if (!deviceId)   markError('mDeviceId',   'Device ID is required.');
   if (!deviceName) markError('mDeviceName', 'Device name is required.');
   if (!locationId) markError('mLocationId', 'Please select a location.');
   if (!mqttTopic)  markError('mMqttTopic',  'MQTT topic is required.');
@@ -1488,7 +1473,6 @@ async function submitAddDevice() {
   setModalLoading(true);
 
   const payload = {
-    device_id:   deviceId,
     device_name: deviceName,
     location_id: parseInt(locationId),
     status:      'offline',
@@ -1507,7 +1491,7 @@ async function submitAddDevice() {
 
     if (res.ok || res.status === 201) {
       closeAddDeviceModal();
-      showMqttConnectingScreen(deviceId, deviceName);
+      showMqttConnectingScreen(deviceName, mqttTopic);
     } else {
       setModalLoading(false);
       showModalError(data.message || 'Registration failed. Please try again.');
@@ -1547,7 +1531,7 @@ function showToast(title, subtitle) {
 // ══════════════════════════════════════════════════════════════════════════════
 // MQTT CONNECTING SCREEN
 // ══════════════════════════════════════════════════════════════════════════════
-function showMqttConnectingScreen(deviceId, deviceName) {
+function showMqttConnectingScreen(deviceName, mqttTopic) {
   // Remove any old screen
   document.getElementById('mqttConnectScreen')?.remove();
 
@@ -1591,7 +1575,7 @@ function showMqttConnectingScreen(deviceId, deviceName) {
         Waiting for ESP32…
       </div>
       <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px;">
-        Listening on MQTT for <strong>${deviceId}</strong>
+        Listening on MQTT for <strong>${deviceName}</strong>
       </div>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:32px;line-height:1.6;">
         Power on your ESP32 now. It will automatically appear as <strong>Online</strong> once it connects to the broker and publishes to its topic.
@@ -1636,7 +1620,7 @@ function showMqttConnectingScreen(deviceId, deviceName) {
   const interval = 3;
   let   resolved = false;
 
-  const countdown = screen.querySelector('#mqttCountdown');
+  const countdown  = screen.querySelector('#mqttCountdown');
   const statusText = screen.querySelector('#mqttStatusText');
   const statusDot  = screen.querySelector('#mqttStatusDot');
   const badge      = screen.querySelector('#mqttStatusBadge');
@@ -1650,7 +1634,8 @@ function showMqttConnectingScreen(deviceId, deviceName) {
       });
       if (!res.ok) return;
       const devices = await res.json();
-      const device  = devices.find(d => d.device_id === deviceId);
+      // Match by mqtt_topic since device_id is now auto-assigned
+      const device  = devices.find(d => d.mqtt_topic === mqttTopic);
 
       if (device && device.status === 'online') {
         resolved = true;

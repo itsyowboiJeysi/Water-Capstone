@@ -8,19 +8,17 @@ const {
   getAlerts,
   resolveAlert,
   getDevices,
+  createDevice,
   getLocations,
-  getAnalyticsSummary,
-  getSmsLogs, 
 } = require("../controllers/dataController");
 
-router.get("/dashboard/summary", verifyToken, getDashboardSummary);
-router.get("/sensors/latest",    verifyToken, getLatestReadings);
-router.get("/sensors",           verifyToken, getSensorReadings);
-router.get("/alerts",            verifyToken, getAlerts);
-router.patch("/alerts/:id/resolve", verifyToken, resolveAlert);
-router.get("/devices",           verifyToken, getDevices);
-router.get("/locations",         verifyToken, getLocations);
-router.get("/analytics/summary",    verifyToken, getAnalyticsSummary); 
-router.get("/sms-logs",             verifyToken, getSmsLogs);
+router.get  ("/dashboard/summary",      verifyToken, getDashboardSummary);
+router.get  ("/sensors/latest",         verifyToken, getLatestReadings);
+router.get  ("/sensors",                verifyToken, getSensorReadings);
+router.get  ("/alerts",                 verifyToken, getAlerts);
+router.patch("/alerts/:id/resolve",     verifyToken, resolveAlert);
+router.get  ("/devices",                verifyToken, getDevices);
+router.post ("/devices",                verifyToken, createDevice);   // ← ADD DEVICE
+router.get  ("/locations",              verifyToken, getLocations);
 
 module.exports = router;

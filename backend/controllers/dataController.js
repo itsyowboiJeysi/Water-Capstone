@@ -6,7 +6,6 @@ const { pool } = require("../config/db");
 // ─────────────────────────────────────────────────────────────────────────
 async function getDashboardSummary(req, res) {
   try {
-    // Latest reading overall
     const [latestRows] = await pool.query(`
       SELECT sr.*, d.device_name, d.status AS device_status, l.building_name, l.area_name
       FROM sensor_readings sr
@@ -16,28 +15,25 @@ async function getDashboardSummary(req, res) {
       LIMIT 1
     `);
 
-    // Device status counts
     const [deviceCounts] = await pool.query(`
       SELECT
-        SUM(status = 'online') AS online,
-        SUM(status = 'offline') AS offline,
+        SUM(status = 'online')      AS online,
+        SUM(status = 'offline')     AS offline,
         SUM(status = 'maintenance') AS maintenance,
-        COUNT(*) AS total
+        COUNT(*)                    AS total
       FROM devices
     `);
 
-    // Active (unresolved) alerts count
     const [alertCounts] = await pool.query(`
       SELECT COUNT(*) AS active FROM alerts WHERE status = 'unresolved'
     `);
 
-    // Thresholds
     const [thresholds] = await pool.query(`SELECT * FROM threshold_settings`);
 
     res.json({
       latestReading: latestRows[0] || null,
-      devices: deviceCounts[0],
-      activeAlerts: alertCounts[0].active,
+      devices:       deviceCounts[0],
+      activeAlerts:  alertCounts[0].active,
       thresholds,
     });
   } catch (err) {
@@ -48,7 +44,6 @@ async function getDashboardSummary(req, res) {
 
 // ─────────────────────────────────────────────────────────────────────────
 // GET /api/sensors/latest
-// Latest reading per device
 // ─────────────────────────────────────────────────────────────────────────
 async function getLatestReadings(req, res) {
   try {
@@ -62,7 +57,6 @@ async function getLatestReadings(req, res) {
       )
       ORDER BY sr.recorded_at DESC
     `);
-
     res.json(rows);
   } catch (err) {
     console.error("[AquaSense] getLatestReadings error:", err);
@@ -75,9 +69,9 @@ async function getLatestReadings(req, res) {
 // ─────────────────────────────────────────────────────────────────────────
 async function getSensorReadings(req, res) {
   try {
-    const limit  = Math.min(parseInt(req.query.limit) || 50, 200);
-    const page   = Math.max(parseInt(req.query.page) || 1, 1);
-    const offset = (page - 1) * limit;
+    const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+    const page     = Math.max(parseInt(req.query.page)  || 1,  1);
+    const offset   = (page - 1) * limit;
     const deviceId = req.query.device_id;
 
     let where = "";
@@ -108,7 +102,7 @@ async function getSensorReadings(req, res) {
       pagination: {
         page,
         limit,
-        total: countRows[0].total,
+        total:      countRows[0].total,
         totalPages: Math.ceil(countRows[0].total / limit),
       },
     });
@@ -182,11 +176,76 @@ async function getDevices(req, res) {
       LEFT JOIN locations l ON d.location_id = l.location_id
       ORDER BY d.device_id ASC
     `);
-
     res.json(rows);
   } catch (err) {
     console.error("[AquaSense] getDevices error:", err);
     res.status(500).json({ message: "Server error fetching devices." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// POST /api/devices
+// Body: { device_name, location_id, mqtt_topic, status? }
+// device_id is AUTO_INCREMENT — never accepted from the client
+// ─────────────────────────────────────────────────────────────────────────
+async function createDevice(req, res) {
+  // Only admins may register devices
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Only admins can register devices." });
+  }
+
+  const { device_name, location_id, mqtt_topic, status = "offline" } = req.body || {};
+
+  // ── Validation ──────────────────────────────────────────────────────────
+  if (!device_name || !device_name.trim()) {
+    return res.status(400).json({ message: "Device name is required." });
+  }
+  if (!mqtt_topic || !mqtt_topic.trim()) {
+    return res.status(400).json({ message: "MQTT topic is required." });
+  }
+  if (!location_id || isNaN(parseInt(location_id))) {
+    return res.status(400).json({ message: "A valid location is required." });
+  }
+
+  const validStatuses = ["online", "offline", "maintenance"];
+  const safeStatus = validStatuses.includes(status) ? status : "offline";
+
+  try {
+    // ── Check duplicate mqtt_topic ──────────────────────────────────────
+    const [existing] = await pool.query(
+      "SELECT device_id FROM devices WHERE mqtt_topic = ?",
+      [mqtt_topic.trim()]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({
+        message: "That MQTT topic is already registered to another device.",
+      });
+    }
+
+    // ── Insert — device_id assigned by AUTO_INCREMENT ───────────────────
+    const [result] = await pool.query(
+      `INSERT INTO devices (device_name, location_id, mqtt_topic, status)
+       VALUES (?, ?, ?, ?)`,
+      [device_name.trim(), parseInt(location_id), mqtt_topic.trim(), safeStatus]
+    );
+
+    // ── Return the newly created device row ─────────────────────────────
+    const [rows] = await pool.query(
+      `SELECT d.*, l.building_name, l.area_name
+       FROM devices d
+       LEFT JOIN locations l ON d.location_id = l.location_id
+       WHERE d.device_id = ?`,
+      [result.insertId]
+    );
+
+    return res.status(201).json({
+      message: "Device registered successfully.",
+      device:  rows[0],
+    });
+
+  } catch (err) {
+    console.error("[AquaSense] createDevice error:", err);
+    return res.status(500).json({ message: "Server error registering device." });
   }
 }
 
@@ -204,115 +263,10 @@ async function getLocations(req, res) {
       GROUP BY l.location_id
       ORDER BY l.location_id ASC
     `);
-
     res.json(rows);
   } catch (err) {
     console.error("[AquaSense] getLocations error:", err);
     res.status(500).json({ message: "Server error fetching locations." });
-  }
-}
-
-async function getAnalyticsSummary(req, res) {
-  try {
-    // ── 1. Total water consumed this week ────────────────────────────────
-    const [weekConsumption] = await pool.query(`
-      SELECT COALESCE(SUM(water_consumed), 0) AS total_week
-      FROM sensor_readings
-      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-    `);
- 
-    // ── 2. Average pH over last 7 days ───────────────────────────────────
-    const [avgPh] = await pool.query(`
-      SELECT ROUND(AVG(ph_level), 2) AS avg_ph
-      FROM sensor_readings
-      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        AND ph_level IS NOT NULL
-    `);
- 
-    // ── 3. Device uptime (online devices / total devices × 100) ─────────
-    const [deviceStats] = await pool.query(`
-      SELECT
-        COUNT(*) AS total,
-        SUM(status = 'online') AS online
-      FROM devices
-    `);
-    const total  = deviceStats[0].total  || 0;
-    const online = deviceStats[0].online || 0;
-    const uptime = total > 0 ? ((online / total) * 100).toFixed(1) : "0.0";
- 
-    // ── 4. Alert counts: total this month, unresolved ────────────────────
-    const [alertStats] = await pool.query(`
-      SELECT
-        COUNT(*) AS total_month,
-        SUM(status = 'unresolved') AS unresolved,
-        SUM(status = 'resolved')   AS resolved
-      FROM alerts
-      WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')
-    `);
- 
-    // ── 5. Per-building daily consumption — last 7 days ──────────────────
-    // Groups by building name + day so the chart can render grouped bars.
-    const [buildingDaily] = await pool.query(`
-      SELECT
-        l.building_name,
-        DATE(sr.recorded_at) AS day,
-        ROUND(SUM(sr.water_consumed), 2) AS consumed
-      FROM sensor_readings sr
-      JOIN devices d ON sr.device_id = d.device_id
-      LEFT JOIN locations l ON d.location_id = l.location_id
-      WHERE sr.recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-        AND l.location_id <= 5
-      GROUP BY l.building_name, DATE(sr.recorded_at)
-      ORDER BY day ASC, l.building_name ASC
-    `);
- 
-    // ── 6. Daily totals across all buildings (for the single bar chart) ──
-    const [dailyTotals] = await pool.query(`
-      SELECT
-        DATE(recorded_at) AS day,
-        DAYNAME(recorded_at) AS day_name,
-        ROUND(SUM(water_consumed), 2) AS consumed
-      FROM sensor_readings
-      WHERE recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY DATE(recorded_at)
-      ORDER BY day ASC
-    `);
- 
-    res.json({
-      totalWeekConsumption: weekConsumption[0].total_week,
-      avgPh:                avgPh[0].avg_ph,
-      uptimePercent:        uptime,
-      onlineDevices:        online,
-      totalDevices:         total,
-      alertStats:           alertStats[0],
-      buildingDaily,
-      dailyTotals,
-    });
-  } catch (err) {
-    console.error("[AquaSense] getAnalyticsSummary error:", err);
-    res.status(500).json({ message: "Server error fetching analytics." });
-  }
-}
-
-
-async function getSmsLogs(req, res) {
-  try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
- 
-    const [rows] = await pool.query(
-      `SELECT s.*, d.device_name, l.building_name
-       FROM sms_logs s
-       LEFT JOIN devices d ON s.device_id = d.device_id
-       LEFT JOIN locations l ON d.location_id = l.location_id
-       ORDER BY s.created_at DESC
-       LIMIT ?`,
-      [limit]
-    );
- 
-    res.json(rows);
-  } catch (err) {
-    console.error("[AquaSense] getSmsLogs error:", err);
-    res.status(500).json({ message: "Server error fetching SMS logs." });
   }
 }
 
@@ -323,7 +277,6 @@ module.exports = {
   getAlerts,
   resolveAlert,
   getDevices,
+  createDevice,
   getLocations,
-  getAnalyticsSummary,
-   getSmsLogs, 
 };
