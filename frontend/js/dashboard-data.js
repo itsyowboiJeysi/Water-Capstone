@@ -682,6 +682,10 @@ async function loadDevices() {
   const tbody   = document.getElementById("devices-tbody");
   const statsEl = document.getElementById("devices-stats");
 
+  const isAdmin = currentUserIsAdmin();
+  const actionHeader = document.getElementById("devDeleteHeader");
+  if (actionHeader) actionHeader.style.display = isAdmin ? "" : "none";
+
   try {
     const rows = await apiGet("/api/devices");
     if (!rows) return;
@@ -702,7 +706,7 @@ async function loadDevices() {
     if (!tbody) return;
 
     if (rows.length === 0) {
-      tbody.innerHTML = emptyRow(5, "No devices registered yet.");
+      tbody.innerHTML = emptyRow(isAdmin ? 6 : 5, "No devices registered yet.");
       return;
     }
 
@@ -715,12 +719,20 @@ async function loadDevices() {
         : d.status === "maintenance" ? "maintenance"
         : "offline";
 
+      const deleteCell = isAdmin ? `
+        <td>
+          <button class="btn-delete-row delete-device-btn" data-id="${d.device_id}" data-name="${escapeHtml(d.device_name || d.device_id)}">
+            Delete
+          </button>
+        </td>` : "";
+
       return `<tr>
         <td><strong>${d.device_id}</strong></td>
         <td>${d.device_name || "—"}</td>
         <td>${d.building_name || "—"}</td>
         <td>${lastSeen}</td>
         <td><span class="device-badge ${statusClass}"><span class="device-badge-dot"></span>${d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span></td>
+        ${deleteCell}
       </tr>`;
     }).join("");
   } catch (err) {
@@ -736,19 +748,30 @@ async function loadLocations(containerId = "locations-tbody") {
   const el = document.getElementById(containerId);
   if (!el) return;
 
+  const isAdmin = currentUserIsAdmin();
+
+  // Show/hide the Action header column for admins only
+  const actionHeader = document.getElementById("locDeleteHeader");
+  if (actionHeader) actionHeader.style.display = isAdmin ? "" : "none";
+
   try {
     const rows = await apiGet("/api/locations");
     if (!rows) return;
 
-    const real = rows.filter(l => l.location_id <= 5);
-
-    if (real.length === 0) {
-      el.innerHTML = emptyRow(6, "No locations configured yet.");
+    if (rows.length === 0) {
+      el.innerHTML = emptyRow(isAdmin ? 7 : 6, "No locations configured yet.");
       return;
     }
 
-    el.innerHTML = real.map((l, i) => {
+    el.innerHTML = rows.map((l, i) => {
       const hasDevices = Number(l.device_count) > 0;
+      const deleteCell = isAdmin ? `
+        <td>
+          <button class="btn-delete-row delete-location-btn" data-id="${l.location_id}" data-name="${escapeHtml(l.building_name || 'Unnamed')}">
+            Delete
+          </button>
+        </td>` : "";
+
       return `<tr>
         <td>${String(i + 1).padStart(2, "0")}</td>
         <td><strong>${l.building_name || "Unnamed"}</strong></td>
@@ -756,11 +779,30 @@ async function loadLocations(containerId = "locations-tbody") {
         <td>${l.description || "—"}</td>
         <td>${l.device_count} device${l.device_count == 1 ? "" : "s"}</td>
         <td><span class="r-status ${hasDevices ? "safe" : "offline"}">${hasDevices ? "Monitored" : "No Devices"}</span></td>
+        ${deleteCell}
       </tr>`;
     }).join("");
   } catch (err) {
     console.error("[AquaSense] loadLocations error:", err);
   }
+}
+
+// ── Helpers reused by delete buttons (role check + safe HTML escaping) ──────
+function currentUserIsAdmin() {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    return (user.role || "").toLowerCase() === "admin";
+  } catch (e) {
+    return false;
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

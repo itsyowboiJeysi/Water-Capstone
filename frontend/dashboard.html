@@ -325,6 +325,225 @@
       .bottom-grid { grid-template-columns: 1fr; }
       .params-grid { grid-template-columns: repeat(2,1fr); }
     }
+
+    /* ═══ ADD DEVICE BUTTON ═══ */
+    .btn-add-device {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--navy); color: var(--white);
+      border: none; border-radius: 9px;
+      padding: 8px 16px; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+    .btn-add-device:hover { background: var(--navy-mid); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(13,35,83,0.2); }
+    .btn-add-device svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+
+    /* ═══ ROW DELETE BUTTON ═══ */
+    .btn-delete-row {
+      background: none; border: 1.5px solid rgba(239,68,68,0.3);
+      color: #DC2626; border-radius: 7px;
+      padding: 5px 12px; font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-delete-row:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
+
+    /* ═══ MODAL BACKDROP ═══ */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(8,21,53,0.55);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      animation: backdropIn 0.22s ease;
+    }
+    @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ═══ MODAL BOX ═══ */
+    .modal-box {
+      background: var(--white);
+      border-radius: 18px;
+      width: 100%; max-width: 640px;
+      max-height: 92vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 80px rgba(8,21,53,0.28), 0 4px 16px rgba(8,21,53,0.12);
+      animation: modalIn 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+    }
+    .modal-box::-webkit-scrollbar { width: 5px; }
+    .modal-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    /* Modal header */
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--white);
+      z-index: 2; border-radius: 18px 18px 0 0;
+    }
+    .modal-title-wrap { display: flex; align-items: center; gap: 14px; }
+    .modal-icon-wrap {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--navy-mid), var(--navy));
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .modal-icon-wrap svg { width: 22px; height: 22px; stroke: var(--white); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--text-dark); line-height: 1; }
+    .modal-subtitle { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+    .modal-close-btn {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--off-white); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-mid); flex-shrink: 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    .modal-close-btn:hover { background: #FEF2F2; color: var(--error); border-color: #FECACA; }
+    .modal-close-btn svg { width: 15px; height: 15px; stroke: currentColor; }
+
+    /* Modal error banner */
+    .modal-error {
+      display: flex; align-items: center; gap: 8px;
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 9px; padding: 10px 16px; margin: 16px 28px 0;
+      font-size: 13px; color: var(--error);
+    }
+    .modal-error svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Modal body */
+    .modal-body { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
+
+    .modal-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .modal-field { display: flex; flex-direction: column; gap: 6px; }
+    .modal-field label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-mid);
+    }
+    .modal-required { color: var(--error); }
+    .modal-hint { font-size: 11px; color: var(--text-light); line-height: 1.4; }
+
+    .modal-input-wrap { position: relative; }
+    .modal-input-icon {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      color: var(--text-light); display: flex; align-items: center;
+    }
+    .modal-input-icon svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .modal-input-wrap input,
+    .modal-input-wrap select {
+      width: 100%; height: 44px; padding: 0 14px 0 40px;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--text-dark);
+      background: var(--off-white); outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .modal-input-wrap input:focus,
+    .modal-input-wrap select:focus {
+      border-color: var(--navy-mid); background: var(--white);
+      box-shadow: 0 0 0 3px rgba(22,53,116,0.08);
+    }
+    .modal-input-wrap input::placeholder { color: var(--text-light); }
+    .modal-input-wrap input.m-error { border-color: var(--error); background: #FEF2F2; }
+
+    /* Select chevron */
+    .modal-select-wrap::after {
+      content: ''; position: absolute; right: 13px; top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent; border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-light);
+      pointer-events: none;
+    }
+
+    /* Section divider inside modal */
+    .modal-section-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-light);
+      margin: 4px 0 2px;
+    }
+    .modal-section-divider::before,
+    .modal-section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .modal-section-divider span { white-space: nowrap; }
+
+    /* MQTT preview chip */
+    .mqtt-preview {
+      background: #0D1B3E; border-radius: 10px;
+      padding: 14px 18px; margin-top: 4px;
+    }
+    .mqtt-preview-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: rgba(255,255,255,0.35);
+      margin-bottom: 8px;
+    }
+    .mqtt-preview-code {
+      font-family: 'Courier New', monospace; font-size: 12px;
+      color: var(--gold-light); line-height: 1.7; word-break: break-all;
+    }
+
+    /* Modal footer */
+    .modal-footer {
+      display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+      padding: 18px 28px 24px;
+      border-top: 1px solid var(--border);
+    }
+    .modal-btn-cancel {
+      height: 42px; padding: 0 20px;
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 9px; font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px; font-weight: 500; color: var(--text-mid);
+      cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .modal-btn-cancel:hover { border-color: var(--navy); color: var(--navy); background: var(--off-white); }
+    .modal-btn-submit {
+      height: 42px; padding: 0 22px;
+      background: var(--navy); color: var(--white);
+      border: none; border-radius: 9px;
+      font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      transition: background 0.2s, transform 0.15s, opacity 0.2s;
+    }
+    .modal-btn-submit:hover:not(:disabled) { background: var(--navy-mid); transform: translateY(-1px); }
+    .modal-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-btn-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Success toast */
+    .toast {
+      position: fixed; bottom: 28px; right: 28px; z-index: 2000;
+      background: var(--navy-dark); color: var(--white);
+      border: 1px solid rgba(61,214,140,0.3);
+      border-radius: 12px; padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 32px rgba(8,21,53,0.3);
+      animation: toastIn 0.35s cubic-bezier(0.175,0.885,0.32,1.1);
+      min-width: 280px; max-width: 380px;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .toast-icon { width: 32px; height: 32px; border-radius: 50%; background: rgba(61,214,140,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .toast-icon svg { width: 16px; height: 16px; stroke: #3DD68C; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .toast-msg { font-size: 13px; font-weight: 500; color: var(--white); }
+    .toast-sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
+
+    @media (max-width: 600px) {
+      .modal-field-row { grid-template-columns: 1fr; }
+      .modal-box { border-radius: 14px; }
+      .modal-header { padding: 18px 20px 16px; }
+      .modal-body { padding: 18px 20px; }
+      .modal-footer { padding: 14px 20px 20px; }
+    }
+
+    @keyframes mqttPing {
+      0%   { transform: scale(1);   opacity: 0.9; }
+      70%  { transform: scale(1.8); opacity: 0; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -600,12 +819,147 @@
       <div class="view" id="view-locations">
         <div class="section-header"><h2>Locations</h2><p>CSPC campus buildings monitored by the AquaSense IoT system</p></div>
         <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>All Monitored Buildings</div></div>
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              All Monitored Buildings
+            </div>
+            <!-- Admin only — shown by applyRoleGating() -->
+            <button class="btn-add-device" id="addLocationBtn" style="display:none;" onclick="openAddLocationModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Location
+            </button>
+          </div>
           <table class="data-table">
-            <thead><tr><th>#</th><th>Building Name</th><th>Area / Zone</th><th>Description</th><th>Devices</th><th>Status</th></tr></thead>
-            <tbody id="locations-tbody">
-            </tbody>
+            <thead><tr><th>#</th><th>Building Name</th><th>Area / Zone</th><th>Description</th><th>Devices</th><th>Status</th><th id="locDeleteHeader" style="display:none;">Action</th></tr></thead>
+            <tbody id="locations-tbody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- ══════ ADD LOCATION MODAL ══════ -->
+      <div class="modal-backdrop" id="addLocationModal" style="display:none;" onclick="handleLocModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true">
+
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </div>
+              <div>
+                <div class="modal-title">Add New Location</div>
+                <div class="modal-subtitle">Register a campus building to the monitoring network</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeAddLocationModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-error" id="locModalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="locModalErrorText">Something went wrong.</span>
+          </div>
+
+          <div class="modal-body">
+
+            <!-- Building Name -->
+            <div class="modal-field">
+              <label for="lBuildingName">Building Name <span class="modal-required">*</span></label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </span>
+                <input type="text" id="lBuildingName" placeholder="e.g. Faculty Building" maxlength="100"/>
+              </div>
+            </div>
+
+            <!-- Area / Zone + Description side by side -->
+            <div class="modal-field-row">
+              <div class="modal-field">
+                <label for="lAreaName">Area / Zone <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                  </span>
+                  <input type="text" id="lAreaName" placeholder="e.g. Main Campus" maxlength="100"/>
+                </div>
+              </div>
+              <div class="modal-field">
+                <label for="lDescription">Description</label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  </span>
+                  <input type="text" id="lDescription" placeholder="e.g. Comfort rooms, offices" maxlength="255"/>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /modal-body -->
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeAddLocationModal()">Cancel</button>
+            <button class="modal-btn-submit" id="locModalSubmitBtn" onclick="submitAddLocation()">
+              <span class="modal-btn-spinner" id="locModalSpinner" style="display:none;"></span>
+              <span id="locModalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Save Location
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ════════════════════════ DELETE CONFIRMATION MODAL ════════════════════════ -->
+      <div class="modal-backdrop" id="deleteConfirmModal" style="display:none;" onclick="handleDeleteModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" style="max-width:440px;">
+
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background:linear-gradient(135deg,#EF4444,#C0392B);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+              </div>
+              <div>
+                <div class="modal-title" id="deleteModalTitle">Delete Item</div>
+                <div class="modal-subtitle" id="deleteModalSubtitle">This action cannot be undone.</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeDeleteConfirmModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-error" id="deleteModalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="deleteModalErrorText">Something went wrong.</span>
+          </div>
+
+          <div class="modal-body">
+            <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
+              You're about to permanently delete <strong id="deleteModalItemName">this item</strong>.
+              Type <strong>CONFIRM</strong> below to proceed.
+            </p>
+
+            <div class="modal-field">
+              <label for="deleteConfirmInput">Type CONFIRM to continue</label>
+              <div class="modal-input-wrap">
+                <input type="text" id="deleteConfirmInput" placeholder="CONFIRM" autocomplete="off"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
+            <button class="modal-btn-submit" id="deleteModalSubmitBtn" onclick="executeDelete()" style="background:#C0392B;" disabled>
+              <span class="modal-btn-spinner" id="deleteModalSpinner" style="display:none;"></span>
+              <span id="deleteModalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                Delete Permanently
+              </span>
+            </button>
+          </div>
+
         </div>
       </div>
 
@@ -616,14 +970,130 @@
 
         </div>
         <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Device Registry</div></div>
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Device Registry
+            </div>
+            <!-- Only visible to admin — injected by JS -->
+            <button class="btn-add-device" id="addDeviceBtn" style="display:none;" onclick="openAddDeviceModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Device
+            </button>
+          </div>
           <table class="data-table">
-             <thead><tr><th>Device ID</th><th>Device Name</th><th>Location</th><th>Last Seen</th><th>Status</th></tr></thead>
-              <tbody id="devices-tbody">
-            </tbody>
+            <thead><tr><th>Device ID</th><th>Device Name</th><th>Location</th><th>Last Seen</th><th>Status</th><th id="devDeleteHeader" style="display:none;">Action</th></tr></thead>
+            <tbody id="devices-tbody"></tbody>
           </table>
         </div>
       </div>
+
+      <!-- ══════ ADD DEVICE MODAL ══════ -->
+      <div class="modal-backdrop" id="addDeviceModal" style="display:none;" onclick="handleModalBackdropClick(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+
+          <!-- Modal header -->
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="12" y1="8" x2="12" y2="13" stroke-width="2.2"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5" stroke-width="2.2"/></svg>
+              </div>
+              <div>
+                <div class="modal-title" id="modalTitle">Register New Device</div>
+                <div class="modal-subtitle">Add an ESP32 node to the AquaSense network</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeAddDeviceModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Error banner inside modal -->
+          <div class="modal-error" id="modalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="modalErrorText">Something went wrong.</span>
+          </div>
+
+          <!-- Form body -->
+          <div class="modal-body">
+
+            <!-- Row 1: Device ID + Device Name -->
+            <div class="modal-field-row">
+              <div class="modal-field">
+                <label for="mDeviceId">Device ID <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                  </span>
+                  <input type="text" id="mDeviceId" placeholder="e.g. ESP-006" maxlength="50"/>
+                </div>
+                <div class="modal-hint">Unique identifier — must match the ESP32 firmware config</div>
+              </div>
+
+              <div class="modal-field">
+                <label for="mDeviceName">Device Name <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  </span>
+                  <input type="text" id="mDeviceName" placeholder="e.g. ESP32 Faculty Building" maxlength="100"/>
+                </div>
+                <div class="modal-hint">Human-readable label shown in the dashboard</div>
+              </div>
+            </div>
+
+            <!-- Row 2: Location -->
+            <div class="modal-field">
+              <label for="mLocationId">Campus Location <span class="modal-required">*</span></label>
+              <div class="modal-input-wrap modal-select-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                <select id="mLocationId">
+                  <option value="" disabled selected>Select a building…</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- MQTT Section -->
+            <div class="modal-section-divider">
+              <span>MQTT Configuration</span>
+            </div>
+
+            <!-- Row 3: MQTT Topic -->
+            <div class="modal-field">
+              <label for="mMqttTopic">MQTT Topic <span class="modal-required">*</span></label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </span>
+                <input type="text" id="mMqttTopic" placeholder="e.g. aquasense/ESP-006/data" maxlength="200"/>
+              </div>
+              <div class="modal-hint">The topic the ESP32 publishes sensor readings to</div>
+            </div>
+
+            <!-- MQTT preview chip -->
+            <div class="mqtt-preview" id="mqttPreview">
+              <div class="mqtt-preview-label">Registration preview</div>
+              <div class="mqtt-preview-code" id="mqttPreviewCode">Fill in Device ID and Topic above to see the config</div>
+            </div>
+
+          </div><!-- /modal-body -->
+
+          <!-- Modal footer -->
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeAddDeviceModal()">Cancel</button>
+            <button class="modal-btn-submit" id="modalSubmitBtn" onclick="submitAddDevice()">
+              <span class="modal-btn-spinner" id="modalSpinner" style="display:none;"></span>
+              <span id="modalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Register Device
+              </span>
+            </button>
+          </div>
+
+        </div><!-- /modal-box -->
+      </div><!-- /modal-backdrop -->
 
       <!-- ════════════════════════ VIEW: MAINTENANCE LOGS ════════════════════════ -->
       <div class="view" id="view-maintenance">
@@ -764,6 +1234,7 @@ function loadUserIntoSidebar(u) {
   if (u.role) {
     document.getElementById("userRole").textContent = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
   }
+  applyRoleGating(u.role);
 }
  
 handleGoogleCallback().then(async () => {
@@ -859,20 +1330,14 @@ document.querySelectorAll('.nav-item[data-view]').forEach(item => {
 });
  
 // ── Refresh button — reloads data for whatever view is currently open ───────
+// (dashboard-data.js also attaches its own refreshBtn listener after cloning
+//  nav items; that one calls its own internal viewLoaders map. This one is
+//  kept only as a harmless fallback in case dashboard-data.js fails to load.)
 document.getElementById('refreshBtn').addEventListener('click', function () {
   const svg = this.querySelector('svg');
   svg.style.transition = 'transform 0.6s ease';
   svg.style.transform  = 'rotate(360deg)';
   setTimeout(() => { svg.style.transform = ''; svg.style.transition = ''; }, 650);
- 
-  // Find the currently active view and reload its data
-  const active = document.querySelector('.view.active');
-  if (active) {
-    const key = active.id.replace('view-', '');
-    if (window.viewLoaders && window.viewLoaders[key]) {
-      window.viewLoaders[key]();
-    }
-  }
 });
  
 // ── On page load: restore last visited view, or default to dashboard ────────
@@ -881,8 +1346,633 @@ document.addEventListener('DOMContentLoaded', () => {
   navigate(savedView);
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ROLE-GATED UI — show Add Device / Add Location buttons only for admin
+// ══════════════════════════════════════════════════════════════════════════════
+function applyRoleGating(role) {
+  const isAdmin = role && role.toLowerCase() === 'admin';
+  const addDevBtn = document.getElementById('addDeviceBtn');
+  const addLocBtn = document.getElementById('addLocationBtn');
+  if (addDevBtn) addDevBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  if (addLocBtn) addLocBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+}
 
- 
+// ══════════════════════════════════════════════════════════════════════════════
+// ADD DEVICE MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Populate location dropdown from the API
+async function populateLocationDropdown() {
+  const sel = document.getElementById('mLocationId');
+  if (!sel || sel.children.length > 1) return; // already populated
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res = await fetch('http://localhost:5000/api/locations', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to fetch locations');
+    const rows = await res.json();
+
+    rows.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.location_id;
+      opt.textContent = l.building_name + (l.area_name ? ` — ${l.area_name}` : '');
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.warn('[AquaSense] Could not load locations for modal:', err);
+  }
+}
+
+// Live MQTT preview
+function updateMqttPreview() {
+  const deviceId = document.getElementById('mDeviceId').value.trim();
+  const topic    = document.getElementById('mMqttTopic').value.trim();
+  const preview  = document.getElementById('mqttPreviewCode');
+
+  if (!deviceId && !topic) {
+    preview.textContent = 'Fill in Device ID and Topic above to see the config';
+    return;
+  }
+
+  preview.textContent =
+    `device_id  : "${deviceId || '—'}"\n` +
+    `mqtt_topic : "${topic    || '—'}"`;
+}
+
+// Wire preview on any input change
+['mDeviceId','mDeviceName','mMqttTopic'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateMqttPreview);
+});
+
+function openAddDeviceModal() {
+  populateLocationDropdown();
+  resetModalForm();
+  document.getElementById('addDeviceModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('mDeviceId')?.focus(), 80);
+}
+
+function closeAddDeviceModal() {
+  document.getElementById('addDeviceModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleModalBackdropClick(e) {
+  if (e.target === document.getElementById('addDeviceModal')) closeAddDeviceModal();
+}
+
+function resetModalForm() {
+  ['mDeviceId','mDeviceName','mMqttTopic'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('m-error'); }
+  });
+  const locationEl = document.getElementById('mLocationId');
+  if (locationEl) locationEl.value = '';
+  document.getElementById('mqttPreviewCode').textContent = 'Fill in Device ID and Topic above to see the config';
+  hideModalError();
+  setModalLoading(false);
+}
+
+function showModalError(msg) {
+  const el = document.getElementById('modalError');
+  document.getElementById('modalErrorText').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function hideModalError() {
+  document.getElementById('modalError').style.display = 'none';
+}
+
+function setModalLoading(active) {
+  const btn      = document.getElementById('modalSubmitBtn');
+  const spinner  = document.getElementById('modalSpinner');
+  const label    = document.getElementById('modalBtnLabel');
+  btn.disabled   = active;
+  spinner.style.display = active ? 'block' : 'none';
+  label.style.display   = active ? 'none'  : 'flex';
+}
+
+async function submitAddDevice() {
+  hideModalError();
+
+  // ── Grab values ────────────────────────────────────────────────────────────
+  const deviceId   = document.getElementById('mDeviceId').value.trim();
+  const deviceName = document.getElementById('mDeviceName').value.trim();
+  const locationId = document.getElementById('mLocationId').value;
+  const mqttTopic  = document.getElementById('mMqttTopic').value.trim();
+
+  // ── Client-side validation ─────────────────────────────────────────────────
+  let firstError = null;
+
+  function markError(id, msg) {
+    document.getElementById(id)?.classList.add('m-error');
+    if (!firstError) firstError = msg;
+  }
+
+  document.querySelectorAll('.modal-input-wrap input, .modal-input-wrap select')
+    .forEach(el => el.classList.remove('m-error'));
+
+  if (!deviceId)   markError('mDeviceId',   'Device ID is required.');
+  if (!deviceName) markError('mDeviceName', 'Device name is required.');
+  if (!locationId) markError('mLocationId', 'Please select a location.');
+  if (!mqttTopic)  markError('mMqttTopic',  'MQTT topic is required.');
+
+  if (firstError) {
+    showModalError(firstError);
+    return;
+  }
+
+  // ── POST to API ────────────────────────────────────────────────────────────
+  setModalLoading(true);
+
+  const payload = {
+    device_id:   deviceId,
+    device_name: deviceName,
+    location_id: parseInt(locationId),
+    status:      'offline',
+    mqtt_topic:  mqttTopic,
+  };
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res   = await fetch('http://localhost:5000/api/devices', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body:    JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (res.ok || res.status === 201) {
+      closeAddDeviceModal();
+      showMqttConnectingScreen(deviceId, deviceName);
+    } else {
+      setModalLoading(false);
+      showModalError(data.message || 'Registration failed. Please try again.');
+    }
+  } catch (err) {
+    console.error('[AquaSense] addDevice error:', err);
+    setModalLoading(false);
+    showModalError('Network error. Check your connection and try again.');
+  }
+}
+
+// ── Toast helper ──────────────────────────────────────────────────────────────
+function showToast(title, subtitle) {
+  // Remove any existing toast
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    <div class="toast-icon">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div>
+      <div class="toast-msg">${title}</div>
+      ${subtitle ? `<div class="toast-sub">${subtitle}</div>` : ''}
+    </div>`;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 420);
+  }, 3500);
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MQTT CONNECTING SCREEN
+// ══════════════════════════════════════════════════════════════════════════════
+function showMqttConnectingScreen(deviceId, deviceName) {
+  // Remove any old screen
+  document.getElementById('mqttConnectScreen')?.remove();
+
+  const screen = document.createElement('div');
+  screen.id = 'mqttConnectScreen';
+  screen.style.cssText = `
+    position:fixed;inset:0;z-index:2000;
+    background:rgba(8,21,53,0.72);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    animation:backdropIn 0.25s ease;
+  `;
+
+  screen.innerHTML = `
+    <div style="
+      background:#fff;border-radius:20px;padding:48px 40px;
+      max-width:420px;width:100%;text-align:center;
+      box-shadow:0 24px 80px rgba(8,21,53,0.3);
+      animation:modalIn 0.3s cubic-bezier(0.175,0.885,0.32,1.1);
+    ">
+      <!-- Pulsing ring -->
+      <div style="position:relative;width:80px;height:80px;margin:0 auto 28px;">
+        <div id="mqttRing" style="
+          position:absolute;inset:0;border-radius:50%;
+          border:3px solid var(--water-2);
+          animation:mqttPing 1.4s ease-out infinite;
+        "></div>
+        <div style="
+          position:absolute;inset:8px;border-radius:50%;
+          background:linear-gradient(135deg,var(--navy-mid),var(--navy));
+          display:flex;align-items:center;justify-content:center;
+        ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+      </div>
+
+      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text-dark);margin-bottom:8px;">
+        Waiting for ESP32…
+      </div>
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px;">
+        Listening on MQTT for <strong>${deviceId}</strong>
+      </div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:32px;line-height:1.6;">
+        Power on your ESP32 now. It will automatically appear as <strong>Online</strong> once it connects to the broker and publishes to its topic.
+      </div>
+
+      <!-- Status badge — updates live -->
+      <div id="mqttStatusBadge" style="
+        display:inline-flex;align-items:center;gap:8px;
+        background:var(--off-white);border:1.5px solid var(--border);
+        border-radius:30px;padding:8px 20px;margin-bottom:28px;
+        font-size:13px;font-weight:600;color:var(--text-mid);
+      ">
+        <span id="mqttStatusDot" style="
+          width:8px;height:8px;border-radius:50%;background:var(--gold);
+          box-shadow:0 0 6px rgba(212,160,23,0.6);
+          animation:pulse-dot 1.6s ease-in-out infinite;
+        "></span>
+        <span id="mqttStatusText">Checking connection…</span>
+      </div>
+
+      <!-- Timeout counter -->
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:28px;">
+        Auto-closes in <span id="mqttCountdown">30</span>s
+      </div>
+
+      <button onclick="closeMqttConnectingScreen()" style="
+        height:42px;padding:0 28px;background:var(--navy);color:#fff;
+        border:none;border-radius:10px;font-family:'DM Sans',sans-serif;
+        font-size:13.5px;font-weight:600;cursor:pointer;
+        transition:background 0.2s;
+      " onmouseover="this.style.background='var(--navy-mid)'" onmouseout="this.style.background='var(--navy)'">
+        Done
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(screen);
+
+  // Poll the device status every 3s for up to 30s
+  let elapsed   = 0;
+  const timeout = 30;
+  const interval = 3;
+  let   resolved = false;
+
+  const countdown = screen.querySelector('#mqttCountdown');
+  const statusText = screen.querySelector('#mqttStatusText');
+  const statusDot  = screen.querySelector('#mqttStatusDot');
+  const badge      = screen.querySelector('#mqttStatusBadge');
+
+  async function pollStatus() {
+    if (resolved) return;
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const res   = await fetch(`http://localhost:5000/api/devices`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const devices = await res.json();
+      const device  = devices.find(d => d.device_id === deviceId);
+
+      if (device && device.status === 'online') {
+        resolved = true;
+        clearInterval(timer);
+        // Update badge to Online
+        statusDot.style.background    = '#3DD68C';
+        statusDot.style.boxShadow     = '0 0 8px rgba(61,214,140,0.7)';
+        statusDot.style.animation     = 'pulse-dot 2s ease-in-out infinite';
+        badge.style.borderColor       = '#BBF7D0';
+        badge.style.background        = '#F0FDF4';
+        badge.style.color             = '#0F7050';
+        statusText.textContent        = 'Connected — Online';
+        screen.querySelector('#mqttRing').style.borderColor = '#3DD68C';
+
+        // Reload devices table in background
+        if (window.viewLoaders && window.viewLoaders.devices) {
+          window.viewLoaders.devices();
+        }
+
+        // Auto close after 2.5s
+        setTimeout(() => closeMqttConnectingScreen(), 2500);
+      }
+    } catch (e) { /* network hiccup — keep polling */ }
+  }
+
+  const timer = setInterval(async () => {
+    elapsed += interval;
+    const remaining = timeout - elapsed;
+    if (countdown) countdown.textContent = Math.max(0, remaining);
+
+    if (elapsed >= timeout) {
+      clearInterval(timer);
+      if (!resolved) {
+        // Timed out — mark offline
+        statusDot.style.background = '#8292B0';
+        statusDot.style.boxShadow  = 'none';
+        statusDot.style.animation  = 'none';
+        badge.style.borderColor    = '#DDE3EE';
+        badge.style.color          = '#8292B0';
+        statusText.textContent     = 'Not detected — saved as Offline';
+        screen.querySelector('#mqttRing').style.animation = 'none';
+        screen.querySelector('#mqttRing').style.opacity   = '0.2';
+        if (window.viewLoaders && window.viewLoaders.devices) {
+          window.viewLoaders.devices();
+        }
+      }
+      return;
+    }
+
+    await pollStatus();
+  }, interval * 1000);
+
+  // First poll immediately
+  pollStatus();
+}
+
+function closeMqttConnectingScreen() {
+  const screen = document.getElementById('mqttConnectScreen');
+  if (screen) {
+    screen.style.transition = 'opacity 0.3s ease';
+    screen.style.opacity = '0';
+    setTimeout(() => screen.remove(), 310);
+  }
+  // Always refresh devices table when closing
+  if (window.viewLoaders && window.viewLoaders.devices) {
+    window.viewLoaders.devices();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ADD LOCATION MODAL
+// ══════════════════════════════════════════════════════════════════════════════
+function openAddLocationModal() {
+  resetLocModalForm();
+  document.getElementById('addLocationModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('lBuildingName')?.focus(), 80);
+}
+
+function closeAddLocationModal() {
+  document.getElementById('addLocationModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleLocModalBackdrop(e) {
+  if (e.target === document.getElementById('addLocationModal')) closeAddLocationModal();
+}
+
+// Escape key closes whichever modal/screen is currently open
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAddDeviceModal();
+    closeAddLocationModal();
+    closeMqttConnectingScreen();
+    closeDeleteConfirmModal();
+  }
+});
+
+function resetLocModalForm() {
+  ['lBuildingName','lAreaName','lDescription'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('m-error'); }
+  });
+  const errEl = document.getElementById('locModalError');
+  if (errEl) errEl.style.display = 'none';
+  const btn     = document.getElementById('locModalSubmitBtn');
+  const spinner = document.getElementById('locModalSpinner');
+  const label   = document.getElementById('locModalBtnLabel');
+  if (btn)     btn.disabled = false;
+  if (spinner) spinner.style.display = 'none';
+  if (label)   label.style.display   = 'flex';
+}
+
+async function submitAddLocation() {
+  const errEl   = document.getElementById('locModalError');
+  const errText = document.getElementById('locModalErrorText');
+  errEl.style.display = 'none';
+
+  const buildingName = document.getElementById('lBuildingName').value.trim();
+  const areaName     = document.getElementById('lAreaName').value.trim();
+  const description  = document.getElementById('lDescription').value.trim();
+
+  // Validation
+  if (!buildingName) {
+    document.getElementById('lBuildingName').classList.add('m-error');
+    errText.textContent = 'Building name is required.';
+    errEl.style.display = 'flex';
+    return;
+  }
+  if (!areaName) {
+    document.getElementById('lAreaName').classList.add('m-error');
+    errText.textContent = 'Area / Zone is required.';
+    errEl.style.display = 'flex';
+    return;
+  }
+
+  // Loading
+  const btn     = document.getElementById('locModalSubmitBtn');
+  const spinner = document.getElementById('locModalSpinner');
+  const label   = document.getElementById('locModalBtnLabel');
+  btn.disabled        = true;
+  spinner.style.display = 'block';
+  label.style.display   = 'none';
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res   = await fetch('http://localhost:5000/api/locations', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body:    JSON.stringify({ building_name: buildingName, area_name: areaName, description }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok || res.status === 201) {
+      closeAddLocationModal();
+      showToast('Location added!', `${buildingName} is now in the monitoring network.`);
+      // Refresh locations table + location dropdown in device modal
+      if (window.viewLoaders && window.viewLoaders.locations) {
+        window.viewLoaders.locations();
+      }
+      // Reset dropdown so it re-fetches next time
+      const sel = document.getElementById('mLocationId');
+      if (sel) {
+        while (sel.options.length > 1) sel.remove(1);
+      }
+    } else {
+      errText.textContent   = data.message || 'Failed to add location. Please try again.';
+      errEl.style.display   = 'flex';
+      btn.disabled          = false;
+      spinner.style.display = 'none';
+      label.style.display   = 'flex';
+    }
+  } catch (err) {
+    console.error('[AquaSense] addLocation error:', err);
+    errText.textContent   = 'Network error. Check your connection and try again.';
+    errEl.style.display   = 'flex';
+    btn.disabled          = false;
+    spinner.style.display = 'none';
+    label.style.display   = 'flex';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DELETE CONFIRMATION MODAL — used for both Locations and Devices
+// Requires the user to type CONFIRM before the delete button is enabled.
+// ══════════════════════════════════════════════════════════════════════════════
+let pendingDelete = null; // { type: 'location' | 'device', id, name }
+
+function openDeleteConfirmModal(type, id, name) {
+  pendingDelete = { type, id, name };
+
+  const labelMap = {
+    location: { title: 'Delete Location', noun: 'location' },
+    device:   { title: 'Delete Device',   noun: 'device'   },
+  };
+  const labels = labelMap[type] || { title: 'Delete Item', noun: 'item' };
+
+  document.getElementById('deleteModalTitle').textContent = labels.title;
+  document.getElementById('deleteModalSubtitle').textContent = 'This action cannot be undone.';
+  document.getElementById('deleteModalItemName').textContent = `${labels.noun} "${name}"`;
+
+  const input = document.getElementById('deleteConfirmInput');
+  input.value = '';
+  hideDeleteModalError();
+  setDeleteModalLoading(false);
+  updateDeleteButtonState();
+
+  document.getElementById('deleteConfirmModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => input.focus(), 80);
+}
+
+function closeDeleteConfirmModal() {
+  document.getElementById('deleteConfirmModal').style.display = 'none';
+  document.body.style.overflow = '';
+  pendingDelete = null;
+}
+
+function handleDeleteModalBackdrop(e) {
+  if (e.target === document.getElementById('deleteConfirmModal')) closeDeleteConfirmModal();
+}
+
+function showDeleteModalError(msg) {
+  const el = document.getElementById('deleteModalError');
+  document.getElementById('deleteModalErrorText').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function hideDeleteModalError() {
+  document.getElementById('deleteModalError').style.display = 'none';
+}
+
+function setDeleteModalLoading(active) {
+  const btn     = document.getElementById('deleteModalSubmitBtn');
+  const spinner = document.getElementById('deleteModalSpinner');
+  const label   = document.getElementById('deleteModalBtnLabel');
+  btn.disabled  = active || document.getElementById('deleteConfirmInput').value.trim() !== 'CONFIRM';
+  spinner.style.display = active ? 'block' : 'none';
+  label.style.display   = active ? 'none'  : 'flex';
+}
+
+// Enable the Delete button only when the input exactly matches "CONFIRM"
+function updateDeleteButtonState() {
+  const input = document.getElementById('deleteConfirmInput');
+  const btn   = document.getElementById('deleteModalSubmitBtn');
+  if (!input || !btn) return;
+  btn.disabled = input.value.trim() !== 'CONFIRM';
+}
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'deleteConfirmInput') updateDeleteButtonState();
+});
+
+// Delegated click listener — works for buttons rendered dynamically into
+// #locations-tbody (and #devices-tbody, once wired the same way), since
+// they don't exist in the DOM yet when the page first loads.
+document.addEventListener('click', (e) => {
+  const delLocBtn = e.target.closest('.delete-location-btn');
+  if (delLocBtn) {
+    openDeleteConfirmModal('location', delLocBtn.dataset.id, delLocBtn.dataset.name);
+    return;
+  }
+  const delDevBtn = e.target.closest('.delete-device-btn');
+  if (delDevBtn) {
+    openDeleteConfirmModal('device', delDevBtn.dataset.id, delDevBtn.dataset.name);
+  }
+});
+
+async function executeDelete() {
+  if (!pendingDelete) return;
+  const input = document.getElementById('deleteConfirmInput');
+  if (input.value.trim() !== 'CONFIRM') {
+    showDeleteModalError('Please type CONFIRM exactly to proceed.');
+    return;
+  }
+
+  hideDeleteModalError();
+  setDeleteModalLoading(true);
+
+  const { type, id } = pendingDelete;
+  const endpointMap = {
+    location: `http://localhost:5000/api/locations/${id}`,
+    device:   `http://localhost:5000/api/devices/${id}`,
+  };
+  const url = endpointMap[type];
+  if (!url) {
+    showDeleteModalError('Unknown item type.');
+    setDeleteModalLoading(false);
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res   = await fetch(url, {
+      method:  'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      closeDeleteConfirmModal();
+      showToast('Deleted', `${pendingDelete.name} has been removed.`);
+
+      if (type === 'location' && window.viewLoaders && window.viewLoaders.locations) {
+        window.viewLoaders.locations();
+      }
+      if (type === 'device' && window.viewLoaders && window.viewLoaders.devices) {
+        window.viewLoaders.devices();
+      }
+    } else {
+      showDeleteModalError(data.message || 'Failed to delete. Please try again.');
+      setDeleteModalLoading(false);
+    }
+  } catch (err) {
+    console.error('[AquaSense] delete error:', err);
+    showDeleteModalError('Network error. Check your connection and try again.');
+    setDeleteModalLoading(false);
+  }
+}
+
+
 </script>
 </body>
 </html>

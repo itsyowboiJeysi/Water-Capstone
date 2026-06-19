@@ -10,21 +10,26 @@ const authRoutes     = require("./routes/authRoutes");
 const googleRoutes   = require("./routes/google");
 const { generalLimiter } = require("./middleware/rateLimiter");
 const dataRoutes = require("./routes/dataRoutes");
+const locationRoutes = require("./routes/locationRoutes"); 
+const deviceRoutes   = require("./routes/deviceRoutes");
+
+
+
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-const path = require("path");
-// ...
-app.use(express.json());
-
-// Serve the frontend folder — no more Live Server needed
-app.use(express.static(path.join(__dirname, "..", "frontend"), {
-  index: "login.html"   // your frontend/index.html is empty, so point "/" at login.html instead
-}));
-
 // ── Trust proxy (needed for accurate IPs behind a proxy/load balancer) ───────
 app.set("trust proxy", 1);
+
+console.log("authRoutes:", typeof authRoutes);
+console.log("googleRoutes:", typeof googleRoutes);
+console.log("generalLimiter:", typeof generalLimiter);
+console.log("dataRoutes:", typeof dataRoutes);
+console.log("locationRoutes:", typeof locationRoutes);
+console.log("deviceRoutes:", typeof deviceRoutes);
+
+
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -50,6 +55,9 @@ app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", googleRoutes);   // GET /api/auth/google  &  /api/auth/google/callback
 app.use("/api", dataRoutes);
+app.use("/api/locations", locationRoutes);
+app.use("/api/devices", deviceRoutes);
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "AquaMonitor", time: new Date().toISOString() });
