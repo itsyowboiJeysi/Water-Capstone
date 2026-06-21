@@ -492,6 +492,8 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
       return;
     }
 
+    const isAdmin = currentUserIsAdmin();
+
     el.innerHTML = rows.map(a => {
       const level      = alertClass(a.level);
       const isResolved = a.status === "resolved";
@@ -501,6 +503,14 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
 
       const dotClass = isResolved ? "low" : level;
       const paramInfo = a.parameter ? ` · ${a.parameter.toUpperCase()}: ${a.value ?? ""}` : "";
+
+      // Delete icon — full alert list only (not the dashboard preview widget),
+      // admins only. Opens a simple Yes/No modal, no typed "CONFIRM" step.
+      const alertId = a.alert_id ?? a.id;
+      const deleteBtn = (!isPreview && isAdmin && alertId != null) ? `
+            <button class="alert-delete-btn delete-alert-btn" data-id="${alertId}" data-name="${escapeHtml(a.message || a.parameter || 'Alert')}" title="Delete alert" aria-label="Delete alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>` : "";
 
       return `
         <div class="alert-item" ${isResolved ? 'style="opacity:.55;"' : ""}>
@@ -512,7 +522,7 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
           ${isResolved
             ? `<span class="alert-level resolved">Resolved</span>`
             : `<span class="alert-level ${level}">${a.level ? a.level.charAt(0).toUpperCase() + a.level.slice(1) : "Alert"}</span>`
-          }
+          }${deleteBtn}
         </div>`;
     }).join("");
   } catch (err) {

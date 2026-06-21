@@ -221,6 +221,44 @@ async function resolveAlert(req, res) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// DELETE /api/alerts/:id
+// Admin only — powers the trash-icon button + simple Yes/No modal on the
+// Alerts page (no typed "CONFIRM" step, unlike Locations/Devices deletes).
+// ─────────────────────────────────────────────────────────────────────────
+async function deleteAlert(req, res) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Only administrators can delete alerts." });
+  }
+
+  const { id } = req.params;
+
+  try {
+    const [result] = await pool.query(
+      "DELETE FROM alerts WHERE id = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Alert not found." });
+    }
+
+    res.json({ message: "Alert deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteAlert error:", err);
+
+    // sms_logs.alert_id references alerts — if that FK has no ON DELETE
+    // CASCADE, MySQL will reject the delete with ER_ROW_IS_REFERENCED_2.
+    if (err.code === "ER_ROW_IS_REFERENCED_2" || err.code === "ER_ROW_IS_REFERENCED") {
+      return res.status(409).json({
+        message: "This alert has related SMS log records and can't be deleted yet.",
+      });
+    }
+
+    res.status(500).json({ message: "Server error deleting alert." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // GET /api/devices
 // ─────────────────────────────────────────────────────────────────────────
 async function getDevices(req, res) {
@@ -393,6 +431,7 @@ module.exports = {
   deleteSensorReadings,
   getAlerts,
   resolveAlert,
+  deleteAlert,
   getDevices,
   createDevice,
   getLocations,

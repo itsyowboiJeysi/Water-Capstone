@@ -81,10 +81,19 @@
       background: linear-gradient(135deg, var(--water-1), var(--navy-mid));
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+      overflow: hidden;
     }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .user-info { flex: 1; min-width: 0; }
     .user-name { font-size: 12.5px; font-weight: 600; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .user-role { font-size: 10px; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.06em; }
+    .sidebar-profile-trigger {
+      flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+      background: none; border: none; padding: 5px 6px; margin: -5px -6px;
+      border-radius: 9px; cursor: pointer; text-align: left;
+      transition: background 0.2s;
+    }
+    .sidebar-profile-trigger:hover { background: rgba(255,255,255,0.07); }
     .logout-btn {
       background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.35);
       padding: 5px; border-radius: 6px; display: flex; align-items: center;
@@ -359,6 +368,17 @@
     }
     .btn-bulk-delete:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.6); transform: translateY(-1px); }
     .btn-bulk-delete svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ═══ ALERT ITEM — DELETE ICON BUTTON ═══ */
+    .alert-delete-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-light); padding: 6px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; align-self: center; margin-left: 4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .alert-delete-btn:hover { background: rgba(239,68,68,0.1); color: #DC2626; }
+    .alert-delete-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
     /* ═══ TABLE ROW CHECKBOXES ═══ */
     .row-checkbox-cell { width: 38px; text-align: center !important; }
@@ -679,11 +699,13 @@
     </nav>
 
    <div class="sidebar-footer">
-  <div class="user-avatar" id="userAvatar">?</div>
-  <div class="user-info">
-    <div class="user-name" id="userName">Loading...</div>
-    <div class="user-role" id="userRole">—</div>
-  </div>
+  <button type="button" class="sidebar-profile-trigger" id="sidebarProfileTrigger" onclick="openProfileModal()" title="View / edit your profile">
+    <div class="user-avatar" id="userAvatar">?</div>
+    <div class="user-info">
+      <div class="user-name" id="userName">Loading...</div>
+      <div class="user-role" id="userRole">—</div>
+    </div>
+  </button>
   <button class="logout-btn" title="Sign out" onclick="logout()">
     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
   </button>
@@ -1075,6 +1097,184 @@
         </div>
       </div>
 
+      <!-- ════════════════════════ DELETE ALERT MODAL (simple confirm — no typed confirmation) ════════════════════════ -->
+      <div class="modal-backdrop" id="alertDeleteModal" style="display:none;" onclick="handleAlertDeleteModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" style="max-width:420px;">
+
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background:linear-gradient(135deg,#EF4444,#C0392B);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+              </div>
+              <div>
+                <div class="modal-title">Delete Alert</div>
+                <div class="modal-subtitle">This action cannot be undone.</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeAlertDeleteModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-error" id="alertDeleteModalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="alertDeleteModalErrorText">Something went wrong.</span>
+          </div>
+
+          <div class="modal-body">
+            <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
+              Are you sure you want to delete <strong id="alertDeleteModalItemName">this alert</strong>? It will be permanently removed from the system.
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeAlertDeleteModal()">Cancel</button>
+            <button class="modal-btn-submit" id="alertDeleteModalSubmitBtn" onclick="executeAlertDelete()" style="background:#C0392B;">
+              <span class="modal-btn-spinner" id="alertDeleteModalSpinner" style="display:none;"></span>
+              <span id="alertDeleteModalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                Delete Alert
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ════════════════════════ EDIT PROFILE MODAL ════════════════════════ -->
+      <div class="modal-backdrop" id="profileModal" style="display:none;" onclick="handleProfileModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" style="max-width:500px;">
+
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div>
+                <div class="modal-title" id="profileModalTitle">My Profile</div>
+                <div class="modal-subtitle">View and update your account details</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeProfileModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-error" id="profileModalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="profileModalErrorText">Something went wrong.</span>
+          </div>
+
+          <div class="modal-error" id="profileModalSuccess" style="display:none; background:#F0FBF5; border-color:#A7DFC0; color:var(--success);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span id="profileModalSuccessText">Profile updated successfully.</span>
+          </div>
+
+          <div class="modal-body">
+
+            <!-- Avatar + role/status summary -->
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div id="profileAvatarPreview" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--water-1),var(--navy-mid));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;">?</div>
+              <div>
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                  <span class="role-badge" id="profileRoleBadge">—</span>
+                  <span class="r-status safe" id="profileStatusBadge">—</span>
+                </div>
+                <div style="font-size:11.5px; color:var(--text-light); margin-top:5px;" id="profileMemberSince">—</div>
+              </div>
+            </div>
+
+            <div class="modal-field-row">
+              <div class="modal-field">
+                <label for="profileFullname">Full name <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <input type="text" id="profileFullname" placeholder="e.g. Juan dela Cruz" autocomplete="name"/>
+                </div>
+              </div>
+              <div class="modal-field">
+                <label for="profilePhone">Phone number</label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.33 2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </span>
+                  <input type="tel" id="profilePhone" placeholder="09XXXXXXXXX" autocomplete="tel"/>
+                </div>
+                <div class="modal-hint">Format: 09XXXXXXXXX</div>
+              </div>
+            </div>
+
+            <div class="modal-field">
+              <label for="profileEmail">Email address</label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
+                </span>
+                <input type="email" id="profileEmail" disabled style="background:var(--off-white); color:var(--text-light); cursor:not-allowed;"/>
+              </div>
+              <div class="modal-hint">Contact an administrator to change your email address.</div>
+            </div>
+
+            <div class="modal-field">
+              <label for="profileAvatarUrl">Avatar URL</label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                </span>
+                <input type="text" id="profileAvatarUrl" placeholder="https://… (optional)"/>
+              </div>
+            </div>
+
+            <div class="modal-section-divider"><span>Change Password (optional)</span></div>
+
+            <div class="modal-field-row">
+              <div class="modal-field">
+                <label for="profileCurrentPassword">Current password</label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input type="password" id="profileCurrentPassword" placeholder="Required to set new password" autocomplete="current-password"/>
+                </div>
+              </div>
+              <div class="modal-field">
+                <label for="profileNewPassword">New password</label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input type="password" id="profileNewPassword" placeholder="Min. 8 characters" autocomplete="new-password"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-field">
+              <label for="profileConfirmPassword">Confirm new password</label>
+              <div class="modal-input-wrap">
+                <span class="modal-input-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input type="password" id="profileConfirmPassword" placeholder="Repeat new password" autocomplete="new-password"/>
+              </div>
+              <div class="modal-hint" id="profilePasswordMismatch" style="display:none; color:var(--error);">Passwords do not match.</div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeProfileModal()">Cancel</button>
+            <button class="modal-btn-submit" id="profileModalSubmitBtn" onclick="executeProfileSave()">
+              <span class="modal-btn-spinner" id="profileModalSpinner" style="display:none;"></span>
+              <span id="profileModalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                Save Changes
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ════════════════════════ VIEW: DEVICES ════════════════════════ -->
       <div class="view" id="view-devices">
         <div class="section-header"><h2>Devices</h2><p>All ESP32 IoT devices registered in the AquaSense monitoring network</p></div>
@@ -1326,9 +1526,16 @@ function logout() {
 }
  
 function loadUserIntoSidebar(u) {
+  window.currentUserData = u; // ← stashed for the Edit Profile modal
   if (u.fullname) {
-    document.getElementById("userName").textContent   = u.fullname;
-    document.getElementById("userAvatar").textContent = u.fullname.charAt(0).toUpperCase();
+    document.getElementById("userName").textContent = u.fullname;
+    const initial = u.fullname.charAt(0).toUpperCase();
+    const avatarEl = document.getElementById("userAvatar");
+    if (u.avatar) {
+      avatarEl.innerHTML = `<img src="${u.avatar}" alt="" onerror="this.parentElement.textContent = '${initial}';"/>`;
+    } else {
+      avatarEl.textContent = initial;
+    }
   }
   if (u.role) {
     document.getElementById("userRole").textContent = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
@@ -2014,6 +2221,11 @@ document.addEventListener('click', (e) => {
   const delDevBtn = e.target.closest('.delete-device-btn');
   if (delDevBtn) {
     openDeleteConfirmModal('device', delDevBtn.dataset.id, delDevBtn.dataset.name);
+    return;
+  }
+  const delAlertBtn = e.target.closest('.delete-alert-btn');
+  if (delAlertBtn) {
+    openAlertDeleteModal(delAlertBtn.dataset.id, delAlertBtn.dataset.name);
   }
 });
 
@@ -2085,6 +2297,273 @@ async function executeDelete() {
     console.error('[AquaSense] delete error:', err);
     showDeleteModalError('Network error. Check your connection and try again.');
     setDeleteModalLoading(false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DELETE ALERT MODAL — simple Yes/No confirm, no "type CONFIRM" step required.
+// Used only for individual alerts in the Alerts section.
+// ══════════════════════════════════════════════════════════════════════════════
+let pendingAlertDelete = null; // { id, name }
+
+function openAlertDeleteModal(id, name) {
+  pendingAlertDelete = { id, name };
+
+  document.getElementById('alertDeleteModalItemName').textContent = name ? `"${name}"` : 'this alert';
+  hideAlertDeleteModalError();
+  setAlertDeleteModalLoading(false);
+
+  document.getElementById('alertDeleteModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAlertDeleteModal() {
+  document.getElementById('alertDeleteModal').style.display = 'none';
+  document.body.style.overflow = '';
+  pendingAlertDelete = null;
+}
+
+function handleAlertDeleteModalBackdrop(e) {
+  if (e.target === document.getElementById('alertDeleteModal')) closeAlertDeleteModal();
+}
+
+function showAlertDeleteModalError(msg) {
+  const el = document.getElementById('alertDeleteModalError');
+  document.getElementById('alertDeleteModalErrorText').textContent = msg;
+  el.style.display = 'flex';
+}
+
+function hideAlertDeleteModalError() {
+  document.getElementById('alertDeleteModalError').style.display = 'none';
+}
+
+function setAlertDeleteModalLoading(active) {
+  const btn     = document.getElementById('alertDeleteModalSubmitBtn');
+  const spinner = document.getElementById('alertDeleteModalSpinner');
+  const label   = document.getElementById('alertDeleteModalBtnLabel');
+  btn.disabled  = active;
+  spinner.style.display = active ? 'block' : 'none';
+  label.style.display   = active ? 'none'  : 'flex';
+}
+
+async function executeAlertDelete() {
+  if (!pendingAlertDelete) return;
+
+  hideAlertDeleteModalError();
+  setAlertDeleteModalLoading(true);
+
+  const { id, name } = pendingAlertDelete;
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res  = await fetch(`http://localhost:5000/api/alerts/${id}`, {
+      method:  'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      closeAlertDeleteModal();
+      showToast('Deleted', `Alert ${name ? `"${name}" ` : ''}has been removed.`);
+
+      // Refresh whichever alert views are on screen
+      if (window.viewLoaders && window.viewLoaders.alerts) {
+        window.viewLoaders.alerts();
+      }
+      if (typeof refreshAlertBadgeCounts === 'function') {
+        refreshAlertBadgeCounts();
+      }
+    } else {
+      showAlertDeleteModalError(data.message || 'Failed to delete alert. Please try again.');
+      setAlertDeleteModalLoading(false);
+    }
+  } catch (err) {
+    console.error('[AquaSense] alert delete error:', err);
+    showAlertDeleteModalError('Network error. Check your connection and try again.');
+    setAlertDeleteModalLoading(false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EDIT PROFILE MODAL — view / edit the logged-in user's own account details
+// Opened by clicking the avatar + name in the sidebar footer.
+// ══════════════════════════════════════════════════════════════════════════════
+
+function getCachedUser() {
+  if (window.currentUserData) return window.currentUserData;
+  const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+function openProfileModal() {
+  const u = getCachedUser();
+  if (!u) {
+    showToast('Unable to load profile', 'Please refresh the page and try again.');
+    return;
+  }
+
+  // ── Avatar preview ──────────────────────────────────────────────────────
+  const avatarEl = document.getElementById('profileAvatarPreview');
+  if (u.avatar) {
+    avatarEl.innerHTML = `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent = '${(u.fullname || '?').charAt(0).toUpperCase()}';"/>`;
+  } else {
+    avatarEl.textContent = (u.fullname || '?').charAt(0).toUpperCase();
+  }
+
+  // ── Role / status badges ────────────────────────────────────────────────
+  const roleBadge = document.getElementById('profileRoleBadge');
+  const role = (u.role || '').toLowerCase();
+  roleBadge.textContent = roleLabels[role] || (u.role || '—');
+  roleBadge.className = `role-badge ${role}`;
+
+  const statusBadge = document.getElementById('profileStatusBadge');
+  const status = (u.status || 'active').toLowerCase();
+  statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  statusBadge.className = `r-status ${status === 'active' ? 'safe' : 'offline'}`;
+
+  document.getElementById('profileMemberSince').textContent = u.created_at
+    ? `Member since ${new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+    : '';
+
+  // ── Editable fields ──────────────────────────────────────────────────────
+  document.getElementById('profileFullname').value     = u.fullname || '';
+  document.getElementById('profilePhone').value         = u.phone_number || '';
+  document.getElementById('profileEmail').value         = u.email || '';
+  document.getElementById('profileAvatarUrl').value     = u.avatar || '';
+  document.getElementById('profileCurrentPassword').value = '';
+  document.getElementById('profileNewPassword').value     = '';
+  document.getElementById('profileConfirmPassword').value = '';
+  document.getElementById('profilePasswordMismatch').style.display = 'none';
+
+  hideProfileModalError();
+  hideProfileModalSuccess();
+  setProfileModalLoading(false);
+
+  document.getElementById('profileModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeProfileModal() {
+  document.getElementById('profileModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleProfileModalBackdrop(e) {
+  if (e.target === document.getElementById('profileModal')) closeProfileModal();
+}
+
+function showProfileModalError(msg) {
+  hideProfileModalSuccess();
+  const el = document.getElementById('profileModalError');
+  document.getElementById('profileModalErrorText').textContent = msg;
+  el.style.display = 'flex';
+}
+function hideProfileModalError() {
+  document.getElementById('profileModalError').style.display = 'none';
+}
+function showProfileModalSuccess(msg) {
+  hideProfileModalError();
+  const el = document.getElementById('profileModalSuccess');
+  document.getElementById('profileModalSuccessText').textContent = msg;
+  el.style.display = 'flex';
+}
+function hideProfileModalSuccess() {
+  document.getElementById('profileModalSuccess').style.display = 'none';
+}
+
+function setProfileModalLoading(active) {
+  const btn     = document.getElementById('profileModalSubmitBtn');
+  const spinner = document.getElementById('profileModalSpinner');
+  const label   = document.getElementById('profileModalBtnLabel');
+  btn.disabled  = active;
+  spinner.style.display = active ? 'block' : 'none';
+  label.style.display   = active ? 'none'  : 'flex';
+}
+
+// Live password-match check — mirrors the pattern used on reset-password.html
+document.addEventListener('input', (e) => {
+  if (e.target && (e.target.id === 'profileNewPassword' || e.target.id === 'profileConfirmPassword')) {
+    const newPw  = document.getElementById('profileNewPassword').value;
+    const confPw = document.getElementById('profileConfirmPassword').value;
+    const mismatchEl = document.getElementById('profilePasswordMismatch');
+    mismatchEl.style.display = (confPw.length > 0 && newPw !== confPw) ? 'block' : 'none';
+  }
+});
+
+async function executeProfileSave() {
+  hideProfileModalError();
+  hideProfileModalSuccess();
+
+  const fullname = document.getElementById('profileFullname').value.trim();
+  const phone    = document.getElementById('profilePhone').value.trim();
+  const avatar   = document.getElementById('profileAvatarUrl').value.trim();
+  const currentPassword = document.getElementById('profileCurrentPassword').value;
+  const newPassword     = document.getElementById('profileNewPassword').value;
+  const confirmPassword = document.getElementById('profileConfirmPassword').value;
+
+  // ── Client-side validation ────────────────────────────────────────────────
+  if (!fullname) {
+    showProfileModalError('Full name is required.');
+    return;
+  }
+  if (phone && !/^(09|\+639)\d{9}$/.test(phone)) {
+    showProfileModalError('Enter a valid PH number (e.g. 09XXXXXXXXX).');
+    return;
+  }
+  if (newPassword || confirmPassword || currentPassword) {
+    if (!currentPassword) {
+      showProfileModalError('Enter your current password to set a new one.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      showProfileModalError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showProfileModalError('New password and confirmation do not match.');
+      return;
+    }
+  }
+
+  setProfileModalLoading(true);
+
+  const payload = { fullname, phone_number: phone || null, avatar: avatar || null };
+  if (newPassword) {
+    payload.currentPassword = currentPassword;
+    payload.newPassword     = newPassword;
+  }
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res  = await fetch('http://localhost:5000/api/auth/me', {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body:    JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      // Update cached + sidebar state with the fresh user object
+      const updatedUser = data.user || { ...getCachedUser(), ...payload };
+      const storage = localStorage.getItem('token') ? localStorage : sessionStorage;
+      storage.setItem('user', JSON.stringify(updatedUser));
+      loadUserIntoSidebar(updatedUser);
+
+      document.getElementById('profileCurrentPassword').value = '';
+      document.getElementById('profileNewPassword').value     = '';
+      document.getElementById('profileConfirmPassword').value = '';
+      setProfileModalLoading(false);
+      showProfileModalSuccess('Profile updated successfully.');
+      showToast('Profile updated', 'Your changes have been saved.');
+    } else {
+      showProfileModalError(data.message || 'Failed to update profile. Please try again.');
+      setProfileModalLoading(false);
+    }
+  } catch (err) {
+    console.error('[AquaSense] profile update error:', err);
+    showProfileModalError('Network error. Check your connection and try again.');
+    setProfileModalLoading(false);
   }
 }
 

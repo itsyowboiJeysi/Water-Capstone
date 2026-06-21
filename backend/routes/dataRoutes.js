@@ -8,6 +8,7 @@ const {
   deleteSensorReadings,
   getAlerts,
   resolveAlert,
+  deleteAlert,
   getDevices,
   createDevice,
   getLocations,
@@ -26,6 +27,7 @@ router.get  ("/sensors",                verifyToken, getSensorReadings);
 router.delete("/sensors",               verifyToken, deleteSensorReadings);  // ← BULK DELETE READINGS
 router.get  ("/alerts",                 verifyToken, getAlerts);
 router.patch("/alerts/:id/resolve",     verifyToken, resolveAlert);
+router.delete("/alerts/:id",            verifyToken, deleteAlert);
 router.get  ("/devices",                verifyToken, getDevices);
 router.post ("/devices",                verifyToken, createDevice);   // ← ADD DEVICE
 router.put  ("/devices/:id",            verifyToken, updateDevice);

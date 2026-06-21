@@ -258,7 +258,7 @@ async function exchangeCode(req, res) {
 async function getMe(req, res) {
   try {
     const [rows] = await pool.query(
-      "SELECT user_id, fullname, email, phone_number, role, avatar FROM users WHERE user_id = ?",
+      "SELECT user_id, fullname, email, phone_number, role, avatar, status, created_at FROM users WHERE user_id = ?",
       [req.user.id]
     );
 
@@ -274,6 +274,78 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode, getMe };
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/auth/me  (requires JWT in Authorization header)
+// Body: { fullname, phone_number, avatar, currentPassword?, newPassword? }
+// Lets a logged-in user edit their own basic details from the Edit Profile
+// modal. Email and role are intentionally NOT editable here — email changes
+// need re-verification, and role changes must go through an admin account
+// to prevent self-promotion.
+// ─────────────────────────────────────────────────────────────────────────────
+async function updateMe(req, res) {
+  const { fullname, phone_number, avatar, currentPassword, newPassword } = req.body || {};
 
+  if (!fullname || !fullname.trim()) {
+    return res.status(400).json({ message: "Full name is required." });
+  }
+  if (phone_number && !/^(09|\+639)\d{9}$/.test(phone_number)) {
+    return res.status(400).json({ message: "Enter a valid PH number (e.g. 09XXXXXXXXX)." });
+  }
 
+  try {
+    let newHash = null;
+
+    // ── Optional password change ────────────────────────────────────────────
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Enter your current password to set a new one." });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters." });
+      }
+
+      const [rows] = await pool.query(
+        "SELECT password_hash FROM users WHERE user_id = ?",
+        [req.user.id]
+      );
+      if (rows.length === 0) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, rows[0].password_hash);
+      if (!isMatch) {
+        return res.status(401).json({ message: "Current password is incorrect." });
+      }
+
+      newHash = await bcrypt.hash(newPassword, 12);
+    }
+
+    // ── Update ────────────────────────────────────────────────────────────────
+    if (newHash) {
+      await pool.query(
+        `UPDATE users SET fullname = ?, phone_number = ?, avatar = ?, password_hash = ?
+         WHERE user_id = ?`,
+        [fullname.trim(), phone_number || null, avatar || null, newHash, req.user.id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE users SET fullname = ?, phone_number = ?, avatar = ?
+         WHERE user_id = ?`,
+        [fullname.trim(), phone_number || null, avatar || null, req.user.id]
+      );
+    }
+
+    const [updated] = await pool.query(
+      "SELECT user_id, fullname, email, phone_number, role, avatar, status, created_at FROM users WHERE user_id = ?",
+      [req.user.id]
+    );
+
+    res.json({ message: "Profile updated successfully.", user: updated[0] });
+
+  } catch (err) {
+    console.error("[AquaSense] updateMe error:", err);
+    res.status(500).json({ message: "Server error updating profile." });
+  }
+}
+
+module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode, getMe, updateMe };

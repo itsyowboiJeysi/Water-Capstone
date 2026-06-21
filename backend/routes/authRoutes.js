@@ -15,6 +15,7 @@ const {
   resetPassword,        // ← new
   exchangeCode,
   getMe,
+  updateMe,
 
 } = require("../controllers/authController");
 
@@ -25,5 +26,6 @@ router.get ("/validate-reset-token", validateResetToken);  // ← new
 router.post("/reset-password",      resetPassword);       // ← new
 router.post("/exchange-code", loginLimiter, speedLimiter, exchangeCode);
 router.get ("/me",                    verifyToken, getMe);
+router.put ("/me",                    verifyToken, updateMe);
 
 module.exports = router;
