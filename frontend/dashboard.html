@@ -348,6 +348,64 @@
     }
     .btn-delete-row:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
 
+    /* ═══ BULK DELETE (SELECTED) BUTTON ═══ */
+    .btn-bulk-delete {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(239,68,68,0.1); border: 1.5px solid rgba(239,68,68,0.35);
+      color: #DC2626; border-radius: 9px;
+      padding: 7px 14px; font-family: 'DM Sans', sans-serif;
+      font-size: 12.5px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    }
+    .btn-bulk-delete:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.6); transform: translateY(-1px); }
+    .btn-bulk-delete svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ═══ TABLE ROW CHECKBOXES ═══ */
+    .row-checkbox-cell { width: 38px; text-align: center !important; }
+    .reading-row-checkbox, .select-all-checkbox {
+      width: 16px; height: 16px; accent-color: var(--navy); cursor: pointer;
+    }
+    .data-table tr.row-selected td { background: rgba(44,154,209,0.07); }
+
+    /* ═══ FILTER BAR ═══ */
+    .filter-bar {
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: var(--off-white);
+    }
+    .filter-field { display: flex; flex-direction: column; gap: 6px; min-width: 165px; }
+    .filter-field label {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-mid);
+    }
+    .filter-select {
+      height: 40px; padding: 0 14px; border: 1.5px solid var(--border); border-radius: 9px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text-dark);
+      background: var(--white); outline: none; cursor: pointer; appearance: none; -webkit-appearance: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%238292B0' d='M7 10l5 5 5-5z'/></svg>");
+      background-repeat: no-repeat; background-position: right 12px center; background-size: 14px;
+      padding-right: 32px;
+    }
+    .filter-select:focus { border-color: var(--navy-mid); box-shadow: 0 0 0 3px rgba(22,53,116,0.08); }
+    .filter-btn-apply {
+      height: 40px; padding: 0 18px; background: var(--navy); color: var(--white);
+      border: none; border-radius: 9px; font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .filter-btn-apply:hover { background: var(--navy-mid); transform: translateY(-1px); }
+    .filter-btn-clear {
+      height: 40px; padding: 0 16px; background: none; border: 1.5px solid var(--border);
+      border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+      color: var(--text-mid); cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .filter-btn-clear:hover { border-color: var(--navy); color: var(--navy); background: var(--white); }
+    .filter-active-badge {
+      background: var(--water-1); color: #fff; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 10px; margin-left: 5px; vertical-align: 1px;
+    }
+
     /* ═══ MODAL BACKDROP ═══ */
     .modal-backdrop {
       position: fixed; inset: 0; z-index: 1000;
@@ -584,7 +642,7 @@
       <a class="nav-item" data-view="alerts">
         <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Alerts
-        <span class="nav-badge">3</span>
+        <span class="nav-badge" id="navAlertsBadge" style="display:none;">0</span>
       </a>
 
       <div class="nav-section-label">Management</div>
@@ -691,7 +749,7 @@
             </div>
           </div>
           <div class="panel" style="display:flex;flex-direction:column;">
-            <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Active Alerts</div><span class="nav-badge" style="background:rgba(239,68,68,0.9);">3</span></div>
+            <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Active Alerts</div><span class="nav-badge" id="dashboardAlertsBadge" style="background:rgba(239,68,68,0.9);display:none;">0</span></div>
             <div class="alert-list" id="dashboard-alerts" style="flex:1;overflow-y:auto;">
               <!-- populated by dashboard-data.js -->
             </div>
@@ -734,9 +792,63 @@
       <div class="view" id="view-readings">
         <div class="section-header"><h2>Sensor Readings</h2><p>All recorded readings from ESP32 devices across CSPC campus buildings</p></div>
         <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>All Sensor Readings Log</div><div style="display:flex;gap:8px;"><button class="panel-action">Filter</button><button class="panel-action">Export CSV →</button></div></div>
+          <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              All Sensor Readings Log
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="btn-bulk-delete" id="readingsBulkDeleteBtn" style="display:none;" onclick="openBulkDeleteReadingsModal()">
+                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                Delete Selected (<span id="readingsSelectedCount">0</span>)
+              </button>
+              <button class="panel-action" id="readingsFilterToggleBtn" onclick="toggleReadingsFilterBar()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filter<span class="filter-active-badge" id="readingsFilterActiveBadge" style="display:none;">•</span>
+              </button>
+              <button class="panel-action">Export CSV →</button>
+            </div>
+          </div>
+
+          <!-- Filter bar — hidden until "Filter" is clicked -->
+          <div class="filter-bar" id="readingsFilterBar" style="display:none;">
+            <div class="filter-field">
+              <label for="readingsFilterDevice">Device</label>
+              <select id="readingsFilterDevice" class="filter-select">
+                <option value="">All Devices</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="readingsFilterStatus">Water Status</label>
+              <select id="readingsFilterStatus" class="filter-select">
+                <option value="">All Statuses</option>
+                <option value="safe">Safe</option>
+                <option value="warn">Warning</option>
+                <option value="danger">Danger</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="readingsFilterRange">Date Range</label>
+              <select id="readingsFilterRange" class="filter-select">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+              </select>
+            </div>
+            <button class="filter-btn-apply" onclick="applyReadingsFilters()">Apply Filters</button>
+            <button class="filter-btn-clear" onclick="clearReadingsFilters()">Clear</button>
+          </div>
+
           <table class="data-table">
-            <thead><tr><th>Reading ID</th><th>Device</th><th>pH</th><th>Turbidity</th><th>TDS</th><th>Temp</th><th>Ammonia</th><th>Flow</th><th>Status</th><th>Time</th></tr></thead>
+            <thead>
+              <tr>
+                <th class="row-checkbox-cell" id="readingsCheckHeader" style="display:none;">
+                  <input type="checkbox" class="select-all-checkbox" id="readingsSelectAll" onchange="toggleSelectAllReadings(this)" title="Select all on this page"/>
+                </th>
+                <th>Reading ID</th><th>Device</th><th>pH</th><th>Turbidity</th><th>TDS</th><th>Temp</th><th>Ammonia</th><th>Flow</th><th>Status</th><th>Time</th>
+              </tr>
+            </thead>
             <tbody id="readings-tbody">
              
             </tbody>
@@ -1820,17 +1932,18 @@ async function submitAddLocation() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// DELETE CONFIRMATION MODAL — used for both Locations and Devices
+// DELETE CONFIRMATION MODAL — used for Locations, Devices, and bulk Sensor Readings
 // Requires the user to type CONFIRM before the delete button is enabled.
 // ══════════════════════════════════════════════════════════════════════════════
-let pendingDelete = null; // { type: 'location' | 'device', id, name }
+let pendingDelete = null; // { type: 'location' | 'device' | 'readings', id, name } — for 'readings', id is an array of reading ids
 
 function openDeleteConfirmModal(type, id, name) {
   pendingDelete = { type, id, name };
 
   const labelMap = {
-    location: { title: 'Delete Location', noun: 'location' },
-    device:   { title: 'Delete Device',   noun: 'device'   },
+    location: { title: 'Delete Location',        noun: 'location' },
+    device:   { title: 'Delete Device',           noun: 'device'   },
+    readings: { title: 'Delete Sensor Readings',  noun: 'reading(s)' },
   };
   const labels = labelMap[type] || { title: 'Delete Item', noun: 'item' };
 
@@ -1919,6 +2032,7 @@ async function executeDelete() {
   const endpointMap = {
     location: `http://localhost:5000/api/locations/${id}`,
     device:   `http://localhost:5000/api/devices/${id}`,
+    readings: `http://localhost:5000/api/sensors`, // bulk endpoint — ids sent in body
   };
   const url = endpointMap[type];
   if (!url) {
@@ -1929,22 +2043,39 @@ async function executeDelete() {
 
   try {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const res   = await fetch(url, {
+    const fetchOpts = {
       method:  'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
-    });
+    };
+    // Bulk sensor-reading deletes send the selected ids as a JSON body
+    if (type === 'readings') {
+      fetchOpts.headers['Content-Type'] = 'application/json';
+      fetchOpts.body = JSON.stringify({ ids: id });
+    }
 
+    const res  = await fetch(url, fetchOpts);
     const data = await res.json();
 
     if (res.ok) {
+      // Capture these BEFORE closing the modal — closeDeleteConfirmModal()
+      // sets pendingDelete = null, so reading pendingDelete.* after that
+      // point throws and silently aborts the refresh below.
+      const deletedName = pendingDelete.name;
+
       closeDeleteConfirmModal();
-      showToast('Deleted', `${pendingDelete.name} has been removed.`);
+      showToast('Deleted', `${deletedName} ${type === 'readings' ? 'have' : 'has'} been removed.`);
 
       if (type === 'location' && window.viewLoaders && window.viewLoaders.locations) {
         window.viewLoaders.locations();
       }
       if (type === 'device' && window.viewLoaders && window.viewLoaders.devices) {
         window.viewLoaders.devices();
+      }
+      if (type === 'readings') {
+        clearReadingsSelection();
+        if (window.viewLoaders && window.viewLoaders.readings) {
+          window.viewLoaders.readings();
+        }
       }
     } else {
       showDeleteModalError(data.message || 'Failed to delete. Please try again.');
@@ -1954,6 +2085,131 @@ async function executeDelete() {
     console.error('[AquaSense] delete error:', err);
     showDeleteModalError('Network error. Check your connection and try again.');
     setDeleteModalLoading(false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SENSOR READINGS — multi-select + bulk delete
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Select / deselect every checkbox currently rendered on the page
+function toggleSelectAllReadings(masterCheckbox) {
+  document.querySelectorAll('.reading-row-checkbox').forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+    cb.closest('tr')?.classList.toggle('row-selected', masterCheckbox.checked);
+  });
+  updateReadingsSelection();
+}
+
+// Keep the bulk-delete button, its count, and the "select all" checkbox in sync
+function updateReadingsSelection() {
+  const checked = document.querySelectorAll('.reading-row-checkbox:checked');
+  const all     = document.querySelectorAll('.reading-row-checkbox');
+
+  document.querySelectorAll('.reading-row-checkbox').forEach(cb => {
+    cb.closest('tr')?.classList.toggle('row-selected', cb.checked);
+  });
+
+  const bulkBtn = document.getElementById('readingsBulkDeleteBtn');
+  const countEl = document.getElementById('readingsSelectedCount');
+  if (countEl) countEl.textContent = checked.length;
+  if (bulkBtn)  bulkBtn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+
+  const selectAll = document.getElementById('readingsSelectAll');
+  if (selectAll) {
+    selectAll.checked       = all.length > 0 && checked.length === all.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+  }
+}
+
+function clearReadingsSelection() {
+  document.querySelectorAll('.reading-row-checkbox').forEach(cb => { cb.checked = false; });
+  const selectAll = document.getElementById('readingsSelectAll');
+  if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+  updateReadingsSelection();
+}
+
+function openBulkDeleteReadingsModal() {
+  const ids = Array.from(document.querySelectorAll('.reading-row-checkbox:checked')).map(cb => cb.value);
+  if (ids.length === 0) return;
+  const label = ids.length === 1 ? '1 sensor reading' : `${ids.length} sensor readings`;
+  openDeleteConfirmModal('readings', ids, label);
+}
+
+// Delegated checkbox listener — rows are rendered dynamically by dashboard-data.js
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains('reading-row-checkbox')) {
+    updateReadingsSelection();
+  }
+});
+
+// ── Filter bar ───────────────────────────────────────────────────────────────
+let readingsActiveFilters = { device_id: '', status: '', range: '' };
+
+function toggleReadingsFilterBar() {
+  const bar = document.getElementById('readingsFilterBar');
+  if (!bar) return;
+  const showing = bar.style.display !== 'none';
+  bar.style.display = showing ? 'none' : 'flex';
+  if (!showing) populateReadingsDeviceFilter();
+}
+
+async function populateReadingsDeviceFilter() {
+  const sel = document.getElementById('readingsFilterDevice');
+  if (!sel || sel.dataset.loaded === 'true') return;
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res   = await fetch('http://localhost:5000/api/devices', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to fetch devices');
+    const rows = await res.json();
+
+    rows.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.device_id;
+      opt.textContent = `${d.device_id}${d.device_name ? ' — ' + d.device_name : ''}`;
+      sel.appendChild(opt);
+    });
+    sel.dataset.loaded = 'true';
+  } catch (err) {
+    console.warn('[AquaSense] Could not load devices for filter:', err);
+  }
+}
+
+function applyReadingsFilters() {
+  readingsActiveFilters = {
+    device_id: document.getElementById('readingsFilterDevice')?.value || '',
+    status:    document.getElementById('readingsFilterStatus')?.value || '',
+    range:     document.getElementById('readingsFilterRange')?.value  || '',
+  };
+
+  const badge = document.getElementById('readingsFilterActiveBadge');
+  const isActive = !!(readingsActiveFilters.device_id || readingsActiveFilters.status || readingsActiveFilters.range);
+  if (badge) badge.style.display = isActive ? 'inline-block' : 'none';
+
+  clearReadingsSelection();
+  if (window.viewLoaders && window.viewLoaders.readings) {
+    window.viewLoaders.readings();
+  }
+}
+
+function clearReadingsFilters() {
+  const devSel = document.getElementById('readingsFilterDevice');
+  const statSel = document.getElementById('readingsFilterStatus');
+  const rangeSel = document.getElementById('readingsFilterRange');
+  if (devSel)   devSel.value   = '';
+  if (statSel)  statSel.value  = '';
+  if (rangeSel) rangeSel.value = '';
+
+  readingsActiveFilters = { device_id: '', status: '', range: '' };
+  const badge = document.getElementById('readingsFilterActiveBadge');
+  if (badge) badge.style.display = 'none';
+
+  clearReadingsSelection();
+  if (window.viewLoaders && window.viewLoaders.readings) {
+    window.viewLoaders.readings();
   }
 }
 

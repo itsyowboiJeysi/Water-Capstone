@@ -15,6 +15,12 @@ const mqtt           = require("mqtt");
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Device offline detection ──────────────────────────────────────────────
+// If a device hasn't sent an MQTT reading within this window, we consider
+// it offline. Tune via env var if your devices report less frequently.
+const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES) || 3;
+const HEALTH_CHECK_INTERVAL_MS  = 60 * 1000; // check every 60s
+
 // ── Trust proxy (needed for accurate IPs behind a proxy/load balancer) ───────
 app.set("trust proxy", 1);
 
@@ -126,6 +132,14 @@ function initMqtt() {
         [dev.device_id]
       );
 
+      // ── 4b. Device is reporting again — clear any open "offline" alert ─────
+      await pool.query(
+        `UPDATE alerts
+         SET status = 'resolved'
+         WHERE device_id = ? AND parameter = 'connectivity' AND status = 'unresolved'`,
+        [dev.device_id]
+      );
+
       // ── 5. Evaluate thresholds & auto-create alerts ───────────────────────
       await evaluateThresholds(dev.device_id, d);
 
@@ -186,6 +200,50 @@ async function evaluateThresholds(deviceId, reading) {
   }
 }
 
+// ── Device health checker ─────────────────────────────────────────────────
+// Runs on a timer (HEALTH_CHECK_INTERVAL_MS). Any device still marked
+// 'online' that hasn't reported in OFFLINE_THRESHOLD_MINUTES gets flipped
+// to 'offline' and raises a connectivity alert — but only once, so it
+// won't spam a new alert every tick while the device stays down.
+async function checkDeviceHealth() {
+  try {
+    const [staleDevices] = await pool.query(
+      `SELECT device_id, device_name
+       FROM devices
+       WHERE status = 'online'
+         AND last_online < (NOW() - INTERVAL ? MINUTE)`,
+      [OFFLINE_THRESHOLD_MINUTES]
+    );
+
+    for (const dev of staleDevices) {
+      await pool.query(
+        "UPDATE devices SET status = 'offline' WHERE device_id = ?",
+        [dev.device_id]
+      );
+
+      // Don't duplicate the alert if one is already open for this device
+      const [[existing]] = await pool.query(
+        `SELECT id FROM alerts
+         WHERE device_id = ? AND parameter = 'connectivity' AND status = 'unresolved'
+         LIMIT 1`,
+        [dev.device_id]
+      );
+
+      if (!existing) {
+        const message = `${dev.device_name} stopped sending data ${OFFLINE_THRESHOLD_MINUTES}+ minutes ago and has been marked offline.`;
+        await pool.query(
+          `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+           VALUES (?, 'connectivity', NULL, 'medium', 'unresolved', ?)`,
+          [dev.device_id, message]
+        );
+        console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert raised.`);
+      }
+    }
+  } catch (err) {
+    console.error("[Health Check] Error checking device health:", err.message);
+  }
+}
+
 // ── Start server after DB is ready ────────────────────────────────────────────
 (async () => {
   try {
@@ -199,6 +257,11 @@ async function evaluateThresholds(deviceId, reading) {
     // Start MQTT after DB is confirmed ready
     initMqtt();
     console.log("[AquaMonitor] MQTT subscriber initializing…");
+
+    // Start periodic offline-device health checks
+    setInterval(checkDeviceHealth, HEALTH_CHECK_INTERVAL_MS);
+    checkDeviceHealth(); // run once immediately on boot
+    console.log(`[AquaMonitor] Device health checker running — offline threshold: ${OFFLINE_THRESHOLD_MINUTES} min`);
 
   } catch (err) {
     console.error("[AquaMonitor] Failed to initialize:", err.message);

@@ -65,7 +65,7 @@ async function getLatestReadings(req, res) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// GET /api/sensors?limit=50&device_id=&page=1
+// GET /api/sensors?limit=50&device_id=&page=1&range=today|7d|30d
 // ─────────────────────────────────────────────────────────────────────────
 async function getSensorReadings(req, res) {
   try {
@@ -73,13 +73,25 @@ async function getSensorReadings(req, res) {
     const page     = Math.max(parseInt(req.query.page)  || 1,  1);
     const offset   = (page - 1) * limit;
     const deviceId = req.query.device_id;
+    const range    = req.query.range; // 'today' | '7d' | '30d'
 
-    let where = "";
+    const conditions = [];
     const params = [];
+
     if (deviceId) {
-      where = "WHERE sr.device_id = ?";
+      conditions.push("sr.device_id = ?");
       params.push(deviceId);
     }
+
+    if (range === "today") {
+      conditions.push("DATE(sr.recorded_at) = CURDATE()");
+    } else if (range === "7d") {
+      conditions.push("sr.recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    } else if (range === "30d") {
+      conditions.push("sr.recorded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const [rows] = await pool.query(
       `SELECT sr.*, d.device_name, l.building_name
@@ -109,6 +121,52 @@ async function getSensorReadings(req, res) {
   } catch (err) {
     console.error("[AquaSense] getSensorReadings error:", err);
     res.status(500).json({ message: "Server error fetching sensor readings." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DELETE /api/sensors
+// Body: { ids: [1, 2, 3] }
+// Bulk-deletes one or more sensor readings by id. Admin only — powers the
+// multi-select checkboxes + "Delete Selected" button on Sensor Readings.
+// ─────────────────────────────────────────────────────────────────────────
+async function deleteSensorReadings(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete sensor readings." });
+    }
+
+    const { ids } = req.body || {};
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide at least one reading id to delete." });
+    }
+
+    const cleanIds = ids
+      .map((id) => parseInt(id, 10))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (cleanIds.length === 0) {
+      return res.status(400).json({ message: "No valid reading ids were provided." });
+    }
+
+    const placeholders = cleanIds.map(() => "?").join(",");
+    const [result] = await pool.query(
+      `DELETE FROM sensor_readings WHERE id IN (${placeholders})`,
+      cleanIds
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "No matching readings were found to delete." });
+    }
+
+    res.json({
+      message: `${result.affectedRows} reading${result.affectedRows === 1 ? "" : "s"} deleted.`,
+      deleted: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("[AquaSense] deleteSensorReadings error:", err);
+    res.status(500).json({ message: "Server error deleting sensor readings." });
   }
 }
 
@@ -270,13 +328,74 @@ async function getLocations(req, res) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// POST /api/locations
+// Body: { building_name, area_name, description }
+// ─────────────────────────────────────────────────────────────────────────
+async function createLocation(req, res) {
+  const { building_name, area_name, description } = req.body || {};
+
+  if (!building_name || !building_name.trim()) {
+    return res.status(400).json({ message: "Building name is required." });
+  }
+  if (!area_name || !area_name.trim()) {
+    return res.status(400).json({ message: "Area / Zone is required." });
+  }
+
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO locations (building_name, area_name, description)
+       VALUES (?, ?, ?)`,
+      [building_name.trim(), area_name.trim(), description?.trim() || null]
+    );
+
+    const [rows] = await pool.query(
+      "SELECT *, 0 AS device_count FROM locations WHERE location_id = ?",
+      [result.insertId]
+    );
+
+    return res.status(201).json({
+      message:  "Location added successfully.",
+      location: rows[0],
+    });
+  } catch (err) {
+    console.error("[AquaSense] createLocation error:", err);
+    return res.status(500).json({ message: "Server error adding location." });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// DELETE /api/locations/:id
+// ─────────────────────────────────────────────────────────────────────────
+async function deleteLocation(req, res) {
+  const { id } = req.params;
+  try {
+    const [result] = await pool.query(
+      "DELETE FROM locations WHERE location_id = ?",
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Location not found." });
+    }
+    res.json({ message: "Location deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteLocation error:", err);
+    // FK constraint is ON DELETE SET NULL for devices, so this should
+    // succeed even if devices are still attached — they'll just lose location_id
+    res.status(500).json({ message: "Server error deleting location." });
+  }
+}
+
 module.exports = {
   getDashboardSummary,
   getLatestReadings,
   getSensorReadings,
+  deleteSensorReadings,
   getAlerts,
   resolveAlert,
   getDevices,
   createDevice,
   getLocations,
+   createLocation,   // ← add
+  deleteLocation, 
 };

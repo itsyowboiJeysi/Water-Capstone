@@ -3,7 +3,7 @@
 // sensor_readings has NO water_status column — status is computed from threshold_settings
 // alerts uses: level, status ('unresolved'/'resolved'), parameter, message
 // devices: device_id is VARCHAR (e.g. 'ESP-001'), no installed_date, no esp32_uid
-// locations: only use location_id 1–5 (delete dupes > 5 with cleanup query below)
+// locations: all rows from /api/locations are shown (no id filter)
 
 const API_BASE = "http://localhost:5000";
 
@@ -130,7 +130,34 @@ async function loadDashboard() {
 
   await loadRecentReadingsTable();
   await loadAlerts("unresolved", "dashboard-alerts", true);
+  await refreshAlertBadgeCounts();
   await loadBuildingsPreview();
+}
+
+// ── Keep sidebar + dashboard-panel alert badges in sync with the real
+//    unresolved-alert count (replaces the static "3" placeholder) ───────────
+async function refreshAlertBadgeCounts() {
+  try {
+    const rows = await apiGet("/api/alerts?status=unresolved&limit=200");
+    updateAlertBadges(rows ? rows.length : 0);
+  } catch (err) {
+    console.error("[AquaSense] refreshAlertBadgeCounts error:", err);
+  }
+}
+
+function updateAlertBadges(count) {
+  const navBadge = document.getElementById("navAlertsBadge")
+    || document.querySelector('.nav-item[data-view="alerts"] .nav-badge');
+  if (navBadge) {
+    navBadge.textContent = count;
+    navBadge.style.display = count > 0 ? "" : "none";
+  }
+
+  const panelBadge = document.getElementById("dashboardAlertsBadge");
+  if (panelBadge) {
+    panelBadge.textContent = count;
+    panelBadge.style.display = count > 0 ? "" : "none";
+  }
 }
 
 // ── Dashboard stat cards (top row) ──────────────────────────────────────────
@@ -273,7 +300,7 @@ async function loadBuildingsPreview() {
     const rows = await apiGet("/api/locations");
     if (!rows) return;
 
-    const real = rows.filter(l => l.location_id <= 5);
+    const real = rows;
 
     if (real.length === 0) {
       el.innerHTML = `
@@ -373,18 +400,55 @@ async function loadSensorReadingsLog() {
   const tbody = document.getElementById("readings-tbody");
   if (!tbody) return;
 
+  const isAdmin = currentUserIsAdmin();
+  const checkHeader = document.getElementById("readingsCheckHeader");
+  if (checkHeader) checkHeader.style.display = isAdmin ? "" : "none";
+
+  // Make sure thresholds are loaded so status colors/filtering are correct
+  // even when this is the first view the user lands on.
+  if (Object.keys(thresholdMap).length === 0) {
+    try {
+      const summary = await apiGet("/api/dashboard/summary");
+      if (summary) buildThresholdMap(summary.thresholds);
+    } catch (err) {
+      console.warn("[AquaSense] Could not pre-load thresholds for readings view:", err);
+    }
+  }
+
+  // Pull whatever filters are currently active from dashboard.html's filter bar
+  const filters = (typeof readingsActiveFilters !== "undefined") ? readingsActiveFilters : {};
+  const params = new URLSearchParams();
+  params.set("limit", "50");
+  if (filters.device_id) params.set("device_id", filters.device_id);
+  if (filters.range)     params.set("range", filters.range);
+
   try {
-    const result = await apiGet("/api/sensors?limit=50");
+    const result = await apiGet(`/api/sensors?${params.toString()}`);
     if (!result) return;
 
-    if (!result.data || result.data.length === 0) {
-      tbody.innerHTML = emptyRow(10, "No sensor readings recorded yet. Data will appear once ESP32 devices start reporting.");
+    let rows = result.data || [];
+
+    // Status filtering happens client-side since "status" is derived from
+    // threshold_settings rather than stored as a column on sensor_readings.
+    if (filters.status) {
+      rows = rows.filter(r => overallStatus(r) === filters.status);
+    }
+
+    const colCount = isAdmin ? 11 : 10;
+
+    if (rows.length === 0) {
+      tbody.innerHTML = emptyRow(colCount, "No sensor readings match your filters.");
       return;
     }
 
-    tbody.innerHTML = result.data.map(r => {
+    tbody.innerHTML = rows.map(r => {
       const status = overallStatus(r);
+      const checkboxCell = isAdmin
+        ? `<td class="row-checkbox-cell"><input type="checkbox" class="reading-row-checkbox" value="${r.id}"/></td>`
+        : "";
+
       return `<tr>
+        ${checkboxCell}
         <td>#${r.id}</td>
         <td><strong>${r.device_id}</strong> / ${r.building_name || "—"}</td>
         <td>${fmt(r.ph_level)}</td>
@@ -397,9 +461,12 @@ async function loadSensorReadingsLog() {
         <td style="color:var(--text-light);font-size:11px">${timeAgo(r.recorded_at)}</td>
       </tr>`;
     }).join("");
+
+    // Reset selection state (checkboxes are freshly rendered, none checked)
+    if (typeof updateReadingsSelection === "function") updateReadingsSelection();
   } catch (err) {
     console.error("[AquaSense] loadSensorReadingsLog error:", err);
-    tbody.innerHTML = emptyRow(10, "Unable to load sensor readings.");
+    tbody.innerHTML = emptyRow(isAdmin ? 11 : 10, "Unable to load sensor readings.");
   }
 }
 
@@ -507,8 +574,7 @@ async function loadAlertsView() {
     }
 
     // ── Update nav badge with live count ──────────────────────────────────
-    const navBadge = document.querySelector('.nav-item[data-view="alerts"] .nav-badge');
-    if (navBadge) navBadge.textContent = unresolved > 0 ? unresolved : "";
+    updateAlertBadges(unresolved);
 
     // ── Full alert list ───────────────────────────────────────────────────
     await loadAlerts("all", "alerts-full-list", false);
@@ -933,7 +999,12 @@ async function loadSmsLogs() {
 // ═════════════════════════════════════════════════════════════════════════════
 // VIEW LOADER MAP + AUTO-REFRESH
 // ═════════════════════════════════════════════════════════════════════════════
-const viewLoaders = {
+// Attached directly to `window` (not `const`) because dashboard.html's
+// inline script calls `window.viewLoaders.devices()` / `.locations()`
+// after every add/delete. A top-level `const` here would NOT become a
+// `window` property in a plain (non-module) <script>, so those calls
+// would silently no-op and the tables would only refresh on full reload.
+window.viewLoaders = {
   dashboard:   loadDashboard,
   live:        loadLiveMonitoring,
   readings:    loadSensorReadingsLog,
@@ -944,12 +1015,19 @@ const viewLoaders = {
   maintenance: loadMaintenanceLogs,
   sms:         loadSmsLogs,
 };
+const viewLoaders = window.viewLoaders;
 
 let refreshInterval = null;
 
+// Views that should keep polling the backend while the user is looking at
+// them. "devices" and "alerts" are included so a device the health-check
+// marks offline (and the alert it raises) shows up here on its own —
+// no manual reload needed.
+const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts"];
+
 function startAutoRefresh(viewKey) {
   if (refreshInterval) clearInterval(refreshInterval);
-  if (["dashboard", "live"].includes(viewKey)) {
+  if (AUTO_REFRESH_VIEWS.includes(viewKey)) {
     refreshInterval = setInterval(() => {
       if (viewLoaders[viewKey]) viewLoaders[viewKey]();
     }, 30000);
