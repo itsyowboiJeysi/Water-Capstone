@@ -348,4 +348,70 @@ async function updateMe(req, res) {
   }
 }
 
-module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode, getMe, updateMe };
+async function getAllUsers(req, res) {
+  try {
+    const [rows] = await pool.query(
+      "SELECT user_id, fullname, email, phone_number, role, status, avatar, created_at FROM users ORDER BY created_at DESC"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("[AquaSense] getAllUsers error:", err);
+    res.status(500).json({ message: "Server error fetching users." });
+  }
+}
+
+async function updateUserRoleStatus(req, res) {
+  const { id } = req.params;
+  const { role, status } = req.body || {};
+
+  const validRoles = ["admin", "gsu", "hsu"];
+  if (role && !validRoles.includes(role.toLowerCase())) {
+    return res.status(400).json({ message: "Invalid role. Must be admin, gsu, or hsu." });
+  }
+
+  const validStatuses = ["active", "inactive"];
+  if (status && !validStatuses.includes(status.toLowerCase())) {
+    return res.status(400).json({ message: "Invalid status. Must be active or inactive." });
+  }
+
+  try {
+    const [existing] = await pool.query("SELECT user_id FROM users WHERE user_id = ?", [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    await pool.query(
+      "UPDATE users SET role = COALESCE(?, role), status = COALESCE(?, status) WHERE user_id = ?",
+      [role ? role.toLowerCase() : null, status ? status.toLowerCase() : null, id]
+    );
+
+    res.json({ message: "User updated successfully." });
+  } catch (err) {
+    console.error("[AquaSense] updateUserRoleStatus error:", err);
+    res.status(500).json({ message: "Server error updating user." });
+  }
+}
+
+async function deleteUser(req, res) {
+  const { id } = req.params;
+
+  // Prevent self-deletion
+  if (Number(id) === Number(req.user.id)) {
+    return res.status(400).json({ message: "You cannot delete your own admin account." });
+  }
+
+  try {
+    const [existing] = await pool.query("SELECT user_id FROM users WHERE user_id = ?", [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    await pool.query("DELETE FROM users WHERE user_id = ?", [id]);
+    res.json({ message: "User deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteUser error:", err);
+    res.status(500).json({ message: "Server error deleting user." });
+  }
+}
+
+module.exports = { register, login, forgotPassword, validateResetToken, resetPassword, exchangeCode, getMe, updateMe, getAllUsers, updateUserRoleStatus, deleteUser };

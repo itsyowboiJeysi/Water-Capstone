@@ -1,5 +1,6 @@
 // server.js — AquaMonitor Express Server
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express        = require("express");
 const cors           = require("cors");
@@ -211,7 +212,7 @@ async function checkDeviceHealth() {
       `SELECT device_id, device_name
        FROM devices
        WHERE status = 'online'
-         AND last_online < (NOW() - INTERVAL ? MINUTE)`,
+         AND (last_online < (NOW() - INTERVAL ? MINUTE) OR last_online IS NULL)`,
       [OFFLINE_THRESHOLD_MINUTES]
     );
 

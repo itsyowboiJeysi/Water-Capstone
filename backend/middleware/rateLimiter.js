@@ -4,7 +4,7 @@ const slowDown = require("express-slow-down");
 // General API limiter — applies to all routes
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per IP per window
+  max: 1500, // 1500 requests per IP per window to allow real-time dashboard polling
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests. Please try again later." },

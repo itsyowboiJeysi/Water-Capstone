@@ -15,12 +15,56 @@ function authHeaders() {
 
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders() });
+  if (res.status === 404) {
+    try {
+      const data = await res.clone().json();
+      if (data && (data.message === "Account no longer exists." || data.message === "User not found.")) {
+        if (typeof handleDeletedUser === "function") {
+          handleDeletedUser();
+        } else if (typeof logoutWithDeletedError === "function") {
+          logoutWithDeletedError();
+        } else {
+          logout();
+        }
+        return null;
+      }
+    } catch (e) {}
+  }
   if (res.status === 401 || res.status === 403) {
     logout();
     return null;
   }
   if (!res.ok) throw new Error(`Request failed: ${path} (${res.status})`);
   return res.json();
+}
+
+async function updateTopBarStatusPill() {
+  const dot = document.getElementById("systemStatusDot");
+  const text = document.getElementById("systemStatusText");
+  if (!dot || !text) return;
+
+  try {
+    const devices = await apiGet("/api/devices");
+    if (!devices || devices.length === 0) {
+      dot.className = "status-dot offline";
+      text.textContent = "Offline · 0 Connected";
+      return;
+    }
+
+    const onlineDevices = devices.filter(d => d.status === "online");
+    const onlineCount = onlineDevices.length;
+    const totalCount = devices.length;
+
+    if (onlineCount > 0) {
+      dot.className = "status-dot live";
+      text.textContent = `Online · ${onlineCount}/${totalCount} Connected`;
+    } else {
+      dot.className = "status-dot offline";
+      text.textContent = `Offline · 0/${totalCount} Connected`;
+    }
+  } catch (err) {
+    console.warn("[AquaSense] Could not update system status pill:", err);
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1024,6 +1068,7 @@ window.viewLoaders = {
   locations:   () => loadLocations("locations-tbody"),
   maintenance: loadMaintenanceLogs,
   sms:         loadSmsLogs,
+   users:       loadUsers,
 };
 const viewLoaders = window.viewLoaders;
 
@@ -1040,7 +1085,8 @@ function startAutoRefresh(viewKey) {
   if (AUTO_REFRESH_VIEWS.includes(viewKey)) {
     refreshInterval = setInterval(() => {
       if (viewLoaders[viewKey]) viewLoaders[viewKey]();
-    }, 30000);
+      updateTopBarStatusPill();
+    }, 10000);
   }
 }
 
@@ -1050,6 +1096,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.navigate = function (viewKey) {
     if (typeof _originalNavigate === "function") _originalNavigate(viewKey);
     if (viewLoaders[viewKey]) viewLoaders[viewKey]();
+    updateTopBarStatusPill();
     startAutoRefresh(viewKey);
   };
 
@@ -1059,14 +1106,90 @@ document.addEventListener("DOMContentLoaded", () => {
     clone.addEventListener("click", () => navigate(clone.dataset.view));
   });
 
-  loadDashboard();
-  startAutoRefresh("dashboard");
+  const initApp = () => {
+    loadDashboard();
+    updateTopBarStatusPill();
+    startAutoRefresh("dashboard");
+    // Automatically poll status pill every 10 seconds globally
+    setInterval(updateTopBarStatusPill, 10000);
+  };
+
+  if (window.authCompleted) {
+    initApp();
+  } else {
+    window.addEventListener("auth-ready", initApp);
+  }
 
   document.getElementById("refreshBtn")?.addEventListener("click", () => {
     const active = document.querySelector(".view.active");
     if (active) {
       const key = active.id.replace("view-", "");
       if (viewLoaders[key]) viewLoaders[key]();
+      updateTopBarStatusPill();
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER MANAGEMENT VIEW (ADMIN ONLY)
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById("users-tbody");
+  if (!tbody) return;
+
+  try {
+    const users = await apiGet("/api/auth/users");
+    if (!users) return;
+
+    if (users.length === 0) {
+      tbody.innerHTML = emptyRow(6, "No users registered yet.");
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+      const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : "?";
+      const statusClass = (u.status || "active").toLowerCase() === "active" ? "safe" : "offline";
+      const statusLabelText = (u.status || "active").toLowerCase() === "active" ? "Active" : "Inactive";
+      const roleLabelText = u.role ? u.role.toUpperCase() : "—";
+      const createdDate = u.created_at 
+        ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) 
+        : "—";
+
+      let avatarContent = initial;
+      if (u.avatar) {
+        avatarContent = `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent = '${initial}';"/>`;
+      }
+
+      return `
+        <tr class="user-row" style="cursor: pointer;" title="Click to edit user role and status">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="user-row-avatar">${avatarContent}</div>
+              <div><strong>${escapeHtml(u.fullname)}</strong></div>
+            </div>
+          </td>
+          <td style="color:var(--text-mid)">${escapeHtml(u.email)}</td>
+          <td style="color:var(--text-mid)">${escapeHtml(u.phone_number || "—")}</td>
+          <td><span class="role-badge ${u.role ? u.role.toLowerCase() : ""}">${roleLabelText}</span></td>
+          <td><span class="r-status ${statusClass}">${statusLabelText}</span></td>
+          <td style="color:var(--text-light);font-size:12px">${createdDate}</td>
+        </tr>`;
+    }).join("");
+
+    // Attach click listeners programmatically to avoid HTML escaping issues
+    tbody.querySelectorAll(".user-row").forEach((row, index) => {
+      row.addEventListener("click", () => {
+        const userObj = users[index];
+        if (typeof window.openEditUserModal === "function") {
+          window.openEditUserModal(userObj);
+        } else if (typeof openEditUserModal === "function") {
+          openEditUserModal(userObj);
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error("[AquaSense] loadUsers error:", err);
+    tbody.innerHTML = emptyRow(6, "Unable to load system users.");
+  }
+}

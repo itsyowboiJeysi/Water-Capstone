@@ -540,6 +540,17 @@
 <script src="js/google-auth-handler.js"></script>
 <script src="js/login.js"></script>
 <script>
+  // ── Show account deleted alert if redirected ──────────────────────────────
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('error') === 'account_deleted') {
+    const errorMsg = document.getElementById('errorMsg');
+    const errorText = document.getElementById('errorText');
+    if (errorMsg && errorText) {
+      errorText.textContent = "Your account no longer exists. Please contact an administrator.";
+      errorMsg.classList.add('show');
+    }
+  }
+
   // ── Password visibility toggle ────────────────────────────────────────────
   const pwInput = document.getElementById('password');
   const eyeBtn  = document.getElementById('eyeBtn');

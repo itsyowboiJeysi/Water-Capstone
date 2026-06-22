@@ -34,7 +34,7 @@ passport.use(
           if (!user.google_id) {
             await pool.query(
               "UPDATE users SET google_id = ?, avatar = ? WHERE user_id = ?",
-              [googleId, avatar, user.id]
+              [googleId, avatar, user.user_id]
             );
             user.google_id = googleId;
             user.avatar    = avatar;
@@ -68,7 +68,7 @@ passport.use(
 passport.serializeUser((user, done) => done(null, user.user_id));
 passport.deserializeUser(async (id, done) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
+    const [rows] = await pool.query("SELECT * FROM users WHERE user_id = ?", [id]);
     done(null, rows[0] || null);
   } catch (err) {
     done(err, null);
