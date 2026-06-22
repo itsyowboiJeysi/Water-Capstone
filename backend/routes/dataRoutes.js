@@ -10,6 +10,7 @@ const {
   getAlerts,
   resolveAlert,
   deleteAlert,
+  deleteAlerts,
   getDevices,
   createDevice,
   getLocations,
@@ -32,6 +33,7 @@ router.get  ("/locations",              verifyToken, getLocations);
 
 // CRUD routes (RESTRICTED: Admin only)
 router.delete("/sensors",               verifyToken, requireAdmin, deleteSensorReadings); // Bulk delete readings
+router.delete("/alerts",                verifyToken, requireAdmin, deleteAlerts);
 router.patch("/alerts/:id/resolve",     verifyToken, requireAdmin, resolveAlert);
 router.delete("/alerts/:id",            verifyToken, requireAdmin, deleteAlert);
 router.post ("/devices",                verifyToken, requireAdmin, createDevice);

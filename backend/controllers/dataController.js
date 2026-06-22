@@ -1,5 +1,6 @@
 // dataController.js — AquaSense Monitoring Data (matches actual schema)
 const { pool } = require("../config/db");
+const { classifyWaterQuality } = require("../utils/waterQualityClassifier");
 
 // ─────────────────────────────────────────────────────────────────────────
 // GET /api/dashboard/summary
@@ -30,8 +31,13 @@ async function getDashboardSummary(req, res) {
 
     const [thresholds] = await pool.query(`SELECT * FROM threshold_settings`);
 
+    const latestReading = latestRows[0] || null;
+    if (latestReading) {
+      latestReading.classification = classifyWaterQuality(latestReading);
+    }
+
     res.json({
-      latestReading: latestRows[0] || null,
+      latestReading,
       devices:       deviceCounts[0],
       activeAlerts:  alertCounts[0].active,
       thresholds,
@@ -57,7 +63,11 @@ async function getLatestReadings(req, res) {
       )
       ORDER BY sr.recorded_at DESC
     `);
-    res.json(rows);
+    const enrichedRows = rows.map(r => ({
+      ...r,
+      classification: classifyWaterQuality(r)
+    }));
+    res.json(enrichedRows);
   } catch (err) {
     console.error("[AquaSense] getLatestReadings error:", err);
     res.status(500).json({ message: "Server error fetching latest readings." });
@@ -109,8 +119,13 @@ async function getSensorReadings(req, res) {
       params
     );
 
+    const enrichedRows = rows.map(r => ({
+      ...r,
+      classification: classifyWaterQuality(r)
+    }));
+
     res.json({
-      data: rows,
+      data: enrichedRows,
       pagination: {
         page,
         limit,
@@ -255,6 +270,51 @@ async function deleteAlert(req, res) {
     }
 
     res.status(500).json({ message: "Server error deleting alert." });
+  }
+}
+
+async function deleteAlerts(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete alerts." });
+    }
+
+    const { ids } = req.body || {};
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide at least one alert id to delete." });
+    }
+
+    const cleanIds = ids
+      .map((id) => parseInt(id, 10))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (cleanIds.length === 0) {
+      return res.status(400).json({ message: "No valid alert ids were provided." });
+    }
+
+    const placeholders = cleanIds.map(() => "?").join(",");
+    const [result] = await pool.query(
+      `DELETE FROM alerts WHERE id IN (${placeholders})`,
+      cleanIds
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "No matching alerts were found to delete." });
+    }
+
+    res.json({
+      message: `${result.affectedRows} alert${result.affectedRows === 1 ? "" : "s"} deleted.`,
+      deleted: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("[AquaSense] deleteAlerts error:", err);
+    if (err.code === "ER_ROW_IS_REFERENCED_2" || err.code === "ER_ROW_IS_REFERENCED") {
+      return res.status(409).json({
+        message: "Some selected alerts have related SMS log records and can't be deleted yet.",
+      });
+    }
+    res.status(500).json({ message: "Server error deleting alerts." });
   }
 }
 
@@ -432,6 +492,7 @@ module.exports = {
   getAlerts,
   resolveAlert,
   deleteAlert,
+  deleteAlerts,
   getDevices,
   createDevice,
   getLocations,

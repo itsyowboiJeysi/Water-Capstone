@@ -130,6 +130,9 @@ function rangeLabel(paramName) {
 
 // Compute overall status for a reading row (worst of all params)
 function overallStatus(r) {
+  if (r && r.classification && r.classification.water_status) {
+    return r.classification.water_status;
+  }
   const checks = [
     paramStatus("ph",          r.ph_level),
     paramStatus("turbidity",   r.turbidity),
@@ -143,9 +146,12 @@ function overallStatus(r) {
   return "safe";
 }
 
-function statusLabel(s) {
-  if (s === "danger") return "Danger";
-  if (s === "warn")   return "Warning";
+function statusLabel(s, r) {
+  if (r && r.classification && r.classification.label) {
+    return r.classification.label;
+  }
+  if (s === "danger" || s === "critical" || s === "unsafe") return "Warning"; // fallback or custom map
+  if (s === "warn" || s === "warning")   return "Warning";
   return "Safe";
 }
 
@@ -201,6 +207,11 @@ function updateAlertBadges(count) {
   if (panelBadge) {
     panelBadge.textContent = count;
     panelBadge.style.display = count > 0 ? "" : "none";
+  }
+
+  const notifDot = document.getElementById("topbarNotifDot");
+  if (notifDot) {
+    notifDot.style.display = count > 0 ? "block" : "none";
   }
 }
 
@@ -319,7 +330,7 @@ async function loadRecentReadingsTable() {
       const status    = isOffline ? "offline" : overallStatus(r);
       const badge     = isOffline
         ? `<span class="r-status offline">Offline</span>`
-        : `<span class="r-status ${status}">${statusLabel(status)}</span>`;
+        : `<span class="r-status ${status}">${statusLabel(status, r)}</span>`;
 
       return `<tr>
         <td><strong>${r.device_id}</strong><br/><span style="font-size:11px;color:var(--text-light)">${r.building_name || "—"}</span></td>
@@ -485,13 +496,15 @@ async function loadSensorReadingsLog() {
       return;
     }
 
-    tbody.innerHTML = rows.map(r => {
+    window.lastLoadedReadings = rows;
+
+    tbody.innerHTML = rows.map((r, index) => {
       const status = overallStatus(r);
       const checkboxCell = isAdmin
         ? `<td class="row-checkbox-cell"><input type="checkbox" class="reading-row-checkbox" value="${r.id}"/></td>`
         : "";
 
-      return `<tr>
+      return `<tr class="reading-clickable-row" data-index="${index}" style="cursor: pointer;">
         ${checkboxCell}
         <td>#${r.id}</td>
         <td><strong>${r.device_id}</strong> / ${r.building_name || "—"}</td>
@@ -501,7 +514,7 @@ async function loadSensorReadingsLog() {
         <td>${fmt(r.temperature)}°C</td>
         <td>${fmt(r.ammonia, 2)} mg/L</td>
         <td>${fmt(r.flow_rate)} L/m</td>
-        <td><span class="r-status ${status}">${statusLabel(status)}</span></td>
+        <td><span class="r-status ${status}">${statusLabel(status, r)}</span></td>
         <td style="color:var(--text-light);font-size:11px">${timeAgo(r.recorded_at)}</td>
       </tr>`;
     }).join("");
@@ -548,18 +561,24 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
       const dotClass = isResolved ? "low" : level;
       const paramInfo = a.parameter ? ` · ${a.parameter.toUpperCase()}: ${a.value ?? ""}` : "";
 
+      const alertId = a.alert_id ?? a.id;
+      
+      const checkbox = (!isPreview && isAdmin && alertId != null) ? `
+        <input type="checkbox" class="alert-row-checkbox" value="${alertId}" style="margin-right: 12px; width: 16px; height: 16px; accent-color: var(--navy); cursor: pointer;" />
+      ` : "";
+
       // Delete icon — full alert list only (not the dashboard preview widget),
       // admins only. Opens a simple Yes/No modal, no typed "CONFIRM" step.
-      const alertId = a.alert_id ?? a.id;
       const deleteBtn = (!isPreview && isAdmin && alertId != null) ? `
             <button class="alert-delete-btn delete-alert-btn" data-id="${alertId}" data-name="${escapeHtml(a.message || a.parameter || 'Alert')}" title="Delete alert" aria-label="Delete alert">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
             </button>` : "";
 
       return `
-        <div class="alert-item" ${isResolved ? 'style="opacity:.55;"' : ""}>
+        <div class="alert-item" ${isResolved ? 'style="opacity:.55;"' : ""} style="display: flex; align-items: center;">
+          ${checkbox}
           <div class="alert-dot-wrap ${dotClass}">${alertIcon}</div>
-          <div class="alert-info">
+          <div class="alert-info" style="margin-left: 10px;">
             <div class="alert-title">${a.message || a.parameter || "Alert"}</div>
             <div class="alert-meta">${a.building_name || a.device_id || "—"}${paramInfo} · ${timeAgo(a.created_at)}${isResolved ? " · Resolved" : ""}</div>
           </div>
@@ -569,6 +588,14 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
           }${deleteBtn}
         </div>`;
     }).join("");
+
+    if (!isPreview) {
+      if (typeof window.updateAlertsSelection === "function") {
+        window.updateAlertsSelection();
+      } else if (typeof updateAlertsSelection === "function") {
+        updateAlertsSelection();
+      }
+    }
   } catch (err) {
     console.error("[AquaSense] loadAlerts error:", err);
     el.innerHTML = emptyPanel("Unable to load alerts.");
@@ -629,6 +656,13 @@ async function loadAlertsView() {
 
     // ── Update nav badge with live count ──────────────────────────────────
     updateAlertBadges(unresolved);
+
+    // ── Show/hide Select All checkbox ─────────────────────────────────────
+    const isAdmin = currentUserIsAdmin();
+    const selectAllEl = document.getElementById("alertsSelectAll");
+    if (selectAllEl) {
+      selectAllEl.style.display = isAdmin ? "inline-block" : "none";
+    }
 
     // ── Full alert list ───────────────────────────────────────────────────
     await loadAlerts("all", "alerts-full-list", false);
@@ -1193,3 +1227,67 @@ async function loadUsers() {
     tbody.innerHTML = emptyRow(6, "Unable to load system users.");
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOP BAR NOTIFICATION DROPDOWN (ONLY SHOWS NEW/UNRESOLVED ALERTS)
+// ─────────────────────────────────────────────────────────────────────────────
+window.toggleNotifDropdown = function(event) {
+  if (event) event.stopPropagation();
+  const dropdown = document.getElementById("notifDropdown");
+  if (!dropdown) return;
+  const isHidden = dropdown.style.display === "none";
+  dropdown.style.display = isHidden ? "flex" : "none";
+  if (isHidden) {
+    loadDropdownAlerts();
+  }
+};
+
+async function loadDropdownAlerts() {
+  const body = document.getElementById("notifDropdownBody");
+  if (!body) return;
+
+  body.innerHTML = `<div style="padding:16px;text-align:center;font-size:12px;color:var(--text-light)">Loading notifications...</div>`;
+
+  try {
+    const unresolved = await apiGet("/api/alerts?status=unresolved&limit=5");
+    if (!unresolved) return;
+
+    if (unresolved.length === 0) {
+      body.innerHTML = `<div style="padding:24px 16px;text-align:center;font-size:12px;color:var(--text-light)">No new notifications. All systems clear.</div>`;
+      return;
+    }
+
+    body.innerHTML = unresolved.map(a => {
+      const level = alertClass(a.level);
+      const isResolved = a.status === "resolved";
+      const alertIcon = isResolved
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+      const dotClass = isResolved ? "low" : level;
+
+      return `
+        <div class="notif-dropdown-item" onclick="navigate('alerts'); document.getElementById('notifDropdown').style.display='none';">
+          <div class="notif-dropdown-icon ${dotClass}">${alertIcon}</div>
+          <div class="notif-dropdown-info">
+            <div class="notif-dropdown-title">${escapeHtml(a.message || a.parameter || "Alert")}</div>
+            <div class="notif-dropdown-meta">${escapeHtml(a.building_name || a.device_id || "—")} · ${timeAgo(a.created_at)}</div>
+          </div>
+        </div>`;
+    }).join("");
+  } catch (err) {
+    console.error("[AquaSense] loadDropdownAlerts error:", err);
+    body.innerHTML = `<div style="padding:16px;text-align:center;font-size:12px;color:var(--error)">Failed to load.</div>`;
+  }
+}
+
+// Click outside dropdown to close it
+document.addEventListener("click", (e) => {
+  const dropdown = document.getElementById("notifDropdown");
+  const bellBtn = document.getElementById("notifBellBtn");
+  if (dropdown && dropdown.style.display !== "none") {
+    if (!dropdown.contains(e.target) && !bellBtn.contains(e.target)) {
+      dropdown.style.display = "none";
+    }
+  }
+});

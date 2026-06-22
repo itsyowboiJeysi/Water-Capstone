@@ -130,6 +130,48 @@
     .icon-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .notif-dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #EF4444; border: 1.5px solid var(--white); }
 
+    /* ═══ NOTIFICATION DROPDOWN ═══ */
+    .notif-dropdown {
+      position: absolute; top: 46px; right: 0; width: 320px;
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 10px 30px rgba(13,35,83,0.12);
+      z-index: 1001; display: flex; flex-direction: column;
+      animation: fadeUpNotif 0.2s ease both;
+    }
+    @keyframes fadeUpNotif { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .notif-dropdown-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; font-weight: 600; color: var(--text-dark);
+    }
+    .notif-clear-btn {
+      background: none; border: none; font-size: 11px; font-weight: 500;
+      color: var(--water-1); cursor: pointer;
+    }
+    .notif-clear-btn:hover { color: var(--navy-mid); text-decoration: underline; }
+    .notif-dropdown-body {
+      max-height: 280px; overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .notif-dropdown-item {
+      display: flex; gap: 10px; padding: 12px 16px;
+      border-bottom: 1px solid rgba(221,227,238,0.5); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .notif-dropdown-item:last-child { border-bottom: none; }
+    .notif-dropdown-item:hover { background: var(--off-white); }
+    .notif-dropdown-icon {
+      width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; margin-top: 2px;
+    }
+    .notif-dropdown-icon.critical { background: rgba(239,68,68,0.1); color: #DC2626; }
+    .notif-dropdown-icon.high { background: rgba(212,160,23,0.12); color: var(--warn); }
+    .notif-dropdown-icon.medium { background: rgba(44,154,209,0.1); color: var(--water-1); }
+    .notif-dropdown-icon.low { background: rgba(61,214,140,0.1); color: #0F7050; }
+    .notif-dropdown-icon svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+    .notif-dropdown-info { flex: 1; min-width: 0; }
+    .notif-dropdown-title { font-size: 11.5px; font-weight: 600; color: var(--text-dark); margin-bottom: 2px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+    .notif-dropdown-meta { font-size: 9.5px; color: var(--text-light); }
+
     /* ═══ CONTENT & VIEWS ═══ */
     .content { flex: 1; overflow-y: auto; padding: 24px 28px 40px; }
     .content::-webkit-scrollbar { width: 6px; }
@@ -636,7 +678,7 @@
       </div>
       <div class="brand-text">
         <div class="sys-name">AquaSense</div>
-        <div class="org-name">CSPC · CCS · 4G 2026</div>
+        <div class="org-name">CSPC · CCS · GANDARIA 2026</div>
       </div>
     </div>
 
@@ -722,10 +764,21 @@
       </div>
       <div class="topbar-right">
         <div class="status-pill" id="systemStatusPill"><div class="status-dot live" id="systemStatusDot"></div><span id="systemStatusText">Live · updated just now</span></div>
-        <button class="icon-btn" title="Notifications">
-          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span class="notif-dot"></span>
-        </button>
+        <div style="position: relative;" id="notifDropdownWrapper">
+          <button class="icon-btn" id="notifBellBtn" title="Notifications" onclick="toggleNotifDropdown(event)">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-dot" id="topbarNotifDot" style="display:none;"></span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown" style="display: none;">
+            <div class="notif-dropdown-header">
+              <span>New Notifications</span>
+              <button class="notif-clear-btn" onclick="navigate('alerts'); document.getElementById('notifDropdown').style.display='none';">View All</button>
+            </div>
+            <div class="notif-dropdown-body" id="notifDropdownBody">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
         <button class="icon-btn" title="Refresh" id="refreshBtn">
           <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
@@ -938,10 +991,17 @@
  
   <!-- Full alert list — populated by loadAlerts() -->
   <div class="panel-full">
-    <div class="panel-head">
-      <div class="panel-title">
+    <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
+      <div class="panel-title" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="alertsSelectAll" style="display:none; width:16px; height:16px; accent-color: var(--navy); cursor: pointer;" onclick="toggleSelectAllAlerts(this)"/>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         All Alerts
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-bulk-delete" id="alertsBulkDeleteBtn" style="display:none;" onclick="openBulkDeleteAlertsModal()">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          Delete Selected (<span id="alertsSelectedCount">0</span>)
+        </button>
       </div>
     </div>
     <div class="alert-list" id="alerts-full-list">
@@ -1138,6 +1198,110 @@
             </button>
           </div>
 
+        </div>
+      </div>
+
+      <!-- ════════════════════════ VIEW READING DETAILS MODAL ════════════════════════ -->
+      <div class="modal-backdrop" id="readingDetailsModal" style="display:none;" onclick="handleReadingModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" style="max-width: 500px;">
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background: linear-gradient(135deg, var(--water-1), var(--water-2));">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--white)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div>
+                <div class="modal-title">Reading Details</div>
+                <div class="modal-subtitle" id="readingDetailHeaderSubtitle">—</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeReadingDetailsModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body" style="padding-top: 10px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); font-weight: 700;">Recorded Time</div>
+                <div id="readingDetailTime" style="font-size: 14px; font-weight: 600; color: var(--text-dark); margin-top: 2px;">—</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); font-weight: 700; text-align: right;">Status</div>
+                <div id="readingDetailStatus" style="margin-top: 4px; text-align: right;">—</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <!-- Left side details -->
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">pH Level</div>
+                  <div id="readingDetailPh" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                  <div id="readingDetailPhRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">TDS (Solids)</div>
+                  <div id="readingDetailTds" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                  <div id="readingDetailTdsRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Ammonia</div>
+                  <div id="readingDetailAmmonia" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                  <div id="readingDetailAmmoniaRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
+                </div>
+              </div>
+
+              <!-- Right side details -->
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Turbidity</div>
+                  <div id="readingDetailTurbidity" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                  <div id="readingDetailTurbidityRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Temperature</div>
+                  <div id="readingDetailTemp" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                  <div id="readingDetailTempRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Flow Rate</div>
+                  <div id="readingDetailFlow" style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Water Quality Score & Remarks from Classifier -->
+            <div style="border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 11px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Water Safety Score</span>
+                <span id="readingDetailScore" style="font-size: 16px; font-weight: 700; color: var(--text-dark);">—</span>
+              </div>
+              
+              <!-- Override warning box -->
+              <div id="readingDetailOverrideContainer" style="display: none; background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 9px; padding: 10px 12px; font-size: 12px; color: var(--error);">
+                <div style="font-weight: 700; margin-bottom: 2px;">⚠️ Safety Override Triggered</div>
+                <div id="readingDetailOverrideReason" style="line-height: 1.4;"></div>
+              </div>
+
+              <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; margin-bottom: 2px;">Recommended Uses</div>
+                <div id="readingDetailRecommended" style="font-size: 12.5px; color: var(--text-mid); line-height: 1.4;">—</div>
+              </div>
+
+              <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; margin-bottom: 2px;">Not Recommended</div>
+                <div id="readingDetailNotRecommended" style="font-size: 12.5px; color: #DC2626; line-height: 1.4; font-weight: 500;">—</div>
+              </div>
+
+              <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; margin-bottom: 2px;">Remarks & Explanation</div>
+                <div id="readingDetailExplanation" style="font-size: 12.5px; color: var(--text-mid); line-height: 1.4;">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer" style="padding-top: 14px; padding-bottom: 16px;">
+            <button class="modal-btn-cancel" onclick="closeReadingDetailsModal()" style="height: 38px;">Close</button>
+          </div>
         </div>
       </div>
 
@@ -2418,6 +2582,7 @@ function openDeleteConfirmModal(type, id, name) {
     location: { title: 'Delete Location',        noun: 'location' },
     device:   { title: 'Delete Device',           noun: 'device'   },
     readings: { title: 'Delete Sensor Readings',  noun: 'reading(s)' },
+    alerts:   { title: 'Delete Alerts',           noun: 'alert(s)' },
   };
   const labels = labelMap[type] || { title: 'Delete Item', noun: 'item' };
 
@@ -2512,6 +2677,7 @@ async function executeDelete() {
     location: `http://localhost:5000/api/locations/${id}`,
     device:   `http://localhost:5000/api/devices/${id}`,
     readings: `http://localhost:5000/api/sensors`, // bulk endpoint — ids sent in body
+    alerts:   `http://localhost:5000/api/alerts`, // bulk endpoint — ids sent in body
   };
   const url = endpointMap[type];
   if (!url) {
@@ -2526,8 +2692,8 @@ async function executeDelete() {
       method:  'DELETE',
       headers: { 'Authorization': `Bearer ${token}` },
     };
-    // Bulk sensor-reading deletes send the selected ids as a JSON body
-    if (type === 'readings') {
+    // Bulk deletes send the selected ids as a JSON body
+    if (type === 'readings' || type === 'alerts') {
       fetchOpts.headers['Content-Type'] = 'application/json';
       fetchOpts.body = JSON.stringify({ ids: id });
     }
@@ -2542,7 +2708,7 @@ async function executeDelete() {
       const deletedName = pendingDelete.name;
 
       closeDeleteConfirmModal();
-      showToast('Deleted', `${deletedName} ${type === 'readings' ? 'have' : 'has'} been removed.`);
+      showToast('Deleted', `${deletedName} ${type === 'readings' || type === 'alerts' ? 'have' : 'has'} been removed.`);
 
       if (type === 'location' && window.viewLoaders && window.viewLoaders.locations) {
         window.viewLoaders.locations();
@@ -2554,6 +2720,15 @@ async function executeDelete() {
         clearReadingsSelection();
         if (window.viewLoaders && window.viewLoaders.readings) {
           window.viewLoaders.readings();
+        }
+      }
+      if (type === 'alerts') {
+        clearAlertsSelection();
+        if (window.viewLoaders && window.viewLoaders.alerts) {
+          window.viewLoaders.alerts();
+        }
+        if (typeof refreshAlertBadgeCounts === 'function') {
+          refreshAlertBadgeCounts();
         }
       }
     } else {
@@ -2882,12 +3057,150 @@ function openBulkDeleteReadingsModal() {
   openDeleteConfirmModal('readings', ids, label);
 }
 
+// Keep the alerts bulk-delete button, count, and Select All in sync
+function updateAlertsSelection() {
+  const checked = document.querySelectorAll('.alert-row-checkbox:checked');
+  const all     = document.querySelectorAll('.alert-row-checkbox');
+
+  document.querySelectorAll('.alert-row-checkbox').forEach(cb => {
+    cb.closest('.alert-item')?.classList.toggle('row-selected', cb.checked);
+  });
+
+  const bulkBtn = document.getElementById('alertsBulkDeleteBtn');
+  const countEl = document.getElementById('alertsSelectedCount');
+  if (countEl) countEl.textContent = checked.length;
+  if (bulkBtn)  bulkBtn.style.display = checked.length > 0 ? 'inline-flex' : 'none';
+
+  const selectAll = document.getElementById('alertsSelectAll');
+  if (selectAll) {
+    selectAll.checked       = all.length > 0 && checked.length === all.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+  }
+}
+
+function clearAlertsSelection() {
+  document.querySelectorAll('.alert-row-checkbox').forEach(cb => { cb.checked = false; });
+  const selectAll = document.getElementById('alertsSelectAll');
+  if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+  updateAlertsSelection();
+}
+
+function toggleSelectAllAlerts(masterCheckbox) {
+  document.querySelectorAll('.alert-row-checkbox').forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+    cb.closest('.alert-item')?.classList.toggle('row-selected', masterCheckbox.checked);
+  });
+  updateAlertsSelection();
+}
+
+function openBulkDeleteAlertsModal() {
+  const ids = Array.from(document.querySelectorAll('.alert-row-checkbox:checked')).map(cb => cb.value);
+  if (ids.length === 0) return;
+  const label = ids.length === 1 ? '1 alert' : `${ids.length} alerts`;
+  openDeleteConfirmModal('alerts', ids, label);
+}
+
 // Delegated checkbox listener — rows are rendered dynamically by dashboard-data.js
 document.addEventListener('change', (e) => {
   if (e.target && e.target.classList && e.target.classList.contains('reading-row-checkbox')) {
     updateReadingsSelection();
   }
+  if (e.target && e.target.classList && e.target.classList.contains('alert-row-checkbox')) {
+    updateAlertsSelection();
+  }
 });
+
+// Delegated click listener to open reading details modal
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('.reading-clickable-row');
+  if (!row) return;
+
+  // Ignore clicks on checkboxes
+  if (e.target.closest('.row-checkbox-cell') || e.target.classList.contains('reading-row-checkbox')) {
+    return;
+  }
+
+  const index = parseInt(row.dataset.index, 10);
+  if (window.lastLoadedReadings && window.lastLoadedReadings[index]) {
+    openReadingDetailsModal(window.lastLoadedReadings[index]);
+  }
+});
+
+function openReadingDetailsModal(reading) {
+  const status = typeof overallStatus === 'function' ? overallStatus(reading) : 'safe';
+  const label = typeof statusLabel === 'function' ? statusLabel(status, reading) : 'Safe';
+
+  document.getElementById('readingDetailHeaderSubtitle').textContent = `Reading ID #${reading.id} — Device: ${reading.device_id} (${reading.building_name || 'No location'})`;
+
+  const timeStr = reading.recorded_at 
+    ? new Date(reading.recorded_at).toLocaleString('en-PH', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+      })
+    : '—';
+
+  document.getElementById('readingDetailTime').textContent = timeStr;
+  
+  const statusEl = document.getElementById('readingDetailStatus');
+  statusEl.innerHTML = `<span class="r-status ${status}">${label}</span>`;
+
+  const fmtVal = (val, dec) => (val === null || val === undefined) ? '—' : Number(val).toFixed(dec);
+
+  document.getElementById('readingDetailPh').textContent = `${fmtVal(reading.ph_level, 2)} pH`;
+  document.getElementById('readingDetailTurbidity').textContent = `${fmtVal(reading.turbidity, 2)} NTU`;
+  document.getElementById('readingDetailTds').textContent = `${fmtVal(reading.tds, 0)} ppm`;
+  document.getElementById('readingDetailTemp').textContent = `${fmtVal(reading.temperature, 2)} °C`;
+  document.getElementById('readingDetailAmmonia').textContent = `${fmtVal(reading.ammonia, 2)} mg/L`;
+  document.getElementById('readingDetailFlow').textContent = `${fmtVal(reading.flow_rate, 1)} L/min`;
+
+  // Water Quality Classification details
+  const cls = reading.classification || {};
+  
+  // Score display
+  const scoreVal = cls.score !== undefined ? `${cls.score}/100` : '—';
+  const scoreLabel = cls.label || '—';
+  document.getElementById('readingDetailScore').textContent = `${scoreLabel} (${scoreVal})`;
+
+  // Remarks per parameter
+  const pp = cls.per_param || {};
+  document.getElementById('readingDetailPhRemark').textContent = pp.ph ? pp.ph.remark : '—';
+  document.getElementById('readingDetailTurbidityRemark').textContent = pp.turbidity ? pp.turbidity.remark : '—';
+  document.getElementById('readingDetailTdsRemark').textContent = pp.tds ? pp.tds.remark : '—';
+  document.getElementById('readingDetailTempRemark').textContent = pp.temperature ? pp.temperature.remark : '—';
+  document.getElementById('readingDetailAmmoniaRemark').textContent = pp.ammonia ? pp.ammonia.remark : '—';
+
+  // Override Warnings
+  const overrides = cls.triggered_overrides || [];
+  const overrideContainer = document.getElementById('readingDetailOverrideContainer');
+  const overrideReasonEl = document.getElementById('readingDetailOverrideReason');
+  
+  if (overrides.length > 0) {
+    overrideContainer.style.display = 'block';
+    overrideReasonEl.innerHTML = overrides.map(o => `• <strong>${o.label} Out of Range:</strong> ${o.reason} (Forced to: <span style="text-transform: capitalize;">${o.forced_level}</span>)`).join('<br/>');
+  } else {
+    overrideContainer.style.display = 'none';
+    overrideReasonEl.innerHTML = '';
+  }
+
+  // Recommended Uses
+  document.getElementById('readingDetailRecommended').textContent = cls.recommended_use || '—';
+  document.getElementById('readingDetailNotRecommended').textContent = cls.not_recommended || '—';
+  document.getElementById('readingDetailExplanation').textContent = cls.explanation || '—';
+
+  document.getElementById('readingDetailsModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeReadingDetailsModal() {
+  document.getElementById('readingDetailsModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleReadingModalBackdrop(e) {
+  if (e.target.id === 'readingDetailsModal') {
+    closeReadingDetailsModal();
+  }
+}
 
 // ── Filter bar ───────────────────────────────────────────────────────────────
 let readingsActiveFilters = { device_id: '', status: '', range: '' };
