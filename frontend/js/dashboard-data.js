@@ -38,6 +38,26 @@ async function apiGet(path) {
   return res.json();
 }
 
+async function apiPost(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders()
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401 || res.status === 403) {
+    logout();
+    return null;
+  }
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `Request failed: ${path} (${res.status})`);
+  }
+  return res.json();
+}
+
 async function updateTopBarStatusPill() {
   const dot = document.getElementById("systemStatusDot");
   const text = document.getElementById("systemStatusText");
@@ -189,13 +209,33 @@ async function loadDashboard() {
 async function refreshAlertBadgeCounts() {
   try {
     const rows = await apiGet("/api/alerts?status=unresolved&limit=200");
-    updateAlertBadges(rows ? rows.length : 0);
+    if (!rows) return;
+
+    let userId = "default";
+    try {
+      const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (raw) {
+        const user = JSON.parse(raw);
+        userId = user.id || user.user_id || "default";
+      }
+    } catch(e) {}
+    
+    let readAlerts = [];
+    try {
+      const readRaw = localStorage.getItem(`read_alerts_${userId}`);
+      if (readRaw) readAlerts = JSON.parse(readRaw);
+    } catch(e) {}
+
+    const unreadCount = rows.filter(a => !readAlerts.includes(a.id)).length;
+    updateAlertBadges(rows.length, unreadCount);
   } catch (err) {
     console.error("[AquaSense] refreshAlertBadgeCounts error:", err);
   }
 }
 
-function updateAlertBadges(count) {
+function updateAlertBadges(count, unreadCount = null) {
+  const displayUnread = unreadCount !== null ? unreadCount : count;
+
   const navBadge = document.getElementById("navAlertsBadge")
     || document.querySelector('.nav-item[data-view="alerts"] .nav-badge');
   if (navBadge) {
@@ -211,7 +251,7 @@ function updateAlertBadges(count) {
 
   const notifDot = document.getElementById("topbarNotifDot");
   if (notifDot) {
-    notifDot.style.display = count > 0 ? "block" : "none";
+    notifDot.style.display = displayUnread > 0 ? "block" : "none";
   }
 }
 
@@ -451,6 +491,21 @@ function renderLiveStats(r) {
 // ═════════════════════════════════════════════════════════════════════════════
 // SENSOR READINGS LOG VIEW
 // ═════════════════════════════════════════════════════════════════════════════
+window.readingsCurrentPage = 1;
+
+window.readingsNextPage = function() {
+  window.readingsCurrentPage = (window.readingsCurrentPage || 1) + 1;
+  loadSensorReadingsLog();
+};
+
+window.readingsPrevPage = function() {
+  const currentPage = window.readingsCurrentPage || 1;
+  if (currentPage > 1) {
+    window.readingsCurrentPage = currentPage - 1;
+    loadSensorReadingsLog();
+  }
+};
+
 async function loadSensorReadingsLog() {
   const tbody = document.getElementById("readings-tbody");
   if (!tbody) return;
@@ -473,7 +528,9 @@ async function loadSensorReadingsLog() {
   // Pull whatever filters are currently active from dashboard.html's filter bar
   const filters = (typeof readingsActiveFilters !== "undefined") ? readingsActiveFilters : {};
   const params = new URLSearchParams();
+  const currentPage = window.readingsCurrentPage || 1;
   params.set("limit", "50");
+  params.set("page", currentPage.toString());
   if (filters.device_id) params.set("device_id", filters.device_id);
   if (filters.range)     params.set("range", filters.range);
 
@@ -488,6 +545,24 @@ async function loadSensorReadingsLog() {
     if (filters.status) {
       rows = rows.filter(r => overallStatus(r) === filters.status);
     }
+
+    // Update pagination controls
+    const pagination = result.pagination || { page: 1, limit: 50, total: rows.length, totalPages: 1 };
+    
+    const totalCountEl = document.getElementById("readingsTotalCount");
+    const pageNumEl = document.getElementById("readingsPageNum");
+    const pageStartEl = document.getElementById("readingsPageStart");
+    const pageEndEl = document.getElementById("readingsPageEnd");
+    const prevBtn = document.getElementById("readingsPrevBtn");
+    const nextBtn = document.getElementById("readingsNextBtn");
+
+    if (totalCountEl) totalCountEl.textContent = pagination.total;
+    if (pageNumEl) pageNumEl.textContent = `Page ${pagination.page} of ${pagination.totalPages || 1}`;
+    if (pageStartEl) pageStartEl.textContent = pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
+    if (pageEndEl) pageEndEl.textContent = Math.min(pagination.page * pagination.limit, pagination.total);
+
+    if (prevBtn) prevBtn.disabled = (pagination.page <= 1);
+    if (nextBtn) nextBtn.disabled = (pagination.page >= pagination.totalPages || pagination.totalPages === 0);
 
     const colCount = isAdmin ? 11 : 10;
 
@@ -526,6 +601,80 @@ async function loadSensorReadingsLog() {
     tbody.innerHTML = emptyRow(isAdmin ? 11 : 10, "Unable to load sensor readings.");
   }
 }
+
+window.exportReadingsToCsv = async function() {
+  const filters = (typeof readingsActiveFilters !== "undefined") ? readingsActiveFilters : {};
+  const params = new URLSearchParams();
+  if (filters.device_id) params.set("device_id", filters.device_id);
+  if (filters.range)     params.set("range", filters.range);
+
+  try {
+    const rows = await apiGet(`/api/sensors/export?${params.toString()}`);
+    if (!rows) return;
+
+    let filteredRows = rows;
+    if (filters.status) {
+      filteredRows = rows.filter(r => overallStatus(r) === filters.status);
+    }
+
+    if (filteredRows.length === 0) {
+      alert("No data available to export matching the current filters.");
+      return;
+    }
+
+    const headers = [
+      "Reading ID",
+      "Device Name",
+      "Building",
+      "pH Level",
+      "Turbidity (NTU)",
+      "TDS (ppm)",
+      "Temperature (°C)",
+      "Ammonia (mg/L)",
+      "Flow Rate (L/min)",
+      "Water Consumed (L)",
+      "Safety Score",
+      "Classification",
+      "Allowed Use",
+      "Recorded At"
+    ];
+
+    const csvRows = [headers.join(",")];
+
+    filteredRows.forEach(r => {
+      const line = [
+        r.id,
+        `"${(r.device_name || r.device_id || '').replace(/"/g, '""')}"`,
+        `"${(r.building_name || '—').replace(/"/g, '""')}"`,
+        r.ph_level ?? "",
+        r.turbidity ?? "",
+        r.tds ?? "",
+        r.temperature ?? "",
+        r.ammonia ?? "",
+        r.flow_rate ?? "",
+        r.water_consumed ?? "",
+        r.score ?? "",
+        r.safety_classification || "",
+        `"${(r.allowed_use || "").replace(/"/g, '""')}"`,
+        r.recorded_at ? new Date(r.recorded_at).toLocaleString() : ""
+      ];
+      csvRows.push(line.join(","));
+    });
+
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `aquasense_readings_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error("Failed to export CSV:", err);
+    alert("An error occurred while exporting the data to CSV.");
+  }
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // ALERTS VIEW  ← NOW FULLY CONNECTED TO DATABASE
@@ -761,41 +910,43 @@ function renderAnalyticsChart(dailyTotals, buildingDaily) {
   const yPositions = [20, 55, 90, 125];
 
   let gridLines = yLabels.map((val, i) => `
-    <line x1="${leftPad}" y1="${yPositions[i]}" x2="${svgW - 5}" y2="${yPositions[i]}" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
-    <text x="${leftPad - 5}" y="${yPositions[i] + 4}" font-size="10" fill="#8292B0" text-anchor="end">${val}L</text>
+    <line x1="${leftPad}" y1="${yPositions[i]}" x2="${svgW - 5}" y2="${yPositions[i]}" stroke="var(--border, #DDE3EE)" stroke-width="1.2" stroke-dasharray="4,4"/>
+    <text x="${leftPad - 5}" y="${yPositions[i] + 4}" font-size="10" fill="var(--text-light, #8292B0)" text-anchor="end">${val}L</text>
   `).join("");
 
-  let bars = dailyTotals.map((d, i) => {
-    const x       = leftPad + i * slotW + (slotW - barW) / 2;
-    const val     = Number(d.consumed) || 0;
-    const barH    = Math.max((val / maxVal) * chartH, 2);
-    const y       = 20 + chartH - barH;
-    const dayName = d.day_name ? d.day_name.slice(0, 3) : `D${i + 1}`;
-    const isMax   = val === maxVal;
-    const fill    = isMax ? "url(#wg1)" : "url(#bg1)";
-    const cx      = x + barW / 2;
+  const baseLine = `<line x1="${leftPad}" y1="${20 + chartH}" x2="${svgW - 5}" y2="${20 + chartH}" stroke="var(--border, #DDE3EE)" stroke-width="1.5" stroke-linecap="round"/>`;
 
-    return `
-      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="5" fill="${fill}"/>
-      <text x="${cx}" y="${svgH - 25}" font-size="10" fill="#8292B0" text-anchor="middle">${dayName}</text>
-      ${val > 0 ? `<text x="${cx}" y="${y - 4}" font-size="9" fill="#4A5878" text-anchor="middle">${Math.round(val)}</text>` : ""}
-    `;
-  }).join("");
+  // Compute 2D coordinate points for the line graph
+  const coords = dailyTotals.map((d, i) => {
+    const x = leftPad + i * slotW + slotW / 2;
+    const val = Number(d.consumed) || 0;
+    const y = 20 + chartH - (val / maxVal) * chartH;
+    const dayName = d.day_name ? d.day_name.slice(0, 3) : `D${i + 1}`;
+    return { x, y, val, dayName };
+  });
+
+  const polyPoints = coords.map(c => `${c.x},${c.y}`).join(" ");
+  const areaPath = `M ${coords[0].x},${20 + chartH} ` + coords.map(c => `L ${c.x},${c.y}`).join(" ") + ` L ${coords[coords.length - 1].x},${20 + chartH} Z`;
+
+  const dots = coords.map(c => `
+    <circle cx="${c.x}" cy="${c.y}" r="5" fill="#FFFFFF" stroke="var(--water-2, #2C9AD1)" stroke-width="3" />
+    ${c.val > 0 ? `<text x="${c.x}" y="${c.y - 10}" font-size="9" fill="var(--text-mid, #4A5878)" text-anchor="middle" font-weight="600">${Math.round(c.val)}L</text>` : ""}
+    <text x="${c.x}" y="${svgH - 25}" font-size="10" fill="var(--text-light, #8292B0)" text-anchor="middle">${c.dayName}</text>
+  `).join("");
 
   chartEl.innerHTML = `
     <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:${svgH}px;overflow:visible;">
       <defs>
-        <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#2C9AD1" stop-opacity=".9"/>
-          <stop offset="100%" stop-color="#1A6FA8" stop-opacity=".7"/>
-        </linearGradient>
-        <linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#D4A017" stop-opacity=".9"/>
-          <stop offset="100%" stop-color="#C97A00" stop-opacity=".7"/>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2C9AD1" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#1A6FA8" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       ${gridLines}
-      ${bars}
+      ${baseLine}
+      <path d="${areaPath}" fill="url(#areaGrad)" />
+      <polyline fill="none" stroke="var(--water-2, #2C9AD1)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
+      ${dots}
     </svg>`;
 
   // ── Per-building breakdown table ──────────────────────────────────────
@@ -953,6 +1104,29 @@ function currentUserIsAdmin() {
   }
 }
 
+function currentUserIsGsu() {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    return (user.role || "").toLowerCase() === "gsu";
+  } catch (e) {
+    return false;
+  }
+}
+
+function currentUserIsGsuOrAdmin() {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    const role = (user.role || "").toLowerCase();
+    return role === "gsu" || role === "admin";
+  } catch (e) {
+    return false;
+  }
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -965,7 +1139,336 @@ function escapeHtml(str) {
 async function loadMaintenanceLogs() {
   const el = document.getElementById("maintenance-list");
   if (!el) return;
-  el.innerHTML = emptyPanel("Maintenance log API not yet wired. Add GET /api/maintenance to dataRoutes.js.");
+
+  try {
+    const logs = await apiGet("/api/maintenance");
+    if (!logs) return;
+
+    if (logs.length === 0) {
+      el.innerHTML = emptyPanel("No maintenance records logged yet.");
+      return;
+    }
+
+    el.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Device</th>
+            <th>Location</th>
+            <th>Title</th>
+            <th>Details</th>
+            <th>Tags</th>
+            <th>Repaired By</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${logs.map(log => {
+            const dateStr = log.logged_date ? new Date(log.logged_date).toLocaleDateString() : "—";
+            const tagsHtml = log.tags
+              ? log.tags.split(",").map(t => `<span class="device-badge" style="background:rgba(44,154,209,0.1);color:#1A6FA8;margin:2px;font-size:10px;">${escapeHtml(t.trim())}</span>`).join("")
+              : "—";
+            const locationText = log.building_name ? `${log.building_name} (${log.area_name || 'General'})` : "—";
+
+            return `
+              <tr>
+                <td>${dateStr}</td>
+                <td><strong>${escapeHtml(log.device_name || 'Unknown')}</strong> <span style="font-size:10px;color:var(--text-mid);">ID: ${log.device_id}</span></td>
+                <td>${escapeHtml(locationText)}</td>
+                <td><strong>${escapeHtml(log.title)}</strong></td>
+                <td><span style="font-size:12px;color:var(--text-mid);">${escapeHtml(log.detail || '—')}</span></td>
+                <td><div style="display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div></td>
+                <td><span style="font-weight:600;">${escapeHtml(log.repaired_by || '—')}</span></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    console.error("[AquaSense] loadMaintenanceLogs error:", err);
+    el.innerHTML = emptyPanel("Failed to load maintenance logs.");
+  }
+}
+
+async function openAddMaintModal() {
+  const modal = document.getElementById("addMaintenanceModal");
+  if (!modal) return;
+
+  // Clear previous form fields
+  document.getElementById("maintTitle").value = "";
+  document.getElementById("maintDetail").value = "";
+  document.getElementById("maintTags").value = "";
+  
+  // Set default repaired_by to current user's name
+  let defaultOperator = "";
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (raw) {
+      const user = JSON.parse(raw);
+      defaultOperator = user.fullname || "";
+    }
+  } catch (e) {}
+  document.getElementById("maintRepairedBy").value = defaultOperator;
+
+  // Set default date to today
+  document.getElementById("maintDate").value = new Date().toISOString().slice(0, 10);
+
+  // Clear error
+  const errDiv = document.getElementById("maintModalError");
+  if (errDiv) errDiv.style.display = "none";
+
+  // Populate devices dropdown
+  const select = document.getElementById("maintDeviceId");
+  if (select) {
+    select.innerHTML = '<option value="" disabled selected>Select a device…</option>';
+    try {
+      const devices = await apiGet("/api/devices");
+      if (devices && devices.length > 0) {
+        devices.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.device_id;
+          opt.textContent = `${d.device_name} (${d.building_name || 'No Location'})`;
+          select.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.error("Failed to populate devices in maintenance modal", err);
+    }
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeAddMaintModal() {
+  const modal = document.getElementById("addMaintenanceModal");
+  if (modal) modal.style.display = "none";
+}
+
+function handleMaintModalBackdrop(event) {
+  if (event.target === event.currentTarget) {
+    closeAddMaintModal();
+  }
+}
+
+async function submitAddMaint() {
+  const deviceId = document.getElementById("maintDeviceId").value;
+  const title = document.getElementById("maintTitle").value;
+  const detail = document.getElementById("maintDetail").value;
+  const tags = document.getElementById("maintTags").value;
+  const repairedBy = document.getElementById("maintRepairedBy").value;
+  const loggedDate = document.getElementById("maintDate").value;
+
+  const errDiv = document.getElementById("maintModalError");
+  const errText = document.getElementById("maintModalErrorText");
+
+  if (!deviceId) {
+    if (errDiv && errText) {
+      errText.textContent = "Please select a target device.";
+      errDiv.style.display = "flex";
+    }
+    return;
+  }
+  if (!title || !title.trim()) {
+    if (errDiv && errText) {
+      errText.textContent = "Please enter a log title.";
+      errDiv.style.display = "flex";
+    }
+    return;
+  }
+
+  try {
+    const payload = {
+      device_id: Number(deviceId),
+      title: title.trim(),
+      detail: detail.trim(),
+      tags: tags.trim(),
+      repaired_by: repairedBy.trim(),
+      logged_date: loggedDate || null
+    };
+
+    const res = await apiPost("/api/maintenance", payload);
+    if (res) {
+      closeAddMaintModal();
+      // Reload the maintenance logs view to reflect changes
+      loadMaintenanceLogs();
+    }
+  } catch (err) {
+    console.error("submitAddMaint error:", err);
+    if (errDiv && errText) {
+      errText.textContent = err.message || "Failed to submit maintenance log.";
+      errDiv.style.display = "flex";
+    }
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// FLOW RATE ANOMALIES VIEW (GSU ONLY)
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadFlowAnomalies() {
+  const el = document.getElementById("flow-anomalies-list");
+  if (!el) return;
+
+  try {
+    const devices = await apiGet("/api/devices");
+    const readingsResp = await apiGet("/api/sensors?limit=150");
+
+    if (!devices || !readingsResp) return;
+    const readings = Array.isArray(readingsResp) ? readingsResp : (readingsResp.data || []);
+
+    if (devices.length === 0) {
+      el.innerHTML = emptyPanel("No registered devices to monitor flow rate.");
+      return;
+    }
+
+    el.innerHTML = devices.map(dev => {
+      const devReadings = readings
+        .filter(r => r.device_id === dev.device_id)
+        .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at));
+
+      if (devReadings.length === 0) {
+        return `
+          <div class="stat-card info">
+            <div class="stat-header">
+              <span class="stat-label"><strong>${escapeHtml(dev.device_name)}</strong></span>
+              <span class="stat-badge info">No Data</span>
+            </div>
+            <div style="font-size: 13px; color: var(--text-mid); margin-top: 8px;">
+              No flow rate readings recorded yet.
+            </div>
+          </div>
+        `;
+      }
+
+      const latestReading = devReadings[devReadings.length - 1];
+      const currentFlow = Number(latestReading.flow_rate) || 0;
+
+      const flowHistory = devReadings.map(r => Number(r.flow_rate) || 0).slice(-15);
+      const previousReadings = flowHistory.slice(0, -1);
+      const avgFlow = previousReadings.length > 0
+        ? previousReadings.reduce((sum, val) => sum + val, 0) / previousReadings.length
+        : currentFlow;
+
+      let statusText = "Normal";
+      let statusClass = "safe";
+      if (avgFlow > 1.0) {
+        if (currentFlow > avgFlow * 1.5) {
+          statusText = "Spike (Leak)";
+          statusClass = "danger";
+        } else if (currentFlow < avgFlow * 0.5 && currentFlow < 2.0) {
+          statusText = "Drop (Blockage)";
+          statusClass = "warn";
+        }
+      }
+
+      const sparklineHtml = generateSparkline(flowHistory, 160, 40);
+      const buildingInfo = dev.building_name
+        ? `${dev.building_name} — ${dev.area_name || 'General'}`
+        : "Unassigned building";
+
+      return `
+        <div class="stat-card ${statusClass}" style="display:flex;flex-direction:column;justify-content:space-between;padding:16px;min-height:160px;cursor:pointer;" onclick="showFlowAnomalyDetails('${encodeURIComponent(JSON.stringify(dev))}', ${currentFlow}, ${avgFlow}, '${statusText}', '${statusClass}')">
+          <div>
+            <div class="stat-header" style="margin-bottom:8px;">
+              <div>
+                <strong style="font-size:15px;color:var(--text);">${escapeHtml(dev.device_name)}</strong>
+                <div style="font-size:11px;color:var(--text-mid);margin-top:2px;">${escapeHtml(buildingInfo)}</div>
+              </div>
+              <span class="stat-badge ${statusClass}">${statusText}</span>
+            </div>
+            
+            <div style="display:flex;align-items:baseline;gap:6px;margin:12px 0;">
+              <span style="font-size:24px;font-weight:700;color:var(--text);">${currentFlow.toFixed(1)}</span>
+              <span style="font-size:12px;color:var(--text-mid);">L/min</span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid rgba(0,0,0,0.05);padding-top:10px;margin-top:auto;">
+            <div style="font-size:11px;color:var(--text-mid);">
+              Avg: ${avgFlow.toFixed(1)} L/min
+            </div>
+            <div style="display:flex;align-items:center;">
+              ${sparklineHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("[AquaSense] loadFlowAnomalies error:", err);
+    el.innerHTML = emptyPanel("Error loading flow rate anomaly data.");
+  }
+}
+
+function generateSparkline(values, width = 120, height = 30) {
+  if (!values || values.length < 2) return '';
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const points = values.map((val, idx) => {
+    const x = (idx / (values.length - 1)) * width;
+    const y = height - ((val - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+  return `
+    <svg width="${width}" height="${height}" style="overflow:visible;">
+      <polyline fill="none" stroke="var(--water-1)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+    </svg>
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DEVICE HEALTH TRACKER VIEW (GSU ONLY)
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadDevicesHealthTracker() {
+  const tbody = document.getElementById("health-tracker-tbody");
+  if (!tbody) return;
+
+  try {
+    const devices = await apiGet("/api/devices/health");
+    if (!devices) return;
+
+    if (devices.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No devices found.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = devices.map(d => {
+      const isOnline = d.status === "online";
+      const statusBadge = `<span class="r-status ${isOnline ? "safe" : "offline"}">${d.status.toUpperCase()}</span>`;
+      const lastOnlineDate = d.last_online ? new Date(d.last_online).toLocaleString() : "Never";
+      
+      const uptimeVal = d.uptime_percent != null ? d.uptime_percent : 100;
+      const uptimeClass = uptimeVal >= 90 ? "safe" : uptimeVal >= 75 ? "warn" : "offline";
+      const uptimeBadge = `<span class="r-status ${uptimeClass}">${uptimeVal}%</span>`;
+
+      const locationText = d.building_name ? `${d.building_name} (${d.area_name || 'General'})` : "Unassigned";
+
+      let actionHtml = "—";
+      if (!isOnline) {
+        actionHtml = `<span style="color:var(--danger);font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          needs physical inspection at ${escapeHtml(d.building_name || 'device location')}
+        </span>`;
+      }
+
+      return `
+        <tr>
+          <td><strong>${escapeHtml(d.device_name)}</strong> <span style="font-size:10px;color:var(--text-mid);">ID: ${d.device_id}</span></td>
+          <td>${escapeHtml(locationText)}</td>
+          <td>${statusBadge}</td>
+          <td>${lastOnlineDate}</td>
+          <td>${uptimeBadge}</td>
+          <td>${actionHtml}</td>
+        </tr>
+      `;
+    }).join("");
+
+  } catch (err) {
+    console.error("[AquaSense] loadDevicesHealthTracker error:", err);
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);">Error loading health tracker data.</td></tr>`;
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1093,16 +1596,19 @@ async function loadSmsLogs() {
 // `window` property in a plain (non-module) <script>, so those calls
 // would silently no-op and the tables would only refresh on full reload.
 window.viewLoaders = {
-  dashboard:   loadDashboard,
-  live:        loadLiveMonitoring,
-  readings:    loadSensorReadingsLog,
-  analytics:   loadAnalytics,                             // ← NOW CONNECTED
-  alerts:      loadAlertsView,                            // ← NOW CONNECTED
-  devices:     loadDevices,
-  locations:   () => loadLocations("locations-tbody"),
-  maintenance: loadMaintenanceLogs,
-  sms:         loadSmsLogs,
-   users:       loadUsers,
+  dashboard:        loadDashboard,
+  live:             loadLiveMonitoring,
+  readings:         loadSensorReadingsLog,
+  analytics:        loadAnalytics,                             // ← NOW CONNECTED
+  alerts:           loadAlertsView,                            // ← NOW CONNECTED
+  devices:          loadDevices,
+  locations:        () => loadLocations("locations-tbody"),
+  maintenance:      loadMaintenanceLogs,
+  'flow-anomalies': loadFlowAnomalies,
+  'health-tracker': loadDevicesHealthTracker,
+  sms:              loadSmsLogs,
+  users:            loadUsers,
+  'system-logs':    loadAuditLogs,
 };
 const viewLoaders = window.viewLoaders;
 
@@ -1112,7 +1618,7 @@ let refreshInterval = null;
 // them. "devices" and "alerts" are included so a device the health-check
 // marks offline (and the alert it raises) shows up here on its own —
 // no manual reload needed.
-const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts"];
+const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts", "flow-anomalies", "health-tracker"];
 
 function startAutoRefresh(viewKey) {
   if (refreshInterval) clearInterval(refreshInterval);
@@ -1239,8 +1745,50 @@ window.toggleNotifDropdown = function(event) {
   dropdown.style.display = isHidden ? "flex" : "none";
   if (isHidden) {
     loadDropdownAlerts();
+    markAllAlertsAsRead();
+    
+    // Instantly hide the red dot in UI for zero lag
+    const notifDot = document.getElementById("topbarNotifDot");
+    if (notifDot) notifDot.style.display = "none";
   }
 };
+
+async function markAllAlertsAsRead() {
+  try {
+    const rows = await apiGet("/api/alerts?status=unresolved&limit=200");
+    if (!rows) return;
+
+    let userId = "default";
+    try {
+      const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (raw) {
+        const user = JSON.parse(raw);
+        userId = user.id || user.user_id || "default";
+      }
+    } catch(e) {}
+
+    let readAlerts = [];
+    try {
+      const readRaw = localStorage.getItem(`read_alerts_${userId}`);
+      if (readRaw) readAlerts = JSON.parse(readRaw);
+    } catch(e) {}
+
+    let changed = false;
+    rows.forEach(a => {
+      if (!readAlerts.includes(a.id)) {
+        readAlerts.push(a.id);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      localStorage.setItem(`read_alerts_${userId}`, JSON.stringify(readAlerts));
+      refreshAlertBadgeCounts();
+    }
+  } catch (err) {
+    console.error("[AquaSense] markAllAlertsAsRead error:", err);
+  }
+}
 
 async function loadDropdownAlerts() {
   const body = document.getElementById("notifDropdownBody");
@@ -1291,3 +1839,195 @@ document.addEventListener("click", (e) => {
     }
   }
 });
+
+// ════════════════════════ SYSTEM AUDIT LOGS ════════════════════════
+let rawAuditLogs = [];
+
+async function loadAuditLogs() {
+  const tbody = document.getElementById("audit-logs-tbody");
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light)">Loading audit logs...</td></tr>`;
+
+  try {
+    const data = await apiGet("/api/audit-logs");
+    if (!data) return;
+    rawAuditLogs = data;
+    renderFilteredAuditLogs();
+  } catch (err) {
+    console.error("[AquaSense] loadAuditLogs error:", err);
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--error)">Failed to load audit logs. Only administrators have access.</td></tr>`;
+  }
+}
+
+function renderFilteredAuditLogs() {
+  const tbody = document.getElementById("audit-logs-tbody");
+  if (!tbody) return;
+
+  const searchQuery = (document.getElementById("auditLogSearch")?.value || "").toLowerCase().trim();
+  const roleFilter = (document.getElementById("auditLogRoleFilter")?.value || "").toLowerCase();
+
+  const filtered = rawAuditLogs.filter(log => {
+    // Role filter
+    if (roleFilter && (log.role || "").toLowerCase() !== roleFilter) {
+      return false;
+    }
+    // Search query
+    if (searchQuery) {
+      const matchText = [
+        log.username,
+        log.role,
+        log.action,
+        log.details,
+        log.created_at
+      ].join(" ").toLowerCase();
+      if (!matchText.includes(searchQuery)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light)">No audit logs found.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(log => {
+    const date = new Date(log.created_at);
+    const dateFormatted = date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' });
+    const timeFormatted = date.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    // Role badges styling consistent with User Management
+    const roleLower = (log.role || "").toLowerCase();
+    const roleLabelText = log.role ? log.role.toUpperCase() : "—";
+    
+    let roleClass = roleLower;
+    if (roleLower !== "admin" && roleLower !== "gsu" && roleLower !== "hsu") {
+      roleClass = ""; // Fallback standard badge style
+    }
+
+    return `
+      <tr>
+        <td style="white-space:nowrap;color:var(--text-mid);font-size:13px;">
+          <strong>${dateFormatted}</strong>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">${timeFormatted}</div>
+        </td>
+        <td>
+          <div style="font-weight:600;font-size:13px;color:var(--text);">${escapeHtml(log.username || "—")}</div>
+        </td>
+        <td><span class="role-badge ${roleClass}">${roleLabelText}</span></td>
+        <td><span style="font-family:monospace;font-weight:600;font-size:12px;color:var(--text);">${escapeHtml(log.action || "—")}</span></td>
+        <td>
+          <div style="font-size:13px;color:var(--text-mid);max-width:400px;word-wrap:break-word;white-space:normal;line-height:1.4;">${escapeHtml(log.details || "—")}</div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// Wire search and filter inputs on DOMContentLoaded
+document.addEventListener("DOMContentLoaded", () => {
+  // Use event delegation or check elements directly
+  const setupListeners = () => {
+    const searchInput = document.getElementById("auditLogSearch");
+    const roleFilterSelect = document.getElementById("auditLogRoleFilter");
+
+    if (searchInput) {
+      searchInput.addEventListener("input", renderFilteredAuditLogs);
+    }
+    if (roleFilterSelect) {
+      roleFilterSelect.addEventListener("change", renderFilteredAuditLogs);
+    }
+  };
+
+  setupListeners();
+  // Safe fallback in case DOM structure re-rendered
+  window.addEventListener("auth-ready", setupListeners);
+});
+
+// ════════════════════════ FLOW ANOMALY MODAL HELPERS ════════════════════════
+window.showFlowAnomalyDetails = function(devDataEncoded, currentFlow, avgFlow, statusText, statusClass) {
+  const dev = JSON.parse(decodeURIComponent(devDataEncoded));
+  
+  const modal = document.getElementById("flowAnomalyModal");
+  if (!modal) return;
+
+  document.getElementById("flowAnomalyModalBuilding").textContent = dev.building_name || "Unassigned Building";
+  document.getElementById("flowAnomalyModalZone").textContent = "Pipe Zone: " + (dev.area_name || "General Zone");
+  document.getElementById("flowAnomalyModalDevice").textContent = dev.device_name;
+  
+  // Status label
+  const statusEl = document.getElementById("flowAnomalyModalStatus");
+  const deviceStatus = (dev.status || "offline").toLowerCase();
+  let statusBadgeClass = "offline";
+  if (deviceStatus === "online") statusBadgeClass = "safe";
+  else if (deviceStatus === "maintenance") statusBadgeClass = "warn";
+  statusEl.innerHTML = `<span class="r-status ${statusBadgeClass}">${dev.status ? dev.status.toUpperCase() : "OFFLINE"}</span>`;
+
+  document.getElementById("flowAnomalyModalRate").textContent = Number(currentFlow).toFixed(1);
+  document.getElementById("flowAnomalyModalAvg").textContent = Number(avgFlow).toFixed(1);
+
+  // Status Analysis Description
+  const descEl = document.getElementById("flowAnomalyModalDescription");
+  let analysis = "";
+  if (statusClass === "danger") {
+    analysis = `<strong>⚠️ Warning: Sudden Flow Spike Detected</strong><br>
+    The current flow rate of <strong>${Number(currentFlow).toFixed(1)} L/min</strong> is significantly higher than the baseline average of <strong>${Number(avgFlow).toFixed(1)} L/min</strong>. This typically indicates a pipe burst, structural leak, or unauthorized usage in the <strong>${escapeHtml(dev.area_name || 'General Zone')}</strong> of <strong>${escapeHtml(dev.building_name || 'the building')}</strong>. Urgent inspection is recommended.`;
+    descEl.style.borderLeft = "4px solid var(--error)";
+  } else if (statusClass === "warn") {
+    analysis = `<strong>⚠️ Notice: Flow Rate Drop Detected</strong><br>
+    The current flow rate of <strong>${Number(currentFlow).toFixed(1)} L/min</strong> has dropped significantly below the baseline average of <strong>${Number(avgFlow).toFixed(1)} L/min</strong>. This might indicate a pipe blockage, valve restriction, pump malfunction, or zero consumption in the <strong>${escapeHtml(dev.area_name || 'General Zone')}</strong> of <strong>${escapeHtml(dev.building_name || 'the building')}</strong>.`;
+    descEl.style.borderLeft = "4px solid var(--warning)";
+  } else {
+    analysis = `<strong>✅ Normal Flow Conditions</strong><br>
+    The flow rate of <strong>${Number(currentFlow).toFixed(1)} L/min</strong> is well within normal parameters compared to the historical baseline average of <strong>${Number(avgFlow).toFixed(1)} L/min</strong>. No operational anomalies detected.`;
+    descEl.style.borderLeft = "4px solid var(--success)";
+  }
+  descEl.innerHTML = analysis;
+
+  // File maintenance log action button
+  const maintBtn = document.getElementById("flowAnomalyReportBtn");
+  if (maintBtn) {
+    maintBtn.onclick = () => {
+      closeFlowAnomalyModal();
+      // Prefill the device select and other fields
+      const devSelect = document.getElementById("maintDeviceId");
+      if (devSelect) {
+        devSelect.value = dev.device_id;
+      }
+      const titleInput = document.getElementById("maintTitle");
+      if (titleInput) {
+        titleInput.value = `Anomaly Report: ${statusText} on ${dev.device_name}`;
+      }
+      const descInput = document.getElementById("maintDetail");
+      if (descInput) {
+        descInput.value = `Automated flow analysis reports a ${statusText.toLowerCase()} at ${dev.building_name} (${dev.area_name || 'General Zone'}).\nCurrent flow: ${Number(currentFlow).toFixed(1)} L/min. Baseline avg: ${Number(avgFlow).toFixed(1)} L/min.`;
+      }
+      const tagsInput = document.getElementById("maintTags");
+      if (tagsInput) {
+        tagsInput.value = statusClass === "danger" ? "leak, anomaly" : "blockage, anomaly";
+      }
+      
+      // Open maintenance modal
+      const maintModal = document.getElementById("addMaintenanceModal");
+      if (maintModal) {
+        maintModal.style.display = "flex";
+      }
+    };
+  }
+
+  modal.style.display = "flex";
+};
+
+window.closeFlowAnomalyModal = function() {
+  const modal = document.getElementById("flowAnomalyModal");
+  if (modal) modal.style.display = "none";
+};
+
+window.handleFlowAnomalyModalBackdrop = function(e) {
+  if (e.target.id === "flowAnomalyModal") {
+    closeFlowAnomalyModal();
+  }
+};
+

@@ -44,7 +44,23 @@ async function initDB() {
   `;
 
   await pool.query(createUsersTable);
-  console.log("[AquaMonitor] Database & users table ready.");
+
+  const createAuditLogsTable = `
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id          INT          NOT NULL AUTO_INCREMENT,
+      user_id     INT          NULL,
+      username    VARCHAR(150) NOT NULL,
+      role        VARCHAR(50)  NOT NULL,
+      action      VARCHAR(100) NOT NULL,
+      details     TEXT         NULL,
+      ip_address  VARCHAR(45)  NULL,
+      created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `;
+  await pool.query(createAuditLogsTable);
+
+  console.log("[AquaMonitor] Database & users & audit_logs tables ready.");
 }
 
 module.exports = { pool, initDB };

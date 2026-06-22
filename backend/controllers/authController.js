@@ -100,6 +100,14 @@ async function login(req, res) {
       { expiresIn: "7d" }
     );
 
+    // ── Log Audit action ───────────────────────────────────────────────────
+    const { logAudit } = require("../utils/auditLogger");
+    await logAudit(
+      { user: { user_id: user.user_id, fullname: user.fullname, email: user.email, role: user.role } },
+      "LOGIN",
+      `User logged in successfully.`
+    );
+
     return res.status(200).json({
       token,
       user: {

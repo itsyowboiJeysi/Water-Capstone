@@ -16,6 +16,12 @@ const {
   getLocations,
   createLocation,
   deleteLocation,
+  getAnalyticsSummary,
+  getDevicesHealth,
+  getMaintenanceLogs,
+  createMaintenanceLog,
+  exportSensorReadings,
+  getAuditLogs,
 } = require("../controllers/dataController");
 const {
   updateDevice,
@@ -27,9 +33,19 @@ const {
 router.get  ("/dashboard/summary",      verifyToken, getDashboardSummary);
 router.get  ("/sensors/latest",         verifyToken, getLatestReadings);
 router.get  ("/sensors",                verifyToken, getSensorReadings);
+router.get  ("/sensors/export",         verifyToken, exportSensorReadings);
 router.get  ("/alerts",                 verifyToken, getAlerts);
 router.get  ("/devices",                verifyToken, getDevices);
 router.get  ("/locations",              verifyToken, getLocations);
+router.get  ("/analytics/summary",      verifyToken, getAnalyticsSummary);
+router.get  ("/devices/health",         verifyToken, getDevicesHealth);
+router.get  ("/maintenance",            verifyToken, getMaintenanceLogs);
+
+// GSU and Admin can submit maintenance logs
+router.post ("/maintenance",            verifyToken, createMaintenanceLog);
+
+// Audit logs (RESTRICTED: Admin only)
+router.get  ("/audit-logs",             verifyToken, requireAdmin, getAuditLogs);
 
 // CRUD routes (RESTRICTED: Admin only)
 router.delete("/sensors",               verifyToken, requireAdmin, deleteSensorReadings); // Bulk delete readings

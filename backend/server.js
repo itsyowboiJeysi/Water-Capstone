@@ -169,6 +169,23 @@ async function evaluateThresholds(deviceId, reading) {
       flow_rate:   reading.flow_rate,
     };
 
+    // Calculate historical averages of the last 15 readings for normal comparison
+    const [historical] = await pool.query(
+      `SELECT AVG(ph_level) as avg_ph, AVG(turbidity) as avg_turbidity, 
+              AVG(tds) as avg_tds, AVG(temperature) as avg_temp, 
+              AVG(ammonia) as avg_ammonia, AVG(flow_rate) as avg_flow
+       FROM (
+         SELECT ph_level, turbidity, tds, temperature, ammonia, flow_rate
+         FROM sensor_readings
+         WHERE device_id = ?
+         ORDER BY recorded_at DESC
+         LIMIT 15
+       ) as sub`,
+      [deviceId]
+    );
+
+    const averages = historical[0] || {};
+
     for (const t of thresholds) {
       const value = paramMap[t.parameter_name];
       if (value === undefined || value === null) continue;
@@ -177,23 +194,68 @@ async function evaluateThresholds(deviceId, reading) {
       const min = Number(t.min_value);
       const max = Number(t.max_value);
 
+      // 1. Standard safety threshold out-of-range alert
       if (v < min || v > max) {
-        // Determine level
-        const deviation = Math.max(
-          min > 0 ? Math.abs(v - min) / min : 0,
-          max > 0 ? Math.abs(v - max) / max : 0
+        // Prevent duplicate unresolved alert for this device parameter
+        const [[existing]] = await pool.query(
+          `SELECT id FROM alerts
+           WHERE device_id = ? AND parameter = ? AND status = 'unresolved' AND message NOT LIKE '%spike%'
+           LIMIT 1`,
+          [deviceId, t.parameter_name]
         );
-        const level = deviation > 0.3 ? "critical"
-                    : deviation > 0.15 ? "high"
-                    : "medium";
 
-        const message = `${t.parameter_name.toUpperCase()} reading of ${v} is outside safe range (${min}–${max})`;
+        if (!existing) {
+          const deviation = Math.max(
+            min > 0 ? Math.abs(v - min) / min : 0,
+            max > 0 ? Math.abs(v - max) / max : 0
+          );
+          const level = deviation > 0.3 ? "critical"
+                      : deviation > 0.15 ? "high"
+                      : "medium";
 
-        await pool.query(
-          `INSERT INTO alerts (device_id, parameter, value, level, status, message)
-           VALUES (?, ?, ?, ?, 'unresolved', ?)`,
-          [deviceId, t.parameter_name, v, level, message]
-        );
+          const message = `${t.parameter_name.toUpperCase()} reading of ${v} is outside safe range (${min}–${max})`;
+
+          await pool.query(
+            `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+             VALUES (?, ?, ?, ?, 'unresolved', ?)`,
+            [deviceId, t.parameter_name, v, level, message]
+          );
+        }
+      }
+
+      // 2. High deviation from historical average (Spike Alert)
+      let avgVal = null;
+      if (t.parameter_name === "ph") avgVal = averages.avg_ph;
+      else if (t.parameter_name === "turbidity") avgVal = averages.avg_turbidity;
+      else if (t.parameter_name === "tds") avgVal = averages.avg_tds;
+      else if (t.parameter_name === "temperature") avgVal = averages.avg_temp;
+      else if (t.parameter_name === "ammonia") avgVal = averages.avg_ammonia;
+      else if (t.parameter_name === "flow_rate") avgVal = averages.avg_flow;
+
+      if (avgVal !== null && avgVal > 0.5) {
+        const avg = Number(avgVal);
+        if (v > avg * 1.5) {
+          // Prevent duplicate unresolved anomaly/spike alert
+          const [[existingAnomaly]] = await pool.query(
+            `SELECT id FROM alerts
+             WHERE device_id = ? AND parameter = ? AND status = 'unresolved' AND message LIKE '%spike%'
+             LIMIT 1`,
+            [deviceId, t.parameter_name]
+          );
+
+          if (!existingAnomaly) {
+            let message = `${t.parameter_name.toUpperCase()} reading of ${v} is way too high compared to historical normal average (${avg.toFixed(1)})`;
+            if (t.parameter_name === "flow_rate") {
+              message = `Flow rate anomaly: sudden spike to ${v} L/min (normal avg: ${avg.toFixed(1)} L/min). Potential leak detected!`;
+            }
+
+            await pool.query(
+              `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+               VALUES (?, ?, ?, 'high', 'unresolved', ?)`,
+              [deviceId, t.parameter_name, v, message]
+            );
+          }
+        }
       }
     }
   } catch (err) {

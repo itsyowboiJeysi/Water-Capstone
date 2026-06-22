@@ -1,5 +1,6 @@
 // controllers/deviceController.js — AquaMonitor Devices
 const { pool } = require("../config/db");
+const { logAudit } = require("../utils/auditLogger");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/devices
@@ -120,6 +121,8 @@ async function updateDevice(req, res) {
       [device_name, location_id, status, mqtt_topic, id]
     );
 
+    await logAudit(req, "UPDATE_DEVICE", `Updated device ID: ${id} to Name: ${device_name}, Topic: ${mqtt_topic}, Status: ${status}`);
+
     return res.status(200).json({ message: "Device updated successfully." });
 
   } catch (err) {
@@ -159,6 +162,8 @@ async function updateDeviceStatus(req, res) {
       [status, status, id]
     );
 
+    await logAudit(req, "UPDATE_DEVICE_STATUS", `Device ID: ${id} status updated to: ${status}`);
+
     return res.status(200).json({ message: "Device status updated." });
 
   } catch (err) {
@@ -184,6 +189,8 @@ async function deleteDevice(req, res) {
     }
 
     await pool.query("DELETE FROM devices WHERE device_id = ?", [id]);
+
+    await logAudit(req, "DELETE_DEVICE", `Deleted device ID: ${id}`);
 
     return res.status(200).json({ message: "Device deleted successfully." });
 
