@@ -595,23 +595,45 @@ async function getAnalyticsSummary(req, res) {
 async function getDevicesHealth(req, res) {
   try {
     const [rows] = await pool.query(`
-      SELECT d.*, l.building_name, l.area_name
+      SELECT d.*, l.building_name, l.area_name,
+             sr.ph_level, sr.turbidity, sr.tds, sr.temperature, sr.ammonia, sr.flow_rate, sr.recorded_at
       FROM devices d
       LEFT JOIN locations l ON d.location_id = l.location_id
+      LEFT JOIN (
+        SELECT * FROM sensor_readings
+        WHERE id IN (SELECT MAX(id) FROM sensor_readings GROUP BY device_id)
+      ) sr ON d.device_id = sr.device_id
       ORDER BY d.device_name ASC
     `);
 
     const enriched = rows.map(device => {
+      // Count how many of the 5 core parameters are not null
+      let activeCount = 5;
+      if (device.recorded_at) {
+        activeCount = [
+          device.ph_level,
+          device.turbidity,
+          device.tds,
+          device.temperature,
+          device.ammonia
+        ].filter(v => v !== null).length;
+      } else {
+        activeCount = device.status === 'online' ? 0 : 5;
+      }
+
       let uptime = 100.0;
       if (device.status === 'offline') {
         const offlineMs = Date.now() - new Date(device.last_online).getTime();
         const offlineHours = offlineMs / (1000 * 60 * 60);
         uptime = Math.max(0, 100 - (offlineHours / 24) * 100);
       } else {
-        uptime = 95.0 + (device.device_id % 5);
+        // Online: uptime is based on reporting sensors (e.g. 5/5 -> 100%, 4/5 -> 80%)
+        uptime = (activeCount / 5) * 100;
       }
+
       return {
         ...device,
+        active_sensors_count: activeCount,
         uptime_percent: Number(uptime.toFixed(1))
       };
     });
@@ -750,6 +772,93 @@ async function getAuditLogs(req, res) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// GET /api/analytics/compliance-trend?device_id=
+// 7-day average metrics for pH, turbidity, and ammonia (health parameters)
+// ─────────────────────────────────────────────────────────────────────────
+async function getComplianceTrend(req, res) {
+  try {
+    const deviceId = req.query.device_id;
+    const conditions = ["recorded_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)"];
+    const params = [];
+
+    if (deviceId) {
+      conditions.push("device_id = ?");
+      params.push(deviceId);
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`;
+
+    const [dbRows] = await pool.query(
+      `SELECT 
+         DATE_FORMAT(recorded_at, '%Y-%m-%d') AS day_date,
+         DAYNAME(recorded_at) AS day_name,
+         AVG(ph_level) AS avg_ph,
+         AVG(turbidity) AS avg_turbidity,
+         AVG(ammonia) AS avg_ammonia
+       FROM sensor_readings
+       ${where}
+       GROUP BY day_date, day_name
+       ORDER BY day_date ASC`,
+      params
+    );
+
+    // Generate last 7 days map
+    const dailyAveragesMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
+      dailyAveragesMap[dateStr] = {
+        day_date: dateStr,
+        day_name: dayName,
+        avg_ph: null,
+        avg_turbidity: null,
+        avg_ammonia: null,
+      };
+    }
+
+    // Merge database results
+    dbRows.forEach(row => {
+      const dateStr = row.day_date;
+      if (dailyAveragesMap[dateStr]) {
+        dailyAveragesMap[dateStr].avg_ph = row.avg_ph !== null ? Number(row.avg_ph) : null;
+        dailyAveragesMap[dateStr].avg_turbidity = row.avg_turbidity !== null ? Number(row.avg_turbidity) : null;
+        dailyAveragesMap[dateStr].avg_ammonia = row.avg_ammonia !== null ? Number(row.avg_ammonia) : null;
+      }
+    });
+
+    const dailyAverages = Object.values(dailyAveragesMap).sort((a, b) => a.day_date.localeCompare(b.day_date));
+
+    res.json(dailyAverages);
+  } catch (err) {
+    console.error("[AquaSense] getComplianceTrend error:", err);
+    res.status(500).json({ message: "Server error fetching compliance trends." });
+  }
+}
+
+// DELETE /api/maintenance/:id
+async function deleteMaintenanceLog(req, res) {
+  const logId = req.params.id;
+  try {
+    const [[log]] = await pool.query("SELECT * FROM maintenance_logs WHERE id = ?", [logId]);
+    if (!log) {
+      return res.status(404).json({ message: "Maintenance log not found." });
+    }
+
+    await pool.query("DELETE FROM maintenance_logs WHERE id = ?", [logId]);
+
+    // Log this action to the audit logs
+    await logAudit(req, "DELETE_MAINTENANCE", `Deleted maintenance activity: ${log.title} (Device ID: ${log.device_id})`);
+
+    res.json({ message: "Maintenance log deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteMaintenanceLog error:", err);
+    res.status(500).json({ message: "Server error deleting maintenance log." });
+  }
+}
+
 module.exports = {
   getDashboardSummary,
   getLatestReadings,
@@ -765,9 +874,11 @@ module.exports = {
   createLocation,
   deleteLocation,
   getAnalyticsSummary,
+  getComplianceTrend,
   getDevicesHealth,
   getMaintenanceLogs,
   createMaintenanceLog,
+  deleteMaintenanceLog,
   exportSensorReadings,
   getAuditLogs,
 };

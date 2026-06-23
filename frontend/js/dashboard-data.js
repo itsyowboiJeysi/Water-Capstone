@@ -186,6 +186,106 @@ function alertClass(level) {
 // ═════════════════════════════════════════════════════════════════════════════
 // DASHBOARD VIEW
 // ═════════════════════════════════════════════════════════════════════════════
+// ── HSU-Specific Dashboard Panel renderer ─────────────────────────────────────
+function renderHsuDashboard(r) {
+  const block = document.getElementById("hsu-dashboard-block");
+  if (!block) return;
+
+  if (!currentUserIsHsuOrAdmin()) {
+    block.style.display = "none";
+    return;
+  }
+
+  block.style.display = "block";
+
+  if (!r || !r.classification) {
+    document.getElementById("hsuScoreNum").textContent = "—";
+    document.getElementById("hsuClassificationLabel").textContent = "—";
+    document.getElementById("hsuAllowedUses").textContent = "No data";
+    document.getElementById("hsuNotRecommendedUses").textContent = "No data";
+    document.getElementById("hsuScoreExplanation").textContent = "No sensor data available.";
+    document.getElementById("hsuDraggingParamsList").innerHTML = "";
+    return;
+  }
+
+  const cls = r.classification;
+  const score = cls.score ?? 0;
+  const label = cls.label || "—";
+  const color = cls.color || "var(--success)";
+  const allowed = r.allowed_use || cls.recommended_use || "—";
+  const notRec = cls.not_recommended || "—";
+  const expl = cls.explanation || "—";
+
+  // Circular gauge logic
+  const circle = document.getElementById("hsuScoreCircle");
+  if (circle) {
+    const circumference = 289;
+    const offset = circumference - (score / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+    circle.style.stroke = color;
+  }
+
+  document.getElementById("hsuScoreNum").textContent = score;
+  
+  const labelEl = document.getElementById("hsuClassificationLabel");
+  if (labelEl) {
+    labelEl.textContent = label;
+    labelEl.style.color = color;
+  }
+
+  document.getElementById("hsuLastUpdated").textContent = `Reported: ${timeAgo(r.recorded_at)}`;
+  document.getElementById("hsuAllowedUses").textContent = allowed;
+  document.getElementById("hsuNotRecommendedUses").textContent = notRec;
+  document.getElementById("hsuScoreExplanation").textContent = expl;
+
+  // Render parameters dragging the score down
+  const listEl = document.getElementById("hsuDraggingParamsList");
+  if (listEl) {
+    let html = "";
+    let count = 0;
+    if (cls.per_param) {
+      for (const [key, param] of Object.entries(cls.per_param)) {
+        if (param.level && param.level !== "safe") {
+          count++;
+          const name = key.toUpperCase();
+          const val = param.value !== null && param.value !== undefined ? Number(param.value).toFixed(2) : "—";
+          const unit = param.unit || "";
+          const level = param.level ? param.level.toUpperCase() : "WARNING";
+
+          let badgeColor = "var(--warn)";
+          let badgeBg = "rgba(212,160,23,0.12)";
+          if (param.level === "unsafe" || param.level === "danger") {
+            badgeColor = "#EF4444";
+            badgeBg = "rgba(239,68,68,0.12)";
+          } else if (param.level === "critical") {
+            badgeColor = "#7C3AED";
+            badgeBg = "rgba(124,58,237,0.12)";
+          }
+
+          html += `
+            <div style="display: flex; align-items: center; justify-content: space-between; background: var(--off-white); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${badgeColor};"></span>
+                <span style="font-size: 12.5px; font-weight: 600; color: var(--text-dark);">${name}</span>
+                <span style="font-size: 11.5px; color: var(--text-mid);">${val} ${unit}</span>
+              </div>
+              <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 7px; border-radius: 12px; color: ${badgeColor}; background: ${badgeBg};">${level}</span>
+            </div>`;
+        }
+      }
+    }
+
+    if (count === 0) {
+      html = `
+        <div style="display: flex; align-items: center; gap: 8px; background: rgba(61,214,140,0.06); border: 1px solid rgba(61,214,140,0.2); padding: 10px 14px; border-radius: 8px; color: #0F7050; font-size: 12px; font-weight: 500;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; stroke: #0F7050;"><polyline points="20 6 9 17 4 12"/></svg>
+          All parameters are within optimal PNSDW limits.
+        </div>`;
+    }
+    listEl.innerHTML = html;
+  }
+}
+
 async function loadDashboard() {
   try {
     const summary = await apiGet("/api/dashboard/summary");
@@ -194,6 +294,7 @@ async function loadDashboard() {
     buildThresholdMap(summary.thresholds);
     renderDashboardStats(summary);
     renderLiveParams(summary.latestReading, "dashboard-params");
+    renderHsuDashboard(summary.latestReading);
   } catch (err) {
     console.error("[AquaSense] loadDashboard error:", err);
   }
@@ -688,8 +789,12 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
   try {
     const apiStatus  = status === "active" ? "unresolved" : status;
     const limitParam = isPreview ? "&limit=5" : "&limit=50";
-    const rows = await apiGet(`/api/alerts?status=${apiStatus}${limitParam}`);
+    let rows = await apiGet(`/api/alerts?status=${apiStatus}${limitParam}`);
     if (!rows) return;
+
+    if (currentUserIsHsu()) {
+      rows = rows.filter(a => a.parameter && ["ph", "turbidity", "ammonia"].includes(a.parameter.toLowerCase()));
+    }
 
     if (rows.length === 0) {
       el.innerHTML = emptyPanel(
@@ -761,8 +866,17 @@ async function loadAlertsView() {
     ]);
     if (!allAlerts) return;
 
-    const total      = allAlerts.length;
-    const unresolved = unresolvedAlerts ? unresolvedAlerts.length : 0;
+    let allFiltered = allAlerts;
+    let unresolvedFiltered = unresolvedAlerts || [];
+
+    if (currentUserIsHsu()) {
+      const isHsuAlert = a => a.parameter && ["ph", "turbidity", "ammonia"].includes(a.parameter.toLowerCase());
+      allFiltered = allAlerts.filter(isHsuAlert);
+      unresolvedFiltered = unresolvedFiltered.filter(isHsuAlert);
+    }
+
+    const total      = allFiltered.length;
+    const unresolved = unresolvedFiltered.length;
     const resolved   = total - unresolved;
 
     // ── Stat cards ────────────────────────────────────────────────────────
@@ -981,6 +1095,215 @@ function renderAnalyticsChart(dailyTotals, buildingDaily) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// COMPLIANCE TREND VIEW
+// ═════════════════════════════════════════════════════════════════════════════
+window.loadComplianceTrendData = async function() {
+  const sel = document.getElementById("complianceFilterDevice");
+  const deviceId = sel ? sel.value : "";
+  
+  try {
+    const data = await apiGet(`/api/analytics/compliance-trend?device_id=${deviceId}`);
+    if (!data) return;
+
+    renderComplianceCharts(data);
+  } catch (err) {
+    console.error("[AquaSense] loadComplianceTrendData error:", err);
+  }
+};
+
+async function loadComplianceTrend() {
+  const sel = document.getElementById("complianceFilterDevice");
+  if (sel && sel.children.length <= 1) {
+    try {
+      const devices = await apiGet("/api/devices");
+      if (devices) {
+        devices.forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.device_id;
+          opt.textContent = `${d.device_name} (ID: ${d.device_id})`;
+          sel.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.warn("[AquaSense] Error loading devices for compliance dropdown:", err);
+    }
+  }
+
+  await window.loadComplianceTrendData();
+}
+
+function renderComplianceCharts(data) {
+  // 1. pH
+  const refPh = [
+    { val: 6.5, label: "PNSDW Min (6.5)", color: "#DC2626" },
+    { val: 8.5, label: "PNSDW Max (8.5)", color: "#DC2626" }
+  ];
+  drawComplianceChart("phComplianceChart", data, "avg_ph", 5.5, 9.5, refPh, "");
+
+  // 2. Turbidity
+  const refTurb = [
+    { val: 5.0, label: "PNSDW Max (5.0 NTU)", color: "#DC2626" }
+  ];
+  drawComplianceChart("turbidityComplianceChart", data, "avg_turbidity", 0.0, 10.0, refTurb, " NTU");
+
+  // 3. Ammonia
+  const refAmm = [
+    { val: 0.5, label: "PNSDW Max (0.5 mg/L)", color: "#DC2626" }
+  ];
+  drawComplianceChart("ammoniaComplianceChart", data, "avg_ammonia", 0.0, 1.5, refAmm, " mg/L");
+
+  // Evaluate latest status badges
+  const latest = data[data.length - 1] || {};
+  
+  // pH status
+  const phStatusText = document.getElementById("phComplianceStatus");
+  if (phStatusText) {
+    if (latest.avg_ph === null) {
+      phStatusText.className = "device-badge offline";
+      phStatusText.innerHTML = `<span class="device-badge-dot"></span>No Data`;
+    } else if (latest.avg_ph >= 6.5 && latest.avg_ph <= 8.5) {
+      phStatusText.className = "device-badge online";
+      phStatusText.innerHTML = `<span class="device-badge-dot" style="background:#3DD68C;"></span>Normal`;
+    } else {
+      phStatusText.className = "device-badge offline";
+      phStatusText.innerHTML = `<span class="device-badge-dot" style="background:#EF4444;"></span>Out of Range`;
+    }
+  }
+
+  // Turbidity status
+  const turbStatusText = document.getElementById("turbidityComplianceStatus");
+  if (turbStatusText) {
+    if (latest.avg_turbidity === null) {
+      turbStatusText.className = "device-badge offline";
+      turbStatusText.innerHTML = `<span class="device-badge-dot"></span>No Data`;
+    } else if (latest.avg_turbidity <= 5.0) {
+      turbStatusText.className = "device-badge online";
+      turbStatusText.innerHTML = `<span class="device-badge-dot" style="background:#3DD68C;"></span>Normal`;
+    } else {
+      turbStatusText.className = "device-badge offline";
+      turbStatusText.innerHTML = `<span class="device-badge-dot" style="background:#EF4444;"></span>High Turbidity`;
+    }
+  }
+
+  // Ammonia status
+  const ammStatusText = document.getElementById("ammoniaComplianceStatus");
+  if (ammStatusText) {
+    if (latest.avg_ammonia === null) {
+      ammStatusText.className = "device-badge offline";
+      ammStatusText.innerHTML = `<span class="device-badge-dot"></span>No Data`;
+    } else if (latest.avg_ammonia <= 0.5) {
+      ammStatusText.className = "device-badge online";
+      ammStatusText.innerHTML = `<span class="device-badge-dot" style="background:#3DD68C;"></span>Normal`;
+    } else {
+      ammStatusText.className = "device-badge offline";
+      ammStatusText.innerHTML = `<span class="device-badge-dot" style="background:#EF4444;"></span>High Ammonia`;
+    }
+  }
+}
+
+function drawComplianceChart(containerId, data, key, yMin, yMax, refLines, unit) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!data || data.length === 0) {
+    container.innerHTML = emptyPanel("No compliance data available.");
+    return;
+  }
+
+  const svgW = 600;
+  const svgH = 160;
+  const chartH = 110;
+  const leftPad = 50;
+  const rightPad = 20;
+  const topPad = 20;
+  const slotW = (svgW - leftPad - rightPad) / Math.max(data.length - 1, 1);
+
+  // Y-axis labels
+  const steps = 4;
+  let yLabels = [];
+  for (let i = 0; i <= steps; i++) {
+    const val = yMin + ((yMax - yMin) / steps) * i;
+    yLabels.push(val);
+  }
+
+  // Draw grid lines
+  let gridLines = yLabels.map(val => {
+    const y = topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH;
+    return `
+      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="var(--border, #DDE3EE)" stroke-width="1.2" stroke-dasharray="4,4"/>
+      <text x="${leftPad - 8}" y="${y + 4}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="end">${val.toFixed(1)}${unit}</text>
+    `;
+  }).join("");
+
+  // Draw reference standard threshold lines
+  let refLinesHtml = (refLines || []).map(line => {
+    const y = topPad + chartH - ((line.val - yMin) / (yMax - yMin)) * chartH;
+    if (y < topPad || y > topPad + chartH) return "";
+    return `
+      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="${line.color || '#EF4444'}" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.85"/>
+      <text x="${svgW - rightPad - 4}" y="${y - 4}" font-size="9" fill="${line.color || '#EF4444'}" font-weight="700" text-anchor="end">${line.label}</text>
+    `;
+  }).join("");
+
+  // Base X axis line
+  const baseLine = `<line x1="${leftPad}" y1="${topPad + chartH}" x2="${svgW - rightPad}" y2="${topPad + chartH}" stroke="var(--border, #DDE3EE)" stroke-width="1.5" stroke-linecap="round"/>`;
+
+  // Compute coordinates for data
+  const coords = data.map((d, i) => {
+    const x = leftPad + i * slotW;
+    const rawVal = d[key];
+    const val = rawVal !== null && rawVal !== undefined ? rawVal : null;
+    const y = val !== null ? (topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH) : null;
+    const dayName = d.day_name ? d.day_name.slice(0, 3) : `D${i + 1}`;
+    return { x, y, val, dayName };
+  });
+
+  const validCoords = coords.filter(c => c.y !== null);
+
+  let pathHtml = "";
+  let dotsHtml = "";
+  if (validCoords.length > 0) {
+    const polyPoints = validCoords.map(c => `${c.x},${c.y}`).join(" ");
+    const areaPath = `M ${validCoords[0].x},${topPad + chartH} ` + validCoords.map(c => `L ${c.x},${c.y}`).join(" ") + ` L ${validCoords[validCoords.length - 1].x},${topPad + chartH} Z`;
+    
+    pathHtml = `
+      <path d="${areaPath}" fill="url(#complianceGrad_${containerId})" />
+      <polyline fill="none" stroke="var(--water-2, #2C9AD1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
+    `;
+
+    dotsHtml = coords.map(c => {
+      if (c.y === null) return `
+        <text x="${c.x}" y="${topPad + chartH - 20}" font-size="9.5" fill="var(--text-light)" text-anchor="middle" font-style="italic">No data</text>
+        <text x="${c.x}" y="${svgH - 12}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="middle">${c.dayName}</text>
+      `;
+      return `
+        <circle cx="${c.x}" cy="${c.y}" r="4" fill="#FFFFFF" stroke="var(--water-2, #2C9AD1)" stroke-width="2" />
+        <text x="${c.x}" y="${c.y - 8}" font-size="9" fill="var(--text-dark, #0D1B3E)" font-weight="600" text-anchor="middle">${c.val.toFixed(2)}</text>
+        <text x="${c.x}" y="${svgH - 12}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="middle">${c.dayName}</text>
+      `;
+    }).join("");
+  } else {
+    pathHtml = `<text x="${svgW / 2}" y="${svgH / 2}" font-size="13" fill="var(--text-light)" text-anchor="middle">No readings recorded in the last 7 days</text>`;
+  }
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%; height:${svgH}px; overflow:visible;">
+      <defs>
+        <linearGradient id="complianceGrad_${containerId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2C9AD1" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#1A6FA8" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${refLinesHtml}
+      ${baseLine}
+      ${pathHtml}
+      ${dotsHtml}
+    </svg>
+  `;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // DEVICES VIEW
 // ═════════════════════════════════════════════════════════════════════════════
 async function loadDevices() {
@@ -1127,6 +1450,29 @@ function currentUserIsGsuOrAdmin() {
   }
 }
 
+function currentUserIsHsu() {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    return (user.role || "").toLowerCase() === "hsu";
+  } catch (e) {
+    return false;
+  }
+}
+
+function currentUserIsHsuOrAdmin() {
+  try {
+    const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    const role = (user.role || "").toLowerCase();
+    return role === "hsu" || role === "admin";
+  } catch (e) {
+    return false;
+  }
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -1143,6 +1489,8 @@ async function loadMaintenanceLogs() {
   try {
     const logs = await apiGet("/api/maintenance");
     if (!logs) return;
+
+    window.lastLoadedMaintenanceLogs = logs;
 
     if (logs.length === 0) {
       el.innerHTML = emptyPanel("No maintenance records logged yet.");
@@ -1171,7 +1519,7 @@ async function loadMaintenanceLogs() {
             const locationText = log.building_name ? `${log.building_name} (${log.area_name || 'General'})` : "—";
 
             return `
-              <tr>
+              <tr class="maintenance-clickable-row" data-log-id="${log.id}" style="cursor: pointer;">
                 <td>${dateStr}</td>
                 <td><strong>${escapeHtml(log.device_name || 'Unknown')}</strong> <span style="font-size:10px;color:var(--text-mid);">ID: ${log.device_id}</span></td>
                 <td>${escapeHtml(locationText)}</td>
@@ -1429,6 +1777,8 @@ async function loadDevicesHealthTracker() {
     const devices = await apiGet("/api/devices/health");
     if (!devices) return;
 
+    window.lastLoadedDevicesHealth = devices;
+
     if (devices.length === 0) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No devices found.</td></tr>`;
       return;
@@ -1454,7 +1804,7 @@ async function loadDevicesHealthTracker() {
       }
 
       return `
-        <tr>
+        <tr class="device-clickable-row" data-device-id="${d.device_id}" style="cursor: pointer;">
           <td><strong>${escapeHtml(d.device_name)}</strong> <span style="font-size:10px;color:var(--text-mid);">ID: ${d.device_id}</span></td>
           <td>${escapeHtml(locationText)}</td>
           <td>${statusBadge}</td>
@@ -1609,6 +1959,7 @@ window.viewLoaders = {
   sms:              loadSmsLogs,
   users:            loadUsers,
   'system-logs':    loadAuditLogs,
+  'compliance-trend': loadComplianceTrend,
 };
 const viewLoaders = window.viewLoaders;
 
@@ -1618,7 +1969,7 @@ let refreshInterval = null;
 // them. "devices" and "alerts" are included so a device the health-check
 // marks offline (and the alert it raises) shows up here on its own —
 // no manual reload needed.
-const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts", "flow-anomalies", "health-tracker"];
+const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts", "flow-anomalies", "health-tracker", "compliance-trend"];
 
 function startAutoRefresh(viewKey) {
   if (refreshInterval) clearInterval(refreshInterval);

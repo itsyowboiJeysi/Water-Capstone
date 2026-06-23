@@ -109,12 +109,19 @@ function initMqtt() {
       }
 
       // ── 3. Insert sensor reading ──────────────────────────────────────────
-      // water_status is NOT a column in sensor_readings — status is computed
-      // by the backend from threshold_settings, not sent by the firmware.
+      // Compute score, safety classification, allowed use, and explanation
+      const cls = classifyWaterQuality({
+        ph_level:    d.ph_level      ?? null,
+        turbidity:   d.turbidity     ?? null,
+        tds:         d.tds           ?? null,
+        temperature: d.temperature   ?? null,
+        ammonia:     d.ammonia       ?? null,
+      });
+
       await pool.query(
         `INSERT INTO sensor_readings
-           (device_id, ph_level, turbidity, tds, temperature, ammonia, flow_rate, water_consumed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           (device_id, ph_level, turbidity, tds, temperature, ammonia, flow_rate, water_consumed, score, safety_classification, allowed_use, explanation)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           dev.device_id,
           d.ph_level      ?? null,
@@ -124,6 +131,10 @@ function initMqtt() {
           d.ammonia       ?? null,
           d.flow_rate     ?? null,
           d.water_consumed ?? null,
+          cls.score,
+          cls.classification,
+          cls.recommended_use,
+          cls.explanation
         ]
       );
 
@@ -140,6 +151,57 @@ function initMqtt() {
          WHERE device_id = ? AND parameter = 'connectivity' AND status = 'unresolved'`,
         [dev.device_id]
       );
+
+      // ── 4c. Check if any sensor is down and raise an alert if needed ─────
+      const sensors = [
+        d.ph_level !== undefined && d.ph_level !== null,
+        d.turbidity !== undefined && d.turbidity !== null,
+        d.tds !== undefined && d.tds !== null,
+        d.temperature !== undefined && d.temperature !== null,
+        d.ammonia !== undefined && d.ammonia !== null
+      ];
+      const activeSensorsCount = sensors.filter(Boolean).length;
+
+      if (activeSensorsCount < 5) {
+        const missing = [];
+        if (d.ph_level === undefined || d.ph_level === null) missing.push("pH");
+        if (d.turbidity === undefined || d.turbidity === null) missing.push("Turbidity");
+        if (d.tds === undefined || d.tds === null) missing.push("TDS");
+        if (d.temperature === undefined || d.temperature === null) missing.push("Temperature");
+        if (d.ammonia === undefined || d.ammonia === null) missing.push("Ammonia");
+
+        const alertMsg = `Warning: Only ${activeSensorsCount} of 5 sensors are sending data. Missing: ${missing.join(", ")}`;
+
+        // Prevent duplicate unresolved alert
+        const [[existingSensorAlert]] = await pool.query(
+          `SELECT id FROM alerts
+           WHERE device_id = ? AND parameter = 'sensor_health' AND status = 'unresolved'
+           LIMIT 1`,
+          [dev.device_id]
+        );
+
+        if (!existingSensorAlert) {
+          await pool.query(
+            `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+             VALUES (?, 'sensor_health', ?, 'high', 'unresolved', ?)`,
+            [dev.device_id, activeSensorsCount, alertMsg]
+          );
+        } else {
+          // Update message if it changed
+          await pool.query(
+            `UPDATE alerts SET message = ?, value = ? WHERE id = ?`,
+            [alertMsg, activeSensorsCount, existingSensorAlert.id]
+          );
+        }
+      } else {
+        // All sensors are okay, resolve any open sensor_health alert for this device
+        await pool.query(
+          `UPDATE alerts
+           SET status = 'resolved'
+           WHERE device_id = ? AND parameter = 'sensor_health' AND status = 'unresolved'`,
+          [dev.device_id]
+        );
+      }
 
       // ── 5. Evaluate thresholds & auto-create alerts ───────────────────────
       await evaluateThresholds(dev.device_id, d);

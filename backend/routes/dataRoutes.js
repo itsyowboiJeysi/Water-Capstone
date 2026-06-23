@@ -17,9 +17,11 @@ const {
   createLocation,
   deleteLocation,
   getAnalyticsSummary,
+  getComplianceTrend,
   getDevicesHealth,
   getMaintenanceLogs,
   createMaintenanceLog,
+  deleteMaintenanceLog,
   exportSensorReadings,
   getAuditLogs,
 } = require("../controllers/dataController");
@@ -38,6 +40,7 @@ router.get  ("/alerts",                 verifyToken, getAlerts);
 router.get  ("/devices",                verifyToken, getDevices);
 router.get  ("/locations",              verifyToken, getLocations);
 router.get  ("/analytics/summary",      verifyToken, getAnalyticsSummary);
+router.get  ("/analytics/compliance-trend", verifyToken, getComplianceTrend);
 router.get  ("/devices/health",         verifyToken, getDevicesHealth);
 router.get  ("/maintenance",            verifyToken, getMaintenanceLogs);
 
@@ -58,5 +61,6 @@ router.patch("/devices/:id/status",     verifyToken, requireAdmin, updateDeviceS
 router.delete("/devices/:id",           verifyToken, requireAdmin, deleteDevice);
 router.post  ("/locations",             verifyToken, requireAdmin, createLocation);
 router.delete("/locations/:id",         verifyToken, requireAdmin, deleteLocation);
+router.delete("/maintenance/:id",         verifyToken, requireAdmin, deleteMaintenanceLog);
 
 module.exports = router;
