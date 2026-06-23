@@ -571,6 +571,22 @@
   });
 
   // ── Google OAuth ──────────────────────────────────────────────────────────
+  async function checkGoogleOauthEnabled() {
+    try {
+      const res = await fetch("http://localhost:5000/api/system-settings/google-oauth");
+      const data = await res.json();
+      if (data && data.enabled === false) {
+        const googleBtn = document.getElementById("googleBtn");
+        const divider = document.querySelector(".divider");
+        if (googleBtn) googleBtn.style.display = "none";
+        if (divider) divider.style.display = "none";
+      }
+    } catch (err) {
+      console.warn("Failed to check Google OAuth status:", err);
+    }
+  }
+  checkGoogleOauthEnabled();
+
   document.getElementById('googleBtn').addEventListener('click', () => {
     window.location.href = 'http://localhost:5000/api/auth/google';
   });

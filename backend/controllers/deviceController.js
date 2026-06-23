@@ -73,6 +73,18 @@ async function createDevice(req, res) {
       ]
     );
 
+    // Dynamically subscribe to the new MQTT topic
+    const mqttClient = req.app.get("mqttClient");
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.subscribe(mqtt_topic.trim(), (err) => {
+        if (err) {
+          console.error(`[MQTT] Dynamic subscription failed for topic ${mqtt_topic.trim()}:`, err.message);
+        } else {
+          console.log(`[MQTT] Dynamically subscribed to new topic: ${mqtt_topic.trim()}`);
+        }
+      });
+    }
+
     const newDeviceId = result.insertId;
 
     const [newRow] = await pool.query(
@@ -120,6 +132,18 @@ async function updateDevice(req, res) {
        WHERE device_id = ?`,
       [device_name, location_id, status, mqtt_topic, id]
     );
+
+    // Dynamically subscribe to the updated MQTT topic
+    const mqttClient = req.app.get("mqttClient");
+    if (mqttClient && mqttClient.connected && mqtt_topic) {
+      mqttClient.subscribe(mqtt_topic.trim(), (err) => {
+        if (err) {
+          console.error(`[MQTT] Dynamic subscription failed for topic ${mqtt_topic.trim()}:`, err.message);
+        } else {
+          console.log(`[MQTT] Dynamically subscribed to updated topic: ${mqtt_topic.trim()}`);
+        }
+      });
+    }
 
     await logAudit(req, "UPDATE_DEVICE", `Updated device ID: ${id} to Name: ${device_name}, Topic: ${mqtt_topic}, Status: ${status}`);
 

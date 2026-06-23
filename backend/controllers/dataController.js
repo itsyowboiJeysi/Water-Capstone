@@ -189,16 +189,46 @@ async function deleteSensorReadings(req, res) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// GET /api/alerts?status=unresolved|resolved|all&limit=50
+// GET /api/alerts?status=unresolved|resolved|all&limit=50&page=1
 // ─────────────────────────────────────────────────────────────────────────
 async function getAlerts(req, res) {
   try {
     const status = req.query.status || "all";
     const limit  = Math.min(parseInt(req.query.limit) || 50, 200);
+    const page   = req.query.page ? Math.max(parseInt(req.query.page) || 1, 1) : null;
 
     let where = "";
     if (status === "unresolved") where = "WHERE a.status = 'unresolved'";
     if (status === "resolved")   where = "WHERE a.status = 'resolved'";
+
+    if (page !== null) {
+      const offset = (page - 1) * limit;
+
+      const [rows] = await pool.query(
+        `SELECT a.*, d.device_name, l.building_name, l.area_name
+         FROM alerts a
+         LEFT JOIN devices d ON a.device_id = d.device_id
+         LEFT JOIN locations l ON d.location_id = l.location_id
+         ${where}
+         ORDER BY a.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [limit, offset]
+      );
+
+      const [[countRow]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM alerts a ${where}`
+      );
+
+      return res.json({
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          total: countRow.total,
+          totalPages: Math.ceil(countRow.total / limit),
+        }
+      });
+    }
 
     const [rows] = await pool.query(
       `SELECT a.*, d.device_name, l.building_name, l.area_name
@@ -386,6 +416,18 @@ async function createDevice(req, res) {
        VALUES (?, ?, ?, ?)`,
       [device_name.trim(), parseInt(location_id), mqtt_topic.trim(), safeStatus]
     );
+
+    // Dynamically subscribe to the new MQTT topic
+    const mqttClient = req.app.get("mqttClient");
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.subscribe(mqtt_topic.trim(), (err) => {
+        if (err) {
+          console.error(`[MQTT] Dynamic subscription failed for topic ${mqtt_topic.trim()}:`, err.message);
+        } else {
+          console.log(`[MQTT] Dynamically subscribed to new topic: ${mqtt_topic.trim()}`);
+        }
+      });
+    }
 
     // ── Return the newly created device row ─────────────────────────────
     const [rows] = await pool.query(
@@ -589,6 +631,93 @@ async function getAnalyticsSummary(req, res) {
   }
 }
 
+// GET /api/reports/summary
+async function getReportsSummary(req, res) {
+  try {
+    const startDate = req.query.startDate || "";
+    const endDate = req.query.endDate || "";
+    const buildingId = req.query.building_id || "";
+
+    const conditions = [];
+    const params = [];
+
+    if (startDate) {
+      conditions.push("sr.recorded_at >= ?");
+      params.push(`${startDate} 00:00:00`);
+    }
+    if (endDate) {
+      conditions.push("sr.recorded_at <= ?");
+      params.push(`${endDate} 23:59:59`);
+    }
+    if (buildingId) {
+      conditions.push("d.location_id = ?");
+      params.push(parseInt(buildingId, 10));
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // 1. Water Quality Averages
+    const [qualityRows] = await pool.query(`
+      SELECT 
+        AVG(sr.ph_level) AS avg_ph, 
+        AVG(sr.turbidity) AS avg_turbidity, 
+        AVG(sr.tds) AS avg_tds, 
+        AVG(sr.temperature) AS avg_temperature,
+        AVG(sr.ammonia) AS avg_ammonia,
+        COUNT(CASE WHEN sr.ph_level < 6.5 OR sr.ph_level > 8.5 THEN 1 END) AS ph_violations,
+        COUNT(CASE WHEN sr.turbidity > 5.0 THEN 1 END) AS turbidity_violations,
+        COUNT(CASE WHEN sr.ammonia > 0.5 THEN 1 END) AS ammonia_violations,
+        COUNT(*) AS total_readings
+      FROM sensor_readings sr
+      JOIN devices d ON sr.device_id = d.device_id
+      ${whereClause}
+    `, params);
+
+    // 2. Consumption Summary
+    const [consumptionRows] = await pool.query(`
+      SELECT 
+        COALESCE(SUM(sr.water_consumed), 0) AS total_consumed, 
+        AVG(sr.flow_rate) AS avg_flow_rate
+      FROM sensor_readings sr
+      JOIN devices d ON sr.device_id = d.device_id
+      ${whereClause}
+    `, params);
+
+    // 3. Maintenance summary for timeframe
+    const maintConditions = [];
+    const maintParams = [];
+    if (startDate) {
+      maintConditions.push("ml.logged_date >= ?");
+      maintParams.push(startDate);
+    }
+    if (endDate) {
+      maintConditions.push("ml.logged_date <= ?");
+      maintParams.push(endDate);
+    }
+    if (buildingId) {
+      maintConditions.push("d.location_id = ?");
+      maintParams.push(parseInt(buildingId, 10));
+    }
+    const maintWhere = maintConditions.length > 0 ? `WHERE ${maintConditions.join(" AND ")}` : "";
+    
+    const [maintRows] = await pool.query(`
+      SELECT COUNT(*) AS total_maintenance_logs
+      FROM maintenance_logs ml
+      JOIN devices d ON ml.device_id = d.device_id
+      ${maintWhere}
+    `, maintParams);
+
+    res.json({
+      waterQuality: qualityRows[0] || {},
+      consumption: consumptionRows[0] || {},
+      maintenance: maintRows[0] || {}
+    });
+  } catch (err) {
+    console.error("[AquaSense] getReportsSummary error:", err);
+    res.status(500).json({ message: "Server error generating reports summary." });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // GET /api/devices/health
 // ─────────────────────────────────────────────────────────────────────────
@@ -650,13 +779,43 @@ async function getDevicesHealth(req, res) {
 // ─────────────────────────────────────────────────────────────────────────
 async function getMaintenanceLogs(req, res) {
   try {
+    const search = req.query.search || "";
+    const deviceId = req.query.device_id || "";
+    const range = req.query.range || "";
+
+    const conditions = [];
+    const params = [];
+
+    if (deviceId) {
+      conditions.push("ml.device_id = ?");
+      params.push(parseInt(deviceId, 10));
+    }
+
+    if (range === "today") {
+      conditions.push("DATE(ml.logged_date) = CURDATE()");
+    } else if (range === "7d") {
+      conditions.push("ml.logged_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    } else if (range === "30d") {
+      conditions.push("ml.logged_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    }
+
+    if (search) {
+      conditions.push("(LOWER(ml.title) LIKE ? OR LOWER(ml.detail) LIKE ? OR LOWER(ml.repaired_by) LIKE ? OR LOWER(d.device_name) LIKE ?)");
+      const term = `%${search.toLowerCase()}%`;
+      params.push(term, term, term, term);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
     const [rows] = await pool.query(`
       SELECT ml.*, d.device_name, l.building_name, l.area_name
       FROM maintenance_logs ml
       JOIN devices d ON ml.device_id = d.device_id
       LEFT JOIN locations l ON d.location_id = l.location_id
+      ${whereClause}
       ORDER BY ml.logged_date DESC, ml.id DESC
-    `);
+    `, params);
+
     res.json(rows);
   } catch (err) {
     console.error("[AquaSense] getMaintenanceLogs error:", err);
@@ -755,20 +914,119 @@ async function exportSensorReadings(req, res) {
 
 // ─────────────────────────────────────────────────────────────────────────
 // GET /api/audit-logs (Admin only)
-// ─────────────────────────────────────────────────────────────────────────
 async function getAuditLogs(req, res) {
   try {
     if (req.user?.role !== "admin") {
       return res.status(403).json({ message: "Only administrators can view audit logs." });
     }
 
-    const [rows] = await pool.query(
-      `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500`
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 15;
+    const offset = (page - 1) * limit;
+
+    const search = req.query.search || "";
+    const role = req.query.role || "";
+
+    const conditions = [];
+    const params = [];
+
+    if (role) {
+      conditions.push("LOWER(role) = ?");
+      params.push(role.toLowerCase());
+    }
+
+    if (search) {
+      conditions.push("(LOWER(username) LIKE ? OR LOWER(action) LIKE ? OR LOWER(details) LIKE ?)");
+      const term = `%${search.toLowerCase()}%`;
+      params.push(term, term, term);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const [[countRow]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM audit_logs ${whereClause}`,
+      params
     );
-    res.json(rows);
+    const total = countRow.total;
+
+    const dataParams = [...params, limit, offset];
+    const [rows] = await pool.query(
+      `SELECT * FROM audit_logs 
+       ${whereClause} 
+       ORDER BY created_at DESC 
+       LIMIT ? OFFSET ?`,
+      dataParams
+    );
+
+    res.json({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     console.error("[AquaSense] getAuditLogs error:", err);
     res.status(500).json({ message: "Server error fetching audit logs." });
+  }
+}
+
+// DELETE /api/audit-logs/:id (Admin only)
+async function deleteAuditLog(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete audit logs." });
+    }
+
+    const { id } = req.params;
+    const [result] = await pool.query("DELETE FROM audit_logs WHERE id = ?", [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Audit log not found." });
+    }
+
+    res.json({ message: "Audit log deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteAuditLog error:", err);
+    res.status(500).json({ message: "Server error deleting audit log." });
+  }
+}
+
+// DELETE /api/audit-logs (Admin only)
+async function deleteAuditLogsBulk(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete audit logs." });
+    }
+
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide audit log IDs to delete." });
+    }
+
+    const cleanIds = ids
+      .map(id => parseInt(id, 10))
+      .filter(id => Number.isInteger(id) && id > 0);
+
+    if (cleanIds.length === 0) {
+      return res.status(400).json({ message: "No valid audit log IDs were provided." });
+    }
+
+    const placeholders = cleanIds.map(() => "?").join(",");
+    const [result] = await pool.query(
+      `DELETE FROM audit_logs WHERE id IN (${placeholders})`,
+      cleanIds
+    );
+
+    res.json({
+      message: `${result.affectedRows} audit log(s) deleted successfully.`,
+      deleted: result.affectedRows,
+    });
+  } catch (err) {
+    console.error("[AquaSense] deleteAuditLogsBulk error:", err);
+    res.status(500).json({ message: "Server error deleting audit logs." });
   }
 }
 
@@ -859,6 +1117,125 @@ async function deleteMaintenanceLog(req, res) {
   }
 }
 
+// GET /api/sms-logs
+async function getSmsLogs(req, res) {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const [rows] = await pool.query(
+      `SELECT * FROM sms_logs ORDER BY created_at DESC LIMIT ?`,
+      [limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("[AquaSense] getSmsLogs error:", err);
+    res.status(500).json({ message: "Server error fetching SMS logs." });
+  }
+}
+
+// GET /api/system-settings
+async function getSystemSettings(req, res) {
+  try {
+    const [systemRows] = await pool.query("SELECT * FROM system_settings");
+    const settings = {};
+    systemRows.forEach(r => {
+      settings[r.setting_key] = isNaN(Number(r.setting_value)) ? r.setting_value : Number(r.setting_value);
+    });
+
+    // If user is authenticated, fetch their custom settings
+    if (req.user && req.user.id) {
+      const [userRows] = await pool.query(
+        "SELECT setting_key, setting_value FROM user_settings WHERE user_id = ?",
+        [req.user.id]
+      );
+      userRows.forEach(r => {
+        settings[r.setting_key] = isNaN(Number(r.setting_value)) ? r.setting_value : Number(r.setting_value);
+      });
+    }
+
+    res.json(settings);
+  } catch (err) {
+    console.error("[AquaSense] getSystemSettings error:", err);
+    res.status(500).json({ message: "Server error fetching system settings." });
+  }
+}
+
+// PUT /api/system-settings
+async function updateSystemSettings(req, res) {
+  try {
+    const payload = req.body || {};
+    const updatedKeys = [];
+    
+    const USER_SETTINGS_KEYS = new Set([
+      "sms_alerts",
+      "critical_alerts_only",
+      "device_offline_alerts",
+      "daily_summary_report",
+      "auto_refresh_dashboard"
+    ]);
+
+    const SYSTEM_SETTINGS_KEYS = new Set([
+      "data_logging",
+      "maintenance_mode",
+      "google_oauth_login",
+      "report_header_title",
+      "report_header_subtitle",
+      "report_header_address",
+      "report_logo_base64"
+    ]);
+
+    const isAdmin = req.user?.role?.toLowerCase() === "admin";
+
+    for (const [key, value] of Object.entries(payload)) {
+      const valStr = String(value);
+
+      if (USER_SETTINGS_KEYS.has(key)) {
+        if (req.user && req.user.id) {
+          await pool.query(
+            `INSERT INTO user_settings (user_id, setting_key, setting_value) 
+             VALUES (?, ?, ?) 
+             ON DUPLICATE KEY UPDATE setting_value = ?`,
+            [req.user.id, key, valStr, valStr]
+          );
+          updatedKeys.push(key);
+        }
+      } else if (SYSTEM_SETTINGS_KEYS.has(key)) {
+        if (isAdmin) {
+          await pool.query(
+            `INSERT INTO system_settings (setting_key, setting_value) 
+             VALUES (?, ?) 
+             ON DUPLICATE KEY UPDATE setting_value = ?`,
+            [key, valStr, valStr]
+          );
+          updatedKeys.push(key);
+        } else {
+          console.warn(`[AquaMonitor] Non-admin user ${req.user?.email} attempted to update system-wide setting: ${key}`);
+        }
+      }
+    }
+
+    if (updatedKeys.length > 0) {
+      await logAudit(req, "UPDATE_SYSTEM_SETTINGS", `Updated settings: ${updatedKeys.join(", ")}`);
+    }
+
+    res.json({ message: "Settings updated successfully.", updatedKeys });
+  } catch (err) {
+    console.error("[AquaSense] updateSystemSettings error:", err);
+    res.status(500).json({ message: "Server error updating system settings." });
+  }
+}
+
+// GET /api/system-settings/google-oauth (public)
+async function getGoogleOauthSetting(req, res) {
+  try {
+    const [[row]] = await pool.query("SELECT setting_value FROM system_settings WHERE setting_key = 'google_oauth_login'");
+    const enabled = row ? row.setting_value === "1" : true;
+    res.json({ enabled });
+  } catch (err) {
+    console.error("[AquaSense] getGoogleOauthSetting error:", err);
+    res.json({ enabled: true });
+  }
+}
+
 module.exports = {
   getDashboardSummary,
   getLatestReadings,
@@ -881,4 +1258,11 @@ module.exports = {
   deleteMaintenanceLog,
   exportSensorReadings,
   getAuditLogs,
+  deleteAuditLog,
+  deleteAuditLogsBulk,
+  getSmsLogs,
+  getSystemSettings,
+  updateSystemSettings,
+  getGoogleOauthSetting,
+  getReportsSummary,
 };

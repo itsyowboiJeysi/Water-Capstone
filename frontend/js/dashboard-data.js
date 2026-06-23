@@ -58,6 +58,26 @@ async function apiPost(path, body) {
   return res.json();
 }
 
+async function apiPut(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders()
+    },
+    body: JSON.stringify(body)
+  });
+  if (res.status === 401 || res.status === 403) {
+    logout();
+    return null;
+  }
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `Request failed: ${path} (${res.status})`);
+  }
+  return res.json();
+}
+
 async function updateTopBarStatusPill() {
   const dot = document.getElementById("systemStatusDot");
   const text = document.getElementById("systemStatusText");
@@ -286,18 +306,83 @@ function renderHsuDashboard(r) {
   }
 }
 
-async function loadDashboard() {
+async function populateDeviceDropdowns() {
+  const dashboardSel = document.getElementById("dashboardFilterDevice");
+  const liveSel = document.getElementById("liveFilterDevice");
+  const complianceSel = document.getElementById("complianceFilterDevice");
+
+  // Check if we need to load devices
+  if ((dashboardSel && dashboardSel.children.length <= 1) ||
+      (liveSel && liveSel.children.length <= 1) ||
+      (complianceSel && complianceSel.children.length <= 1)) {
+    try {
+      const devices = await apiGet("/api/devices");
+      if (devices) {
+        // Clear except first option
+        if (dashboardSel) dashboardSel.innerHTML = '<option value="">All Devices (Latest)</option>';
+        if (liveSel) liveSel.innerHTML = '<option value="">All Devices (Latest)</option>';
+        if (complianceSel) complianceSel.innerHTML = '<option value="">All Devices (Average)</option>';
+
+        const onlineDevices = devices.filter(d => d.status === "online");
+        onlineDevices.forEach(d => {
+          const optText = `${d.device_name} (ID: ${d.device_id})`;
+          
+          if (dashboardSel) {
+            const opt = document.createElement("option");
+            opt.value = d.device_id;
+            opt.textContent = optText;
+            dashboardSel.appendChild(opt);
+          }
+          if (liveSel) {
+            const opt = document.createElement("option");
+            opt.value = d.device_id;
+            opt.textContent = optText;
+            liveSel.appendChild(opt);
+          }
+          if (complianceSel) {
+            const opt = document.createElement("option");
+            opt.value = d.device_id;
+            opt.textContent = optText;
+            complianceSel.appendChild(opt);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn("[AquaSense] Failed to populate device dropdowns:", err);
+    }
+  }
+}
+
+window.loadDashboardFiltered = async function() {
+  const sel = document.getElementById("dashboardFilterDevice");
+  const deviceId = sel ? sel.value : "";
+
   try {
     const summary = await apiGet("/api/dashboard/summary");
     if (!summary) return;
 
     buildThresholdMap(summary.thresholds);
+
+    if (deviceId) {
+      // Fetch latest reading for this specific device
+      const latestReadings = await apiGet("/api/sensors/latest");
+      const deviceReading = latestReadings ? latestReadings.find(r => String(r.device_id) === String(deviceId)) : null;
+
+      // Update the dashboard summary with this device's reading
+      summary.latestReading = deviceReading || null;
+    }
+
     renderDashboardStats(summary);
     renderLiveParams(summary.latestReading, "dashboard-params");
     renderHsuDashboard(summary.latestReading);
   } catch (err) {
-    console.error("[AquaSense] loadDashboard error:", err);
+    console.error("[AquaSense] loadDashboardFiltered error:", err);
   }
+};
+
+async function loadDashboard() {
+  await populateDeviceDropdowns();
+  await loadDashboardFiltered();
 
   await loadRecentReadingsTable();
   await loadAlerts("unresolved", "dashboard-alerts", true);
@@ -538,17 +623,34 @@ async function loadBuildingsPreview() {
 // ═════════════════════════════════════════════════════════════════════════════
 // LIVE MONITORING VIEW
 // ═════════════════════════════════════════════════════════════════════════════
-async function loadLiveMonitoring() {
+window.loadLiveMonitoringFiltered = async function() {
+  const sel = document.getElementById("liveFilterDevice");
+  const deviceId = sel ? sel.value : "";
+
   try {
     const summary = await apiGet("/api/dashboard/summary");
     if (!summary) return;
 
     buildThresholdMap(summary.thresholds);
-    renderLiveStats(summary.latestReading);
-    renderLiveParams(summary.latestReading, "live-params");
+
+    let targetReading = summary.latestReading;
+
+    if (deviceId) {
+      // Fetch latest reading for this specific device
+      const latestReadings = await apiGet("/api/sensors/latest");
+      targetReading = latestReadings ? latestReadings.find(r => String(r.device_id) === String(deviceId)) : null;
+    }
+
+    renderLiveStats(targetReading);
+    renderLiveParams(targetReading, "live-params");
   } catch (err) {
-    console.error("[AquaSense] loadLiveMonitoring error:", err);
+    console.error("[AquaSense] loadLiveMonitoringFiltered error:", err);
   }
+};
+
+async function loadLiveMonitoring() {
+  await populateDeviceDropdowns();
+  await loadLiveMonitoringFiltered();
 }
 
 function renderLiveStats(r) {
@@ -781,6 +883,21 @@ window.exportReadingsToCsv = async function() {
 // ALERTS VIEW  ← NOW FULLY CONNECTED TO DATABASE
 // ═════════════════════════════════════════════════════════════════════════════
 
+window.alertsCurrentPage = 1;
+
+window.alertsNextPage = function() {
+  window.alertsCurrentPage = (window.alertsCurrentPage || 1) + 1;
+  loadAlertsView();
+};
+
+window.alertsPrevPage = function() {
+  const currentPage = window.alertsCurrentPage || 1;
+  if (currentPage > 1) {
+    window.alertsCurrentPage = currentPage - 1;
+    loadAlertsView();
+  }
+};
+
 // loadAlerts: shared helper used by dashboard preview + full alerts view
 async function loadAlerts(status = "all", containerId = "alerts-full-list", isPreview = false) {
   const el = document.getElementById(containerId);
@@ -788,12 +905,49 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
 
   try {
     const apiStatus  = status === "active" ? "unresolved" : status;
-    const limitParam = isPreview ? "&limit=5" : "&limit=50";
-    let rows = await apiGet(`/api/alerts?status=${apiStatus}${limitParam}`);
+    let rows = [];
+    let pagination = null;
+
+    if (isPreview) {
+      rows = await apiGet(`/api/alerts?status=${apiStatus}&limit=5`);
+    } else {
+      const page = window.alertsCurrentPage || 1;
+      const result = await apiGet(`/api/alerts?status=${apiStatus}&limit=7&page=${page}`);
+      if (result && result.data) {
+        rows = result.data;
+        pagination = result.pagination;
+      } else {
+        rows = result || [];
+      }
+    }
+
     if (!rows) return;
 
     if (currentUserIsHsu()) {
       rows = rows.filter(a => a.parameter && ["ph", "turbidity", "ammonia"].includes(a.parameter.toLowerCase()));
+    }
+
+    if (!isPreview) {
+      const totalCountEl = document.getElementById("alertsTotalCount");
+      const pageNumEl = document.getElementById("alertsPageNum");
+      const pageStartEl = document.getElementById("alertsPageStart");
+      const pageEndEl = document.getElementById("alertsPageEnd");
+      const prevBtn = document.getElementById("alertsPrevBtn");
+      const nextBtn = document.getElementById("alertsNextBtn");
+      const pagContainer = document.getElementById("alertsPaginationContainer");
+
+      if (pagination) {
+        if (pagContainer) pagContainer.style.display = "flex";
+        if (totalCountEl) totalCountEl.textContent = pagination.total;
+        if (pageNumEl) pageNumEl.textContent = `Page ${pagination.page} of ${pagination.totalPages || 1}`;
+        if (pageStartEl) pageStartEl.textContent = pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
+        if (pageEndEl) pageEndEl.textContent = Math.min(pagination.page * pagination.limit, pagination.total);
+
+        if (prevBtn) prevBtn.disabled = (pagination.page <= 1);
+        if (nextBtn) nextBtn.disabled = (pagination.page >= pagination.totalPages || pagination.totalPages === 0);
+      } else {
+        if (pagContainer) pagContainer.style.display = "none";
+      }
     }
 
     if (rows.length === 0) {
@@ -821,8 +975,6 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
         <input type="checkbox" class="alert-row-checkbox" value="${alertId}" style="margin-right: 12px; width: 16px; height: 16px; accent-color: var(--navy); cursor: pointer;" />
       ` : "";
 
-      // Delete icon — full alert list only (not the dashboard preview widget),
-      // admins only. Opens a simple Yes/No modal, no typed "CONFIRM" step.
       const deleteBtn = (!isPreview && isAdmin && alertId != null) ? `
             <button class="alert-delete-btn delete-alert-btn" data-id="${alertId}" data-name="${escapeHtml(a.message || a.parameter || 'Alert')}" title="Delete alert" aria-label="Delete alert">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
@@ -1487,13 +1639,22 @@ async function loadMaintenanceLogs() {
   if (!el) return;
 
   try {
-    const logs = await apiGet("/api/maintenance");
+    const filters = (typeof maintActiveFilters !== "undefined") ? maintActiveFilters : {};
+
+    const params = new URLSearchParams();
+    if (filters.search)    params.set("search", filters.search);
+    if (filters.device_id) params.set("device_id", filters.device_id);
+    if (filters.range)     params.set("range", filters.range);
+
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const logs = await apiGet(`/api/maintenance${queryString}`);
     if (!logs) return;
 
     window.lastLoadedMaintenanceLogs = logs;
 
+    const isFiltered = !!(filters.search || filters.device_id || filters.range);
     if (logs.length === 0) {
-      el.innerHTML = emptyPanel("No maintenance records logged yet.");
+      el.innerHTML = emptyPanel(isFiltered ? "No maintenance logs match the selected filters." : "No maintenance records logged yet.");
       return;
     }
 
@@ -1938,6 +2099,164 @@ async function loadSmsLogs() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// SYSTEM SETTINGS VIEW
+// ═════════════════════════════════════════════════════════════════════════════
+async function loadSettingsView() {
+  try {
+    const settings = await apiGet("/api/system-settings");
+    if (!settings) return;
+
+    const mappings = {
+      sms_alerts:             "smsAlertsToggle",
+      critical_alerts_only:   "critAlertsToggle",
+      device_offline_alerts:  "offlineAlertsToggle",
+      daily_summary_report:   "dailySummaryToggle",
+      auto_refresh_dashboard: "autoRefreshToggle",
+      data_logging:           "dataLoggingToggle",
+      maintenance_mode:       "maintModeToggle",
+      google_oauth_login:     "googleOauthToggle"
+    };
+
+    let currentUser = {};
+    try {
+      currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+    } catch(e) {}
+    const isAdmin = currentUser.role === "admin";
+
+    // Show/hide System Settings panel based on admin role
+    const systemPanel = document.getElementById("systemSettingsPanel");
+    const grid = document.getElementById("settingsGrid");
+    if (systemPanel && grid) {
+      if (isAdmin) {
+        systemPanel.style.display = "";
+        grid.style.gridTemplateColumns = "1fr 1fr";
+      } else {
+        systemPanel.style.display = "none";
+        grid.style.gridTemplateColumns = "1fr";
+      }
+    }
+
+    const userKeys = ["sms_alerts", "critical_alerts_only", "device_offline_alerts", "daily_summary_report", "auto_refresh_dashboard"];
+    for (const [dbKey, elId] of Object.entries(mappings)) {
+      const checkbox = document.getElementById(elId);
+      if (checkbox) {
+        checkbox.checked = settings[dbKey] === 1 || settings[dbKey] === "1";
+        if (userKeys.includes(dbKey)) {
+          checkbox.disabled = false;
+        } else {
+          checkbox.disabled = !isAdmin;
+        }
+
+        // Save setting on change
+        checkbox.onchange = async () => {
+          try {
+            const payload = {};
+            payload[dbKey] = checkbox.checked ? "1" : "0";
+            await apiPut("/api/system-settings", payload);
+            
+            // Update local cache
+            if (!window.systemSettings) window.systemSettings = {};
+            window.systemSettings[dbKey] = checkbox.checked ? "1" : "0";
+
+            showToast("Settings updated", `Saved change for ${dbKey.replace(/_/g, ' ')}`);
+
+            // Apply auto refresh toggling instantly in browser
+            if (dbKey === "auto_refresh_dashboard") {
+              const active = document.querySelector(".view.active");
+              if (active) {
+                const key = active.id.replace("view-", "");
+                startAutoRefresh(key);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to update setting:", err);
+            checkbox.checked = !checkbox.checked; // Revert switch state
+            showToast("Update failed", err.message || "Could not update setting.");
+          }
+        };
+      }
+    }
+
+    // Bind custom report template settings
+    const reportTextInputs = {
+      report_header_title: "reportHeaderTitleInput",
+      report_header_subtitle: "reportHeaderSubtitleInput",
+      report_header_address: "reportHeaderAddressInput"
+    };
+
+    for (const [dbKey, elId] of Object.entries(reportTextInputs)) {
+      const input = document.getElementById(elId);
+      if (input) {
+        input.value = settings[dbKey] || "";
+        input.disabled = !isAdmin;
+        input.onchange = async () => {
+          try {
+            const payload = {};
+            payload[dbKey] = input.value;
+            await apiPut("/api/system-settings", payload);
+            
+            if (!window.systemSettings) window.systemSettings = {};
+            window.systemSettings[dbKey] = input.value;
+            showToast("Settings updated", `Saved change for ${dbKey.replace(/_/g, ' ')}`);
+          } catch (err) {
+            console.error("Failed to update template setting:", err);
+            showToast("Update failed", err.message || "Could not update setting.");
+          }
+        };
+      }
+    }
+
+    const logoInput = document.getElementById("reportHeaderLogoInput");
+    const logoPreview = document.getElementById("reportHeaderLogoPreview");
+    const noLogoText = document.getElementById("reportHeaderNoLogoText");
+    
+    if (logoPreview && noLogoText) {
+      if (settings.report_logo_base64) {
+        logoPreview.src = settings.report_logo_base64;
+        logoPreview.style.display = "block";
+        noLogoText.style.display = "none";
+      } else {
+        logoPreview.style.display = "none";
+        noLogoText.style.display = "block";
+      }
+    }
+
+    if (logoInput) {
+      logoInput.disabled = !isAdmin;
+      logoInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64String = reader.result;
+          try {
+            const payload = { report_logo_base64: base64String };
+            await apiPut("/api/system-settings", payload);
+            
+            if (!window.systemSettings) window.systemSettings = {};
+            window.systemSettings.report_logo_base64 = base64String;
+            
+            if (logoPreview && noLogoText) {
+              logoPreview.src = base64String;
+              logoPreview.style.display = "block";
+              noLogoText.style.display = "none";
+            }
+            showToast("Settings updated", "Saved report logo successfully.");
+          } catch (err) {
+            console.error("Failed to upload logo:", err);
+            showToast("Upload failed", err.message || "Could not save report logo.");
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+  } catch (err) {
+    console.error("[AquaSense] loadSettingsView error:", err);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // VIEW LOADER MAP + AUTO-REFRESH
 // ═════════════════════════════════════════════════════════════════════════════
 // Attached directly to `window` (not `const`) because dashboard.html's
@@ -1960,6 +2279,8 @@ window.viewLoaders = {
   users:            loadUsers,
   'system-logs':    loadAuditLogs,
   'compliance-trend': loadComplianceTrend,
+  settings:         loadSettingsView,
+  reports:          loadReportsView,
 };
 const viewLoaders = window.viewLoaders;
 
@@ -1973,6 +2294,9 @@ const AUTO_REFRESH_VIEWS = ["dashboard", "live", "devices", "alerts", "flow-anom
 
 function startAutoRefresh(viewKey) {
   if (refreshInterval) clearInterval(refreshInterval);
+  if (window.systemSettings && (window.systemSettings.auto_refresh_dashboard === 0 || window.systemSettings.auto_refresh_dashboard === "0")) {
+    return; // Auto-refresh is disabled
+  }
   if (AUTO_REFRESH_VIEWS.includes(viewKey)) {
     refreshInterval = setInterval(() => {
       if (viewLoaders[viewKey]) viewLoaders[viewKey]();
@@ -1997,7 +2321,12 @@ document.addEventListener("DOMContentLoaded", () => {
     clone.addEventListener("click", () => navigate(clone.dataset.view));
   });
 
-  const initApp = () => {
+  const initApp = async () => {
+    try {
+      window.systemSettings = await apiGet("/api/system-settings");
+    } catch (e) {
+      console.warn("Failed to load system settings on init:", e);
+    }
     loadDashboard();
     updateTopBarStatusPill();
     startAutoRefresh("dashboard");
@@ -2193,21 +2522,52 @@ document.addEventListener("click", (e) => {
 
 // ════════════════════════ SYSTEM AUDIT LOGS ════════════════════════
 let rawAuditLogs = [];
+window.auditCurrentPage = 1;
+const AUDIT_LIMIT = 15;
 
 async function loadAuditLogs() {
   const tbody = document.getElementById("audit-logs-tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light)">Loading audit logs...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light)">Loading audit logs...</td></tr>`;
 
   try {
-    const data = await apiGet("/api/audit-logs");
-    if (!data) return;
-    rawAuditLogs = data;
+    const searchVal = document.getElementById("auditLogSearch")?.value || "";
+    const roleVal = document.getElementById("auditLogRoleFilter")?.value || "";
+    const currentPage = window.auditCurrentPage || 1;
+
+    const params = new URLSearchParams();
+    params.set("page", currentPage.toString());
+    params.set("limit", AUDIT_LIMIT.toString());
+    if (searchVal) params.set("search", searchVal);
+    if (roleVal) params.set("role", roleVal);
+
+    const result = await apiGet(`/api/audit-logs?${params.toString()}`);
+    if (!result) return;
+
+    rawAuditLogs = result.data || [];
+    const pagination = result.pagination || { page: 1, limit: AUDIT_LIMIT, total: rawAuditLogs.length, totalPages: 1 };
+
+    // Update pagination controls
+    const totalCountEl = document.getElementById("auditTotalCount");
+    const pageNumEl = document.getElementById("auditPageNum");
+    const pageStartEl = document.getElementById("auditPageStart");
+    const pageEndEl = document.getElementById("auditPageEnd");
+    const prevBtn = document.getElementById("auditPrevBtn");
+    const nextBtn = document.getElementById("auditNextBtn");
+
+    if (totalCountEl) totalCountEl.textContent = pagination.total;
+    if (pageNumEl) pageNumEl.textContent = `Page ${pagination.page} of ${pagination.totalPages || 1}`;
+    if (pageStartEl) pageStartEl.textContent = pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
+    if (pageEndEl) pageEndEl.textContent = Math.min(pagination.page * pagination.limit, pagination.total);
+
+    if (prevBtn) prevBtn.disabled = (pagination.page <= 1);
+    if (nextBtn) nextBtn.disabled = (pagination.page >= pagination.totalPages || pagination.totalPages === 0);
+
     renderFilteredAuditLogs();
   } catch (err) {
     console.error("[AquaSense] loadAuditLogs error:", err);
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--error)">Failed to load audit logs. Only administrators have access.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--error)">Failed to load audit logs. Only administrators have access.</td></tr>`;
   }
 }
 
@@ -2215,36 +2575,12 @@ function renderFilteredAuditLogs() {
   const tbody = document.getElementById("audit-logs-tbody");
   if (!tbody) return;
 
-  const searchQuery = (document.getElementById("auditLogSearch")?.value || "").toLowerCase().trim();
-  const roleFilter = (document.getElementById("auditLogRoleFilter")?.value || "").toLowerCase();
-
-  const filtered = rawAuditLogs.filter(log => {
-    // Role filter
-    if (roleFilter && (log.role || "").toLowerCase() !== roleFilter) {
-      return false;
-    }
-    // Search query
-    if (searchQuery) {
-      const matchText = [
-        log.username,
-        log.role,
-        log.action,
-        log.details,
-        log.created_at
-      ].join(" ").toLowerCase();
-      if (!matchText.includes(searchQuery)) {
-        return false;
-      }
-    }
-    return true;
-  });
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light)">No audit logs found.</td></tr>`;
+  if (rawAuditLogs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light)">No audit logs found.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(log => {
+  tbody.innerHTML = rawAuditLogs.map((log, index) => {
     const date = new Date(log.created_at);
     const dateFormatted = date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' });
     const timeFormatted = date.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -2259,7 +2595,8 @@ function renderFilteredAuditLogs() {
     }
 
     return `
-      <tr>
+      <tr class="audit-row" data-index="${index}" style="cursor: pointer;">
+        <td class="row-checkbox-cell" onclick="event.stopPropagation();"><input type="checkbox" class="audit-row-checkbox" value="${log.id}"/></td>
         <td style="white-space:nowrap;color:var(--text-mid);font-size:13px;">
           <strong>${dateFormatted}</strong>
           <div style="font-size:11px;color:var(--text-light);margin-top:2px;">${timeFormatted}</div>
@@ -2270,25 +2607,115 @@ function renderFilteredAuditLogs() {
         <td><span class="role-badge ${roleClass}">${roleLabelText}</span></td>
         <td><span style="font-family:monospace;font-weight:600;font-size:12px;color:var(--text);">${escapeHtml(log.action || "—")}</span></td>
         <td>
-          <div style="font-size:13px;color:var(--text-mid);max-width:400px;word-wrap:break-word;white-space:normal;line-height:1.4;">${escapeHtml(log.details || "—")}</div>
+          <div style="font-size:13px;color:var(--text-mid);max-width:320px;word-wrap:break-word;white-space:normal;line-height:1.4;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(log.details || "—")}</div>
+        </td>
+        <td style="text-align: center;" onclick="event.stopPropagation();">
+          <button class="delete-audit-btn" data-id="${log.id}" data-name="${escapeHtml(log.action)}" title="Delete Log" style="background:transparent;border:none;color:var(--danger);cursor:pointer;padding:4px;display:inline-flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
         </td>
       </tr>
     `;
   }).join("");
+
+  // Attach click listeners to rows programmatically to open details modal
+  tbody.querySelectorAll(".audit-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const idx = parseInt(row.dataset.index, 10);
+      const log = rawAuditLogs[idx];
+      if (log && typeof window.openAuditDetailsModal === "function") {
+        window.openAuditDetailsModal(log);
+      }
+    });
+  });
+
+  // Attach click listener for delete buttons
+  tbody.querySelectorAll(".delete-audit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (typeof window.openDeleteConfirmModal === "function") {
+        window.openDeleteConfirmModal("audit", btn.dataset.id, btn.dataset.name);
+      }
+    });
+  });
+
+  // Attach checkboxes event listeners to trigger UI updates for bulk action
+  tbody.querySelectorAll(".audit-row-checkbox").forEach(cb => {
+    cb.addEventListener("change", updateAuditsSelection);
+  });
+  
+  // Uncheck select-all checkbox on load/render
+  const selectAllCb = document.getElementById("auditSelectAll");
+  if (selectAllCb) selectAllCb.checked = false;
+  updateAuditsSelection();
 }
+
+window.auditPrevPage = function() {
+  if (window.auditCurrentPage > 1) {
+    window.auditCurrentPage--;
+    loadAuditLogs();
+  }
+};
+
+window.auditNextPage = function() {
+  window.auditCurrentPage++;
+  loadAuditLogs();
+};
+
+window.updateAuditsSelection = function() {
+  const checkboxes = Array.from(document.querySelectorAll(".audit-row-checkbox"));
+  const checked = checkboxes.filter(cb => cb.checked);
+  const deleteBtn = document.getElementById("bulkDeleteAuditsBtn");
+  const countEl = document.getElementById("selectedAuditsCount");
+
+  if (deleteBtn && countEl) {
+    if (checked.length > 0) {
+      deleteBtn.style.display = "flex";
+      countEl.textContent = checked.length;
+    } else {
+      deleteBtn.style.display = "none";
+    }
+  }
+};
+
+window.toggleSelectAllAudits = function(source) {
+  const checkboxes = document.querySelectorAll(".audit-row-checkbox");
+  checkboxes.forEach(cb => cb.checked = source.checked);
+  updateAuditsSelection();
+};
+
+window.clearAuditsSelection = function() {
+  const selectAll = document.getElementById("auditSelectAll");
+  if (selectAll) selectAll.checked = false;
+  document.querySelectorAll(".audit-row-checkbox").forEach(cb => cb.checked = false);
+  updateAuditsSelection();
+};
+
+window.openBulkDeleteAuditsModal = function() {
+  const ids = Array.from(document.querySelectorAll(".audit-row-checkbox:checked")).map(cb => cb.value);
+  if (ids.length === 0) return;
+  const label = ids.length === 1 ? "1 audit log" : `${ids.length} audit logs`;
+  if (typeof window.openDeleteConfirmModal === "function") {
+    window.openDeleteConfirmModal("audits", ids, label);
+  }
+};
 
 // Wire search and filter inputs on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
-  // Use event delegation or check elements directly
   const setupListeners = () => {
     const searchInput = document.getElementById("auditLogSearch");
     const roleFilterSelect = document.getElementById("auditLogRoleFilter");
 
     if (searchInput) {
-      searchInput.addEventListener("input", renderFilteredAuditLogs);
+      searchInput.addEventListener("input", () => {
+        window.auditCurrentPage = 1;
+        loadAuditLogs();
+      });
     }
     if (roleFilterSelect) {
-      roleFilterSelect.addEventListener("change", renderFilteredAuditLogs);
+      roleFilterSelect.addEventListener("change", () => {
+        window.auditCurrentPage = 1;
+        loadAuditLogs();
+      });
     }
   };
 
@@ -2381,4 +2808,380 @@ window.handleFlowAnomalyModalBackdrop = function(e) {
     closeFlowAnomalyModal();
   }
 };
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ANALYTICS REPORTS VIEW
+// ═════════════════════════════════════════════════════════════════════════════
+window.lastGeneratedReportData = null;
+
+async function loadReportsView() {
+  const startDateInput = document.getElementById("reportStartDate");
+  const endDateInput = document.getElementById("reportEndDate");
+  
+  if (startDateInput && !startDateInput.value) {
+    const today = new Date();
+    const weekAgo = new Date();
+    weekAgo.setDate(today.getDate() - 7);
+    
+    startDateInput.value = weekAgo.toISOString().slice(0, 10);
+    endDateInput.value = today.toISOString().slice(0, 10);
+  }
+
+  // Populate locations dropdown
+  const locSelect = document.getElementById("reportLocationFilter");
+  if (locSelect && locSelect.options.length <= 1) {
+    try {
+      const locations = await apiGet("/api/locations");
+      if (locations && Array.isArray(locations)) {
+        locations.forEach(loc => {
+          const opt = document.createElement("option");
+          opt.value = loc.location_id;
+          opt.textContent = `${loc.building_name} (${loc.area_name || 'General'})`;
+          locSelect.appendChild(opt);
+        });
+      }
+    } catch (err) {
+      console.warn("[AquaSense] Error loading locations for report filter:", err);
+    }
+  }
+
+  // Hide preview initially
+  const previewContainer = document.getElementById("reportPreviewContainer");
+  const placeholder = document.getElementById("reportPreviewPlaceholder");
+  const content = document.getElementById("reportPreviewContent");
+  if (previewContainer) previewContainer.style.display = "none";
+  if (placeholder) {
+    placeholder.style.display = "block";
+    placeholder.textContent = 'Click "Preview Report" to generate summary metrics';
+  }
+  if (content) content.innerHTML = "";
+}
+
+async function fetchReportPreview() {
+  const startDate = document.getElementById("reportStartDate").value;
+  const endDate = document.getElementById("reportEndDate").value;
+  const buildingId = document.getElementById("reportLocationFilter").value;
+
+  if (!startDate || !endDate) {
+    showToast("Invalid Dates", "Please select both start and end dates.");
+    return;
+  }
+
+  const placeholder = document.getElementById("reportPreviewPlaceholder");
+  const content = document.getElementById("reportPreviewContent");
+  const previewContainer = document.getElementById("reportPreviewContainer");
+
+  if (placeholder) placeholder.textContent = "Generating preview data...";
+  if (content) content.innerHTML = "";
+  if (previewContainer) previewContainer.style.display = "block";
+
+  try {
+    const params = new URLSearchParams();
+    params.set("startDate", startDate);
+    params.set("endDate", endDate);
+    if (buildingId) params.set("building_id", buildingId);
+
+    const data = await apiGet(`/api/reports/summary?${params.toString()}`);
+    if (!data) throw new Error("Failed to load report summary data.");
+
+    window.lastGeneratedReportData = data;
+    if (placeholder) placeholder.style.display = "none";
+
+    let currentUser = {};
+    try {
+      currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+    } catch(e) {}
+    const role = (currentUser.role || "").toLowerCase();
+
+    let previewHtml = `
+      <div style="font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; gap: 20px;">
+        <div style="font-size: 16px; font-weight: 700; color: var(--text-dark); border-bottom: 2px solid var(--border); padding-bottom: 8px;">
+          Report Preview Summary
+        </div>
+    `;
+
+    // 1. Water Quality Preview
+    if (role === "hsu" || role === "admin") {
+      const q = data.waterQuality || {};
+      previewHtml += `
+        <div>
+          <h4 style="font-size: 13.5px; font-weight: 700; color: var(--water-1); margin-bottom: 10px;">Water Quality Analytics (HSU)</h4>
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Avg pH</div>
+              <div class="stat-value" style="font-size: 18px;">${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"}</div>
+            </div>
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Avg Turbidity</div>
+              <div class="stat-value" style="font-size: 18px;">${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) + " NTU" : "—"}</div>
+            </div>
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Avg TDS</div>
+              <div class="stat-value" style="font-size: 18px;">${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) + " ppm" : "—"}</div>
+            </div>
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Avg Ammonia</div>
+              <div class="stat-value" style="font-size: 18px;">${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "—"}</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; color: var(--text-mid); display:flex; flex-direction:column; gap:4px; background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px;">
+            <div>• Total Water Samples Evaluated: <strong>${q.total_readings || 0}</strong></div>
+            <div>• pH Standard Violations: <strong style="${q.ph_violations > 0 ? 'color:#EF4444;' : ''}">${q.ph_violations || 0}</strong></div>
+            <div>• Turbidity Standard Violations: <strong style="${q.turbidity_violations > 0 ? 'color:#EF4444;' : ''}">${q.turbidity_violations || 0}</strong></div>
+            <div>• Ammonia Standard Violations: <strong style="${q.ammonia_violations > 0 ? 'color:#EF4444;' : ''}">${q.ammonia_violations || 0}</strong></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. Consumption & Maintenance Preview
+    if (role === "gsu" || role === "admin") {
+      const c = data.consumption || {};
+      const m = data.maintenance || {};
+      previewHtml += `
+        <div>
+          <h4 style="font-size: 13.5px; font-weight: 700; color: var(--water-2); margin-bottom: 10px;">Consumption & Operation Health (GSU)</h4>
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Total Consumption</div>
+              <div class="stat-value" style="font-size: 18px;">${c.total_consumed !== null && c.total_consumed !== undefined ? Number(c.total_consumed).toLocaleString() + " L" : "0 L"}</div>
+            </div>
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Avg Flow Rate</div>
+              <div class="stat-value" style="font-size: 18px;">${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "—"}</div>
+            </div>
+            <div class="stat-card" style="padding: 12px; margin-bottom: 0;">
+              <div class="stat-label">Maintenance Interventions</div>
+              <div class="stat-value" style="font-size: 18px;">${m.total_maintenance_logs || 0}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    previewHtml += `</div>`;
+    content.innerHTML = previewHtml;
+
+  } catch (err) {
+    console.error(err);
+    if (placeholder) placeholder.textContent = "Failed to load preview. Please check settings or try again.";
+  }
+}
+
+async function exportReportPDF() {
+  const startDate = document.getElementById("reportStartDate").value;
+  const endDate = document.getElementById("reportEndDate").value;
+  if (!startDate || !endDate) {
+    showToast("Invalid Dates", "Please select dates first.");
+    return;
+  }
+
+  if (!window.lastGeneratedReportData) {
+    await fetchReportPreview();
+  }
+  const data = window.lastGeneratedReportData;
+  if (!data) return;
+
+  // Load custom template settings
+  let settings = {};
+  try {
+    settings = await apiGet("/api/system-settings") || {};
+  } catch(e) {}
+
+  let currentUser = {};
+  try {
+    currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+  } catch(e) {}
+  const role = (currentUser.role || "").toLowerCase();
+
+  // Populate letterhead settings
+  document.getElementById("tplReportTitle").textContent = settings.report_header_title || "AquaSense Water Analytics";
+  document.getElementById("tplReportSubtitle").textContent = settings.report_header_subtitle || "Camarines Sur Polytechnic Colleges";
+  document.getElementById("tplReportAddress").textContent = settings.report_header_address || "Nabua, Camarines Sur, Philippines";
+
+  const logoImg = document.getElementById("tplReportLogo");
+  const fallbackLogo = document.getElementById("tplReportLogoFallback");
+  if (settings.report_logo_base64) {
+    logoImg.src = settings.report_logo_base64;
+    logoImg.style.display = "block";
+    fallbackLogo.style.display = "none";
+  } else {
+    logoImg.style.display = "none";
+    fallbackLogo.style.display = "flex";
+  }
+
+  // Populate metadata
+  document.getElementById("tplRecipientRole").textContent = currentUser.role ? currentUser.role.toUpperCase() : "—";
+  document.getElementById("tplReportPeriod").textContent = `${startDate} to ${endDate}`;
+  document.getElementById("tplReportGeneratedDate").textContent = `Generated: ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  document.getElementById("tplAuthorName").textContent = currentUser.fullname || "System Operator";
+  document.getElementById("tplAuthorRole").textContent = roleLabels[role] || "Staff";
+
+  // Build report body HTML formatted for paper print
+  let bodyHtml = `
+    <div style="font-family: 'Inter', sans-serif;">
+      <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 24px;">
+        This document contains the consolidated water quality analytics and operation metrics monitored by the AquaSense system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
+      </p>
+  `;
+
+  if (role === "hsu" || role === "admin") {
+    const q = data.waterQuality || {};
+    bodyHtml += `
+      <div style="margin-bottom: 30px;">
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #1E3A8A; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;">
+          <thead>
+            <tr style="background: #F8FAFC;">
+              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Quality Parameter</th>
+              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Average Observed Value</th>
+              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Regulatory Threshold Breaches</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">pH Level</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"}</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ph_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ph_violations || 0}</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Turbidity</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) + " NTU" : "—"}</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.turbidity_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.turbidity_violations || 0}</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Dissolved Solids (TDS)</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) + " ppm" : "—"}</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">0</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Ammonia</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "—"}</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ammonia_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ammonia_violations || 0}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size: 11px; color: #64748B; margin-top: 8px; font-style: italic;">
+          * Total recorded samples analyzed during this period: <strong>${q.total_readings || 0}</strong>. Standards referenced from the Philippine National Standards for Drinking Water (PNSDW 2017).
+        </div>
+      </div>
+    `;
+  }
+
+  if (role === "gsu" || role === "admin") {
+    const c = data.consumption || {};
+    const m = data.maintenance || {};
+    bodyHtml += `
+      <div>
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #0284C7; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption and Operations Summary</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;">
+          <thead>
+            <tr style="background: #F8FAFC;">
+              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Operational Parameter</th>
+              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Consolidated Total / Average</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Water Consumption (Liters)</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.total_consumed !== null && c.total_consumed !== undefined ? Number(c.total_consumed).toLocaleString() + " L" : "0 L"}</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Average Campus Flow Rate</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "—"}</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Completed Maintenance Activities</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${m.total_maintenance_logs || 0} repairs</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  bodyHtml += `</div>`;
+  document.getElementById("tplReportBody").innerHTML = bodyHtml;
+
+  // Run PDF download using html2pdf.js
+  const tplWrapper = document.getElementById("printableReportTemplate");
+  const outerWrapper = tplWrapper.parentElement;
+  outerWrapper.style.display = "block";
+  
+  const opt = {
+    margin:       15,
+    filename:     `AquaSense_${role.toUpperCase()}_Report_${startDate}_to_${endDate}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  try {
+    await html2pdf().set(opt).from(tplWrapper).save();
+  } catch (err) {
+    showToast("Export failed", "Could not generate PDF report.");
+    console.error(err);
+  } finally {
+    outerWrapper.style.display = "none";
+  }
+}
+
+function exportReportCSV() {
+  const startDate = document.getElementById("reportStartDate").value;
+  const endDate = document.getElementById("reportEndDate").value;
+  if (!startDate || !endDate) {
+    showToast("Invalid Dates", "Please select dates first.");
+    return;
+  }
+  const data = window.lastGeneratedReportData;
+  if (!data) {
+    showToast("No Data", "Please generate a preview before exporting CSV.");
+    return;
+  }
+
+  let csvContent = "data:text/csv;charset=utf-8,";
+  csvContent += `AquaSense Water Analytics Report\n`;
+  csvContent += `Reporting Period,${startDate} to ${endDate}\n`;
+  csvContent += `Generated At,${new Date().toLocaleString()}\n\n`;
+
+  let currentUser = {};
+  try {
+    currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
+  } catch(e) {}
+  const role = (currentUser.role || "").toLowerCase();
+
+  if (role === "hsu" || role === "admin") {
+    const q = data.waterQuality || {};
+    csvContent += `--- WATER QUALITY SUMMARY (HSU) ---\n`;
+    csvContent += `Quality Parameter,Average Observed Value,Regulatory Breaches\n`;
+    csvContent += `pH Level,${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"},${q.ph_violations || 0}\n`;
+    csvContent += `Turbidity (NTU),${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) : "—"},${q.turbidity_violations || 0}\n`;
+    csvContent += `TDS (ppm),${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) : "—"},0\n`;
+    csvContent += `Ammonia (mg/L),${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) : "—"},${q.ammonia_violations || 0}\n`;
+    csvContent += `Total Water Samples Analyzed,${q.total_readings || 0}\n\n`;
+  }
+
+  if (role === "gsu" || role === "admin") {
+    const c = data.consumption || {};
+    const m = data.maintenance || {};
+    csvContent += `--- CONSUMPTION & OPERATIONS SUMMARY (GSU) ---\n`;
+    csvContent += `Operational Metric,Value\n`;
+    csvContent += `Total Consumption (L),${c.total_consumed || 0}\n`;
+    csvContent += `Average Flow Rate (L/min),${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) : "—"}\n`;
+    csvContent += `Completed Maintenance Interventions,${m.total_maintenance_logs || 0}\n\n`;
+  }
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `AquaSense_Report_${startDate}_to_${endDate}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+window.loadReportsView = loadReportsView;
+window.fetchReportPreview = fetchReportPreview;
+window.exportReportPDF = exportReportPDF;
+window.exportReportCSV = exportReportCSV;
 

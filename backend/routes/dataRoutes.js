@@ -24,6 +24,13 @@ const {
   deleteMaintenanceLog,
   exportSensorReadings,
   getAuditLogs,
+  deleteAuditLog,
+  deleteAuditLogsBulk,
+  getSmsLogs,
+  getSystemSettings,
+  updateSystemSettings,
+  getGoogleOauthSetting,
+  getReportsSummary,
 } = require("../controllers/dataController");
 const {
   updateDevice,
@@ -43,12 +50,21 @@ router.get  ("/analytics/summary",      verifyToken, getAnalyticsSummary);
 router.get  ("/analytics/compliance-trend", verifyToken, getComplianceTrend);
 router.get  ("/devices/health",         verifyToken, getDevicesHealth);
 router.get  ("/maintenance",            verifyToken, getMaintenanceLogs);
+router.get  ("/sms-logs",               verifyToken, getSmsLogs);
+router.get  ("/reports/summary",        verifyToken, getReportsSummary);
+
+// System settings routes
+router.get  ("/system-settings",              verifyToken, getSystemSettings);
+router.put  ("/system-settings",              verifyToken, updateSystemSettings);
+router.get  ("/system-settings/google-oauth", getGoogleOauthSetting); // Public check
 
 // GSU and Admin can submit maintenance logs
 router.post ("/maintenance",            verifyToken, createMaintenanceLog);
 
 // Audit logs (RESTRICTED: Admin only)
 router.get  ("/audit-logs",             verifyToken, requireAdmin, getAuditLogs);
+router.delete("/audit-logs/:id",        verifyToken, requireAdmin, deleteAuditLog);
+router.delete("/audit-logs",            verifyToken, requireAdmin, deleteAuditLogsBulk);
 
 // CRUD routes (RESTRICTED: Admin only)
 router.delete("/sensors",               verifyToken, requireAdmin, deleteSensorReadings); // Bulk delete readings

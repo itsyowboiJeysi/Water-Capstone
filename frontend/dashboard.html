@@ -652,7 +652,45 @@
     .toast-msg { font-size: 13px; font-weight: 500; color: var(--white); }
     .toast-sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
 
+    @media (max-width: 960px) {
+      .modal-container {
+        flex-direction: column !important;
+        align-items: center !important;
+        overflow-y: auto;
+        max-height: 95vh;
+      }
+      .modal-tutorial-panel {
+        width: 100% !important;
+        max-width: 560px !important;
+      }
+    }
+
+    /* ═══ RESPONSIVE SIDEBAR MOBILE/TABLET STYLING ═══ */
+    @media (max-width: 800px) {
+      #menuToggleBtn {
+        display: flex !important;
+      }
+      .sidebar {
+        position: fixed !important;
+        top: 0; bottom: 0; left: 0;
+        z-index: 999;
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 35px rgba(8,21,53,0.3);
+      }
+      .app.sidebar-active .sidebar {
+        transform: translateX(0);
+      }
+      .sidebar-overlay.active {
+        display: block !important;
+      }
+    }
+
     @media (max-width: 600px) {
+      .topbar { padding: 0 16px; }
+      .page-title { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+      .page-subtitle { display: none !important; }
+      .status-pill { display: none !important; }
       .modal-field-row { grid-template-columns: 1fr; }
       .modal-box { border-radius: 14px; }
       .modal-header { padding: 18px 20px 16px; }
@@ -668,6 +706,7 @@
   </style>
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(event)" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 998; backdrop-filter: blur(3px);"></div>
 <div class="app">
 
   <!-- ═══════════════ SIDEBAR ═══════════════ -->
@@ -691,6 +730,10 @@
       <a class="nav-item" data-view="live">
         <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Live Monitoring
+      </a>
+      <a class="nav-item" data-view="reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Reports
       </a>
 
       <div class="nav-section-label">Water Quality</div>
@@ -774,9 +817,14 @@
   <!-- ═══════════════ MAIN ═══════════════ -->
   <div class="main">
     <header class="topbar">
-      <div>
-        <div class="page-title" id="pageTitle">Water Quality Dashboard</div>
-        <div class="page-subtitle" id="pageSubtitle">Camarines Sur Polytechnic Colleges — Real-time monitoring</div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button class="icon-btn" id="menuToggleBtn" style="display: none; width: 36px; height: 36px; align-items: center; justify-content: center; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; color: var(--text-mid);" onclick="toggleSidebar(event)" title="Toggle menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; stroke: currentColor;"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="page-title" id="pageTitle">Water Quality Dashboard</div>
+          <div class="page-subtitle" id="pageSubtitle">Camarines Sur Polytechnic Colleges — Real-time monitoring</div>
+        </div>
       </div>
       <div class="topbar-right">
         <div class="status-pill" id="systemStatusPill"><div class="status-dot live" id="systemStatusDot"></div><span id="systemStatusText">Live · updated just now</span></div>
@@ -805,9 +853,22 @@
 
       <!-- ════════════════════════ VIEW: DASHBOARD ════════════════════════ -->
       <div class="view active" id="view-dashboard">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom: 20px;">
+          <div>
+            <h2>Dashboard</h2>
+            <p>Real-time campus-wide water quality and consumption metrics</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label for="dashboardFilterDevice" style="font-size:12px; font-weight:600; color:var(--text-mid);">Select Device:</label>
+            <select id="dashboardFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:'DM Sans',sans-serif; cursor:pointer;" onchange="loadDashboardFiltered()">
+              <option value="">All Devices (Latest)</option>
+            </select>
+          </div>
+        </div>
+
         <div class="stats-grid" id="dashboard-stats">
         <!-- populated by dashboard-data.js -->
-      </div>
+        </div>
 
         <!-- HSU-Only Dashboard Panel (Water Safety Score card & Recommended Use Panel) -->
         <div id="hsu-dashboard-block" class="panel-full" style="display: none; margin-bottom: 22px; border: 1px solid var(--border); border-radius: 14px; background: var(--white); overflow: hidden; box-shadow: 0 4px 20px rgba(13,35,83,0.05);">
@@ -816,10 +877,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; stroke: var(--gold);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               Water Safety Score & Suitability Guidance
             </div>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <span class="role-badge hsu" style="background: rgba(61,214,140,0.18); color: #6EEDB4; font-size: 9.5px; padding: 2px 7px;">HSU Only</span>
-              <span class="role-badge" style="background: rgba(212,160,23,0.18); color: var(--gold-light); font-size: 9.5px; padding: 2px 7px;">New Feature</span>
-            </div>
+          
           </div>
           <div class="panel-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 20px;">
             <!-- Column 1: Score Card -->
@@ -922,7 +980,7 @@
           </div>
           <div class="panel" style="display:flex;flex-direction:column;">
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Active Alerts</div><span class="nav-badge" id="dashboardAlertsBadge" style="background:rgba(239,68,68,0.9);display:none;">0</span></div>
-            <div class="alert-list" id="dashboard-alerts" style="flex:1;overflow-y:auto;">
+            <div class="alert-list" id="dashboard-alerts" style="max-height: 400px; overflow-y: auto;">
               <!-- populated by dashboard-data.js -->
             </div>
             <div style="padding:12px 20px;border-top:1px solid var(--border);"><button class="panel-action" onclick="navigate('alerts')">View all alerts →</button></div>
@@ -947,8 +1005,19 @@
 
       <!-- ════════════════════════ VIEW: LIVE MONITORING ════════════════════════ -->
       <div class="view" id="view-live">
-        <div class="section-header"><h2>Live Monitoring</h2><p>Real-time sensor feed from all active ESP32 devices on campus</p></div>
-     <div class="stats-grid" id="live-stats">
+        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <h2>Live Monitoring</h2>
+            <p>Real-time sensor feed from active ESP32 devices on campus</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label for="liveFilterDevice" style="font-size:12px; font-weight:600; color:var(--text-mid);">Select Device:</label>
+            <select id="liveFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:'DM Sans',sans-serif; cursor:pointer;" onchange="loadLiveMonitoringFiltered()">
+              <option value="">All Devices (Latest)</option>
+            </select>
+          </div>
+        </div>
+        <div class="stats-grid" id="live-stats">
         </div>
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>All Sensor Parameters — Current Readings</div><div style="font-size:12px;color:var(--text-light)">Auto-refreshes every 30s</div></div>
@@ -1138,7 +1207,7 @@
           <div class="panel-full">
             <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px;">
               <div class="panel-title" style="font-size:13.5px; font-weight:600;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px; height:15px; stroke:var(--water-1);"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px; height:15px; stroke:var(--water-1);"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
                 Ammonia Compliance Trend (PNSDW standard: Max 0.5 mg/L)
               </div>
               <div id="ammoniaComplianceStatus" class="device-badge online" style="font-size:11px; padding:2px 8px;">
@@ -1178,6 +1247,16 @@
     </div>
     <div class="alert-list" id="alerts-full-list">
       <!-- JS fills this -->
+    </div>
+    <div class="pagination-container" id="alertsPaginationContainer" style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px;">
+      <div style="font-size:13px;color:var(--text-mid);">
+        Showing <span id="alertsPageStart">0</span>-<span id="alertsPageEnd">0</span> of <span id="alertsTotalCount">0</span> alerts
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="panel-action" id="alertsPrevBtn" onclick="alertsPrevPage()">← Prev</button>
+        <span style="font-size:13px;font-weight:600;color:var(--text);" id="alertsPageNum">Page 1 of 1</span>
+        <button class="panel-action" id="alertsNextBtn" onclick="alertsNextPage()">Next →</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1473,6 +1552,59 @@
           </div>
           <div class="modal-footer" style="padding-top: 14px; padding-bottom: 16px;">
             <button class="modal-btn-cancel" onclick="closeReadingDetailsModal()" style="height: 38px;">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════ VIEW AUDIT LOG DETAILS MODAL ════════════════════════ -->
+      <div class="modal-backdrop" id="auditDetailsModal" style="display:none;" onclick="handleAuditDetailsModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" style="max-width: 500px;">
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background: linear-gradient(135deg, var(--water-1), var(--water-2));">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--white)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div>
+                <div class="modal-title">Audit Log Details</div>
+                <div class="modal-subtitle" id="auditDetailHeaderSubtitle">—</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeAuditDetailsModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body" style="padding-top: 10px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); font-weight: 700;">Timestamp</div>
+                <div id="auditDetailTime" style="font-size: 14px; font-weight: 600; color: var(--text-dark); margin-top: 2px;">—</div>
+              </div>
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); font-weight: 700; text-align: right;">IP Address</div>
+                <div id="auditDetailIp" style="font-size: 14px; font-weight: 600; color: var(--text-dark); margin-top: 2px; text-align: right;">—</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+              <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Performed By</div>
+                <div id="auditDetailUser" style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
+                <div id="auditDetailRole" style="margin-top: 4px;">—</div>
+              </div>
+              <div>
+                <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; text-align: right;">Action</div>
+                <div id="auditDetailAction" style="font-family: monospace; font-size: 14px; font-weight: 700; color: var(--text-dark); margin-top: 2px; text-align: right;">—</div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; margin-bottom: 6px;">Activity Details</div>
+              <div id="auditDetailDetails" style="font-size: 13px; color: var(--text-mid); line-height: 1.5; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">—</div>
+            </div>
+          </div>
+          <div class="modal-footer" style="padding-top: 14px; padding-bottom: 16px;">
+            <button class="modal-btn-cancel" onclick="closeAuditDetailsModal()" style="height: 38px;">Close</button>
           </div>
         </div>
       </div>
@@ -2109,96 +2241,150 @@
       </div><!-- /modal-backdrop -->
 
       <div class="modal-backdrop" id="addDeviceModal" style="display:none;" onclick="handleModalBackdropClick(event)">
-        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-container" style="display: flex; gap: 20px; max-width: 1000px; width: 100%; align-items: stretch; justify-content: center;">
+          
+          <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle" style="max-width: 560px; margin: 0;">
 
-          <!-- Modal header -->
-          <div class="modal-header">
-            <div class="modal-title-wrap">
-              <div class="modal-icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="12" y1="8" x2="12" y2="13" stroke-width="2.2"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5" stroke-width="2.2"/></svg>
+            <!-- Modal header -->
+            <div class="modal-header">
+              <div class="modal-title-wrap">
+                <div class="modal-icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="12" y1="8" x2="12" y2="13" stroke-width="2.2"/><line x1="9.5" y1="10.5" x2="14.5" y2="10.5" stroke-width="2.2"/></svg>
+                </div>
+                <div>
+                  <div class="modal-title" id="modalTitle">Register New Device</div>
+                  <div class="modal-subtitle">Add an ESP32 node to the AquaSense network</div>
+                </div>
               </div>
+              <button class="modal-close-btn" onclick="closeAddDeviceModal()" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <!-- Error banner inside modal -->
+            <div class="modal-error" id="modalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="modalErrorText">Something went wrong.</span>
+            </div>
+
+            <!-- Form body -->
+            <div class="modal-body">
+
+              <!-- Row 1: Device Name (Device ID is now auto-assigned by the database) -->
+              <div class="modal-field">
+                <label for="mDeviceName">Device Name <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  </span>
+                  <input type="text" id="mDeviceName" placeholder="e.g. ESP32 Faculty Building" maxlength="100"/>
+                </div>
+                <div class="modal-hint">Human-readable label shown in the dashboard — device ID is auto-assigned</div>
+              </div>
+
+              <!-- Row 2: Location -->
+              <div class="modal-field">
+                <label for="mLocationId">Campus Location <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap modal-select-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </span>
+                  <select id="mLocationId">
+                    <option value="" disabled selected>Select a building…</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- MQTT Section -->
+              <div class="modal-section-divider">
+                <span>MQTT Configuration</span>
+              </div>
+
+              <!-- Row 3: MQTT Topic -->
+              <div class="modal-field">
+                <label for="mMqttTopic">MQTT Topic <span class="modal-required">*</span></label>
+                <div class="modal-input-wrap">
+                  <span class="modal-input-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  </span>
+                  <input type="text" id="mMqttTopic" placeholder="e.g. aquasense/ESP-006/data" maxlength="200"/>
+                </div>
+                <div class="modal-hint">The topic the ESP32 publishes sensor readings to</div>
+              </div>
+
+              <!-- MQTT preview chip -->
+              <div class="mqtt-preview" id="mqttPreview">
+                <div class="mqtt-preview-label">Registration preview</div>
+                <div class="mqtt-preview-code" id="mqttPreviewCode">Fill in Device Name and Topic above to see the config</div>
+              </div>
+
+            </div><!-- /modal-body -->
+
+            <!-- Modal footer -->
+            <div class="modal-footer">
+              <button class="modal-btn-cancel" onclick="closeAddDeviceModal()">Cancel</button>
+              <button class="modal-btn-submit" id="modalSubmitBtn" onclick="submitAddDevice()">
+                <span class="modal-btn-spinner" id="modalSpinner" style="display:none;"></span>
+                <span id="modalBtnLabel" style="display:flex;align-items:center;gap:7px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Register Device
+                </span>
+              </button>
+            </div>
+
+          </div><!-- /modal-box -->
+
+          <!-- Tutorial Panel -->
+          <div class="modal-tutorial-panel" style="background: var(--white); border-radius: 18px; width: 380px; box-shadow: 0 24px 80px rgba(8,21,53,0.28), 0 4px 16px rgba(8,21,53,0.12); padding: 24px 28px; display: flex; flex-direction: column; overflow-y: auto; max-height: 92vh; border: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(44,154,209,0.1); display: flex; align-items: center; justify-content: center; color: var(--water-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20M4 19.5V3a2.5 2.5 0 0 1 2.5-2.5H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z"/></svg>
+              </div>
+              <h3 style="font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-dark); margin: 0;">ESP32 Setup Tutorial</h3>
+            </div>
+            
+            <div style="font-size: 13px; color: var(--text-mid); line-height: 1.6; display: flex; flex-direction: column; gap: 16px;">
               <div>
-                <div class="modal-title" id="modalTitle">Register New Device</div>
-                <div class="modal-subtitle">Add an ESP32 node to the AquaSense network</div>
+                <strong style="color: var(--navy); display: block; margin-bottom: 4px;">1. Setup Captive Portal</strong>
+                <p style="margin: 0;">On boot, the ESP32 hosts a hotspot named <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">AquaSense-Setup</code> (Password: <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">aquasense123</code>). Connect and navigate to <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">192.168.4.1</code>.</p>
+              </div>
+
+              <div>
+                <strong style="color: var(--navy); display: block; margin-bottom: 4px;">2. Hardcoded MQTT Settings</strong>
+                <p style="margin: 0;">To keep things simple, the MQTT Broker is already hardcoded inside the firmware code:</p>
+                <ul style="margin: 6px 0 0 0; padding-left: 20px; color: var(--text-dark);">
+                  <li><b>Host:</b> <code>broker.hivemq.com</code></li>
+                  <li><b>Port:</b> <code>1883</code></li>
+                </ul>
+              </div>
+
+              <div>
+                <strong style="color: var(--navy); display: block; margin-bottom: 4px;">3. Values to Input</strong>
+                <p style="margin: 0;">You only need to configure two parameters on the setup webpage:</p>
+                <ul style="margin: 6px 0 0 0; padding-left: 20px; color: var(--text-dark);">
+                  <li><b>Device ID:</b> Matches the assigned ID on dashboard.</li>
+                  <li><b>MQTT Topic:</b> Enter the exact topic you registered here (e.g. <code>esp32/aquasense/data</code>).</li>
+                </ul>
+              </div>
+
+              <div>
+                <strong style="color: var(--navy); display: block; margin-bottom: 4px;">4. JSON Data Payload</strong>
+                <p style="margin: 0 0 6px 0;">The ESP32 publishes readings to your topic in this JSON format:</p>
+                <pre style="background: var(--off-white); border: 1px solid var(--border); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 11px; margin: 0; color: var(--text-dark); line-height: 1.4;">{
+  "device_id": 1,
+  "ph_level": 7.00,
+  "turbidity": 1.50,
+  "tds": 200.0,
+  "temperature": 25.0,
+  "ammonia": 0.02,
+  "flow_rate": 10.00,
+  "water_consumed": 0.05
+}</pre>
               </div>
             </div>
-            <button class="modal-close-btn" onclick="closeAddDeviceModal()" aria-label="Close">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
+          </div><!-- /modal-tutorial-panel -->
 
-          <!-- Error banner inside modal -->
-          <div class="modal-error" id="modalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="modalErrorText">Something went wrong.</span>
-          </div>
-
-          <!-- Form body -->
-          <div class="modal-body">
-
-            <!-- Row 1: Device Name (Device ID is now auto-assigned by the database) -->
-            <div class="modal-field">
-              <label for="mDeviceName">Device Name <span class="modal-required">*</span></label>
-              <div class="modal-input-wrap">
-                <span class="modal-input-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                </span>
-                <input type="text" id="mDeviceName" placeholder="e.g. ESP32 Faculty Building" maxlength="100"/>
-              </div>
-              <div class="modal-hint">Human-readable label shown in the dashboard — device ID is auto-assigned</div>
-            </div>
-
-            <!-- Row 2: Location -->
-            <div class="modal-field">
-              <label for="mLocationId">Campus Location <span class="modal-required">*</span></label>
-              <div class="modal-input-wrap modal-select-wrap">
-                <span class="modal-input-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                </span>
-                <select id="mLocationId">
-                  <option value="" disabled selected>Select a building…</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- MQTT Section -->
-            <div class="modal-section-divider">
-              <span>MQTT Configuration</span>
-            </div>
-
-            <!-- Row 3: MQTT Topic -->
-            <div class="modal-field">
-              <label for="mMqttTopic">MQTT Topic <span class="modal-required">*</span></label>
-              <div class="modal-input-wrap">
-                <span class="modal-input-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                </span>
-                <input type="text" id="mMqttTopic" placeholder="e.g. aquasense/ESP-006/data" maxlength="200"/>
-              </div>
-              <div class="modal-hint">The topic the ESP32 publishes sensor readings to</div>
-            </div>
-
-            <!-- MQTT preview chip -->
-            <div class="mqtt-preview" id="mqttPreview">
-              <div class="mqtt-preview-label">Registration preview</div>
-              <div class="mqtt-preview-code" id="mqttPreviewCode">Fill in Device Name and Topic above to see the config</div>
-            </div>
-
-          </div><!-- /modal-body -->
-
-          <!-- Modal footer -->
-          <div class="modal-footer">
-            <button class="modal-btn-cancel" onclick="closeAddDeviceModal()">Cancel</button>
-            <button class="modal-btn-submit" id="modalSubmitBtn" onclick="submitAddDevice()">
-              <span class="modal-btn-spinner" id="modalSpinner" style="display:none;"></span>
-              <span id="modalBtnLabel" style="display:flex;align-items:center;gap:7px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Register Device
-              </span>
-            </button>
-          </div>
-
-        </div><!-- /modal-box -->
+        </div>
       </div><!-- /modal-backdrop -->
 
       <!-- ════════════════════════ VIEW: FLOW RATE ANOMALIES ════════════════════════ -->
@@ -2247,7 +2433,45 @@
       <div class="view" id="view-maintenance">
         <div class="section-header"><h2>Maintenance Logs</h2><p>Records of all maintenance and repair activities on campus water devices</p></div>
         <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Maintenance History</div><button class="panel-action" onclick="openAddMaintModal()">+ Add Log</button></div>
+          <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Maintenance History
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button class="panel-action" id="maintFilterToggleBtn" onclick="toggleMaintFilterBar()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px;"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filter<span class="filter-active-badge" id="maintFilterActiveBadge" style="display:none;">•</span>
+              </button>
+              <button class="panel-action" onclick="openAddMaintModal()">+ Add Log</button>
+            </div>
+          </div>
+
+          <!-- Filter bar — hidden until "Filter" is clicked -->
+          <div class="filter-bar" id="maintFilterBar" style="display:none;">
+            <div class="filter-field">
+              <label for="maintFilterSearch">Search Keyword</label>
+              <input type="text" id="maintFilterSearch" class="search-input" placeholder="Search maintenance..." style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:36px; min-width:180px;">
+            </div>
+            <div class="filter-field">
+              <label for="maintFilterDevice">Device</label>
+              <select id="maintFilterDevice" class="filter-select">
+                <option value="">All Devices</option>
+              </select>
+            </div>
+            <div class="filter-field">
+              <label for="maintFilterRange">Date Range</label>
+              <select id="maintFilterRange" class="filter-select">
+                <option value="">All Time</option>
+                <option value="today">Today</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+              </select>
+            </div>
+            <button class="filter-btn-apply" onclick="applyMaintFilters()">Apply Filters</button>
+            <button class="filter-btn-clear" onclick="clearMaintFilters()">Clear</button>
+          </div>
+
           <div id="maintenance-list">
           </div>
         </div>
@@ -2318,6 +2542,10 @@
           <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Audit Logs</div>
             <div class="panel-controls" style="display:flex; align-items:center; gap:8px;">
+              <button class="panel-action" id="bulkDeleteAuditsBtn" onclick="openBulkDeleteAuditsModal()" style="background:#C0392B; display:none; align-items:center; gap:5px; height:32px; font-size:13px; border:none; color:white; border-radius:6px; padding:0 12px; cursor:pointer;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                Delete Selected (<span id="selectedAuditsCount">0</span>)
+              </button>
               <input type="text" id="auditLogSearch" class="search-input" placeholder="Search logs..." style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; min-width:200px;">
               <select id="auditLogRoleFilter" class="filter-select" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:32px;">
                 <option value="">All Roles</option>
@@ -2329,48 +2557,198 @@
             </div>
           </div>
           <table class="data-table">
-            <thead><tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Details</th></tr></thead>
+            <thead><tr>
+              <th class="row-checkbox-cell" style="width: 40px; text-align: center;"><input type="checkbox" id="auditSelectAll" onchange="toggleSelectAllAudits(this)" title="Select all on this page"/></th>
+              <th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Details</th>
+              <th style="width: 80px; text-align: center;">Actions</th>
+            </tr></thead>
             <tbody id="audit-logs-tbody">
               <!-- Populated dynamically by dashboard-data.js -->
             </tbody>
           </table>
+          <div class="pagination-container" style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px;">
+            <div style="font-size:13px;color:var(--text-mid);">
+              Showing <span id="auditPageStart">0</span>-<span id="auditPageEnd">0</span> of <span id="auditTotalCount">0</span> audit logs
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="panel-action" id="auditPrevBtn" onclick="auditPrevPage()">← Prev</button>
+              <span style="font-size:13px;font-weight:600;color:var(--text);" id="auditPageNum">Page 1 of 1</span>
+              <button class="panel-action" id="auditNextBtn" onclick="auditNextPage()">Next →</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- ════════════════════════ VIEW: SETTINGS ════════════════════════ -->
       <div class="view" id="view-settings">
         <div class="section-header"><h2>Settings</h2><p>System configuration and notification preferences for AquaSense</p></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- Settings status banner -->
+        <div id="settingsStatusBanner" style="display:none;margin-bottom:14px;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:500;"></div>
+        <div id="settingsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="panel-full" style="margin-bottom:0;">
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Notification Settings</div></div>
             <div class="panel-body">
               <div class="settings-section">
                 <div class="settings-title">Alert Notifications</div>
-                <div class="settings-row"><div><div class="settings-label">SMS Alerts</div><div class="settings-sub">Send SMS when critical alert fires</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Critical Alerts Only</div><div class="settings-sub">Only notify for critical-level alerts</div></div><label class="toggle-switch"><input type="checkbox"/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Device Offline Alerts</div><div class="settings-sub">Notify when a device goes offline</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Daily Summary Report</div><div class="settings-sub">Receive daily water quality digest</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">SMS Alerts</div><div class="settings-sub">Send SMS when critical alert fires</div></div><label class="toggle-switch"><input type="checkbox" id="smsAlertsToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Critical Alerts Only</div><div class="settings-sub">Only notify for critical-level alerts</div></div><label class="toggle-switch"><input type="checkbox" id="critAlertsToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Device Offline Alerts</div><div class="settings-sub">Notify when a device goes offline</div></div><label class="toggle-switch"><input type="checkbox" id="offlineAlertsToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Daily Summary Report</div><div class="settings-sub">Receive daily water quality digest</div></div><label class="toggle-switch"><input type="checkbox" id="dailySummaryToggle"/><span class="toggle-slider"></span></label></div>
               </div>
             </div>
           </div>
-          <div class="panel-full" style="margin-bottom:0;">
-            <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System Settings</div></div>
+          <div class="panel-full" id="systemSettingsPanel" style="margin-bottom:0;display:none;">
+            <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System Settings <span style="font-size:10px;font-weight:700;background:rgba(212,160,23,0.15);color:#9A6E00;padding:2px 7px;border-radius:10px;margin-left:8px;letter-spacing:0.05em;">ADMIN ONLY</span></div></div>
             <div class="panel-body">
               <div class="settings-section">
                 <div class="settings-title">Data Collection</div>
-                <div class="settings-row"><div><div class="settings-label">Auto-Refresh Dashboard</div><div class="settings-sub">Refresh sensor data every 30 seconds</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Data Logging</div><div class="settings-sub">Store all readings in database</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Maintenance Mode</div><div class="settings-sub">Pause alerts during maintenance</div></div><label class="toggle-switch"><input type="checkbox"/><span class="toggle-slider"></span></label></div>
-                <div class="settings-row"><div><div class="settings-label">Google OAuth Login</div><div class="settings-sub">Allow sign-in via Google account</div></div><label class="toggle-switch"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Auto-Refresh Dashboard</div><div class="settings-sub">Refresh sensor data every 30 seconds</div></div><label class="toggle-switch"><input type="checkbox" id="autoRefreshToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Data Logging</div><div class="settings-sub">Store all readings in database</div></div><label class="toggle-switch"><input type="checkbox" id="dataLoggingToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Maintenance Mode</div><div class="settings-sub">Pause alerts during maintenance</div></div><label class="toggle-switch"><input type="checkbox" id="maintModeToggle"/><span class="toggle-slider"></span></label></div>
+                <div class="settings-row"><div><div class="settings-label">Google OAuth Login</div><div class="settings-sub">Allow sign-in via Google account</div></div><label class="toggle-switch"><input type="checkbox" id="googleOauthToggle"/><span class="toggle-slider"></span></label></div>
+              </div>
+
+              <div class="settings-section" style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+                <div class="settings-title">Report PDF Template</div>
+                <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+                  <div>
+                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Title</label>
+                    <input type="text" id="reportHeaderTitleInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. AquaSense Water Analytics">
+                  </div>
+                  <div>
+                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Subtitle</label>
+                    <input type="text" id="reportHeaderSubtitleInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. Camarines Sur Polytechnic Colleges">
+                  </div>
+                  <div>
+                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Address</label>
+                    <input type="text" id="reportHeaderAddressInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. Nabua, Camarines Sur, Philippines">
+                  </div>
+                  <div>
+                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Logo (PNG/JPG)</label>
+                    <input type="file" id="reportHeaderLogoInput" accept="image/*" style="font-size:12px; color:var(--text-mid);">
+                    <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                      <span style="font-size:11px; color:var(--text-light);">Current Logo:</span>
+                      <img id="reportHeaderLogoPreview" style="max-height:36px; max-width:100px; object-fit:contain; display:none; border:1px solid var(--border); padding:2px; border-radius:4px; background:white;">
+                      <span id="reportHeaderNoLogoText" style="font-size:11px; color:var(--text-light); font-style:italic;">No logo uploaded</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+      <!-- ════════════════════════ VIEW: REPORTS ════════════════════════ -->
+      <div class="view" id="view-reports">
+        <div class="section-header"><h2>Analytics Reports</h2><p>Generate and export role-specific water monitoring summaries</p></div>
+        <div class="panel-full" style="padding: 24px;">
+          <div class="panel-head" style="margin-bottom:20px; padding:0; border:none; background:transparent;">
+            <div class="panel-title" style="font-size:15px; font-weight:700;">Report Parameters</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div>
+              <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Start Date</label>
+              <input type="date" id="reportStartDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">End Date</label>
+              <input type="date" id="reportEndDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Building Location</label>
+              <select id="reportLocationFilter" class="filter-select" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+                <option value="">All Buildings</option>
+              </select>
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 12px; flex-wrap:wrap; margin-bottom: 20px;">
+            <button class="panel-action" style="height:36px; padding:0 16px;" onclick="fetchReportPreview()">Preview Report</button>
+            <button class="panel-action" style="background:#10B981; border:none; height:36px; padding:0 16px;" onclick="exportReportPDF()">Export PDF</button>
+            <button class="panel-action" style="background:#059669; border:none; height:36px; padding:0 16px;" onclick="exportReportCSV()">Export CSV</button>
+          </div>
+          
+          <!-- Live Preview Box -->
+          <div id="reportPreviewContainer" style="margin-top: 24px; display: none; border-top: 1px solid var(--border); padding-top: 24px; background:var(--bg-card); border-radius:8px; padding:20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:13px; color:var(--text-light); text-align:center; font-style:italic; margin: 40px 0;" id="reportPreviewPlaceholder">Click "Preview Report" to generate summary metrics</div>
+            <div id="reportPreviewContent"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden template wrapper for PDF rendering -->
+      <div style="display:none;">
+        <div id="printableReportTemplate" style="font-family: 'Inter', sans-serif; color: #1E293B; width: 790px; padding: 40px; background: white;">
+          
+          <!-- Top Letterhead -->
+          <div style="display: grid; grid-template-columns: 80px 1fr; gap: 20px; align-items: center; border-bottom: 2.5px solid #1A6FA8; padding-bottom: 20px; margin-bottom: 24px;">
+            <div>
+              <img id="tplReportLogo" src="" alt="CSPC Logo" style="width: 75px; height: 75px; object-fit: contain; display:none;" />
+              <div id="tplReportLogoFallback" style="width: 75px; height: 75px; border-radius: 8px; background: #1A6FA8; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">
+                CSPC
+              </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+              <div>
+                <h3 id="tplReportSubtitle" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; margin: 0 0 4px 0; font-weight: 700;">
+                  Camarines Sur Polytechnic Colleges
+                </h3>
+                <h1 id="tplReportTitle" style="font-size: 22px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">
+                  AquaSense Water Analytics
+                </h1>
+                <p id="tplReportAddress" style="font-size: 11px; color: #64748B; margin: 4px 0 0 0;">
+                  Nabua, Camarines Sur, Philippines
+                </p>
+              </div>
+              <div style="text-align: right;">
+                <span style="display: inline-block; background: rgba(44,154,209,0.1); color: #1A6FA8; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">
+                  Executive Report
+                </span>
+                <p style="font-size: 11px; color: #64748B; margin: 8px 0 0 0;" id="tplReportGeneratedDate">
+                  Generated: —
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Metadata -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+            <div>
+              <span style="font-size: 10px; text-transform: uppercase; color: #64748B; font-weight: 700;">Generated For</span>
+              <div style="font-size: 14px; font-weight: 700; color: #334155; margin-top:2px;" id="tplRecipientRole">—</div>
+            </div>
+            <div>
+              <span style="font-size: 10px; text-transform: uppercase; color: #64748B; font-weight: 700;">Reporting Period</span>
+              <div style="font-size: 14px; font-weight: 700; color: #334155; margin-top:2px;" id="tplReportPeriod">—</div>
+            </div>
+          </div>
+
+          <!-- Template Content Area -->
+          <div id="tplReportBody" style="margin-bottom: 40px; min-height: 300px;">
+            <!-- Populated via Javascript -->
+          </div>
+
+          <!-- Sign-off Footer -->
+          <div style="margin-top: 60px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+            <div>
+              <p style="font-size: 12px; margin-bottom: 40px; color: #64748B;">Prepared by:</p>
+              <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: 12px; color: #334155;" id="tplAuthorName">—</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;" id="tplAuthorRole">—</div>
+            </div>
+            <div>
+              <p style="font-size: 12px; margin-bottom: 40px; color: #64748B;">Acknowledged by:</p>
+              <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: 12px; color: #334155;">Institutional Head</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">CSPC Administration</div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="js/dashboard-data.js"></script>
 <script src="js/google-auth-handler.js"></script>
 <script>
@@ -2434,18 +2812,29 @@ function logoutWithDeletedError() {
 }
 
 // Global fetch interceptor to catch any API call that indicates the user account is deleted
+// Only trigger for authenticated requests (those with Authorization headers) to avoid
+// false positives from public endpoints or the OAuth exchange flow.
 (function() {
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
     const res = await originalFetch(...args);
     if (res.status === 404) {
       try {
-        const data = await res.clone().json();
-        if (data && (data.message === "Account no longer exists." || data.message === "User not found.")) {
-          if (typeof handleDeletedUser === "function") {
-            handleDeletedUser();
-          } else {
-            logoutWithDeletedError();
+        // Only intercept requests that sent an Authorization header (authenticated calls)
+        const requestInit = args[1] || {};
+        const headers = requestInit.headers || {};
+        const hasAuth = (typeof headers === 'object' && (
+          headers['Authorization'] || headers['authorization'] ||
+          (headers instanceof Headers && headers.has('Authorization'))
+        ));
+        if (hasAuth) {
+          const data = await res.clone().json();
+          if (data && (data.message === "Account no longer exists." || data.message === "User not found.")) {
+            if (typeof handleDeletedUser === "function") {
+              handleDeletedUser();
+            } else {
+              logoutWithDeletedError();
+            }
           }
         }
       } catch (e) {}
@@ -2470,6 +2859,114 @@ function loadUserIntoSidebar(u) {
     document.getElementById("userRole").textContent = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
   }
   applyRoleGating(u.role);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SETTINGS — Load from API and Save on Toggle
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function loadSettingsToggles() {
+  window.loadSettingsToggles = loadSettingsToggles; // expose globally
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res = await fetch('http://localhost:5000/api/system-settings', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to load settings');
+    const settings = await res.json();
+    window.cachedSystemSettings = settings;
+
+    // Notification toggles (stored in system_settings table as keys)
+    const notifMap = {
+      smsAlertsToggle:    'sms_alerts',
+      critAlertsToggle:   'critical_alerts_only',
+      offlineAlertsToggle:'device_offline_alerts',
+      dailySummaryToggle: 'daily_summary_report',
+    };
+    Object.entries(notifMap).forEach(([elemId, key]) => {
+      const el = document.getElementById(elemId);
+      if (el && settings[key] !== undefined) {
+        el.checked = settings[key] === 1 || settings[key] === '1' || settings[key] === true;
+      }
+    });
+
+    // System settings toggles (admin-only panel)
+    const sysMap = {
+      autoRefreshToggle: 'auto_refresh_dashboard',
+      dataLoggingToggle: 'data_logging',
+      maintModeToggle:   'maintenance_mode',
+      googleOauthToggle: 'google_oauth_login',
+    };
+    Object.entries(sysMap).forEach(([elemId, key]) => {
+      const el = document.getElementById(elemId);
+      if (el && settings[key] !== undefined) {
+        el.checked = settings[key] === 1 || settings[key] === '1' || settings[key] === true;
+      }
+    });
+  } catch (err) {
+    console.warn('[AquaSense] Could not load settings:', err);
+  }
+}
+
+function showSettingsBanner(msg, isError) {
+  const el = document.getElementById('settingsStatusBanner');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = isError ? 'rgba(239,68,68,0.1)' : 'rgba(61,214,140,0.12)';
+  el.style.color = isError ? '#DC2626' : '#0F7050';
+  el.style.border = isError ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(61,214,140,0.25)';
+  setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+async function saveNotificationSetting(key, value) {
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const payload = { [key]: value ? 1 : 0 };
+    const res = await fetch('http://localhost:5000/api/system-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showSettingsBanner('Setting updated successfully.', false);
+    } else {
+      throw new Error(data.message || 'Failed to update setting');
+    }
+  } catch (err) {
+    console.error('[AquaSense] saveNotificationSetting error:', err);
+    showSettingsBanner('Update failed: ' + err.message, true);
+    // Revert toggle on error
+    await loadSettingsToggles();
+  }
+}
+
+async function saveSystemSetting(key, value) {
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const payload = { [key]: value ? 1 : 0 };
+    const res = await fetch('http://localhost:5000/api/system-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showSettingsBanner('System setting updated successfully.', false);
+      // Update cached settings for auto-refresh toggle
+      if (key === 'auto_refresh_dashboard' && window.systemSettings) {
+        window.systemSettings[key] = value ? 1 : 0;
+      }
+    } else {
+      throw new Error(data.message || 'Failed to update system setting');
+    }
+  } catch (err) {
+    console.error('[AquaSense] saveSystemSetting error:', err);
+    showSettingsBanner('Update failed: ' + err.message, true);
+    // Revert toggle on error
+    await loadSettingsToggles();
+  }
 }
  
 handleGoogleCallback().then(async () => {
@@ -2542,6 +3039,7 @@ const pageMeta = {
   users:       { title: 'User Management',          subtitle: 'Manage system accounts for Admin, GSU, and HSU roles' },
   'system-logs': { title: 'System Audit Logs',       subtitle: 'Detailed record of system access and operations' },
   settings:    { title: 'Settings',                 subtitle: 'System configuration and notification preferences' },
+  reports:     { title: 'Analytics Reports',        subtitle: 'Generate and export role-specific water monitoring summaries' },
 };
  
 // ── navigate() — now saves active view to sessionStorage ───────────────────
@@ -2602,6 +3100,17 @@ function navigate(viewKey) {
   if (titleEl) titleEl.textContent = meta.title || viewKey;
   if (subtitleEl) subtitleEl.textContent = meta.subtitle || '';
 
+  // Close mobile sidebar on navigation
+  const app = document.querySelector('.app');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (app && app.classList.contains('sidebar-active')) {
+    app.classList.remove('sidebar-active');
+    if (overlay) {
+      overlay.classList.remove('active');
+      overlay.style.display = 'none';
+    }
+  }
+
   // Scroll content to top safely
   const contentEl = document.querySelector('.content');
   if (contentEl) contentEl.scrollTop = 0;
@@ -2609,6 +3118,24 @@ function navigate(viewKey) {
   // Save the active view so browser refresh restores it
   sessionStorage.setItem('activeView', viewKey);
 }
+
+// ── toggleSidebar() for mobile layouts ──────────────────────────────────────
+window.toggleSidebar = function(e) {
+  if (e) e.stopPropagation();
+  const app = document.querySelector(".app");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (app && overlay) {
+    const isActive = app.classList.toggle("sidebar-active");
+    if (isActive) {
+      overlay.style.display = "block";
+      setTimeout(() => overlay.classList.add("active"), 10);
+    } else {
+      overlay.classList.remove("active");
+      setTimeout(() => overlay.style.display = "none", 250);
+    }
+  }
+};
+
 // ── Attach click handlers to nav items ─────────────────────────────────────
 document.querySelectorAll('.nav-item[data-view]').forEach(item => {
   item.addEventListener('click', () => navigate(item.dataset.view));
@@ -2640,6 +3167,17 @@ function applyRoleGating(role) {
   const isHsu = role && role.toLowerCase() === 'hsu';
   const isGsuOrAdmin = isGsu || isAdmin;
   const isHsuOrAdmin = isHsu || isAdmin;
+
+  // Show/hide System Settings panel — admin only
+  const sysPanel = document.getElementById('systemSettingsPanel');
+  if (sysPanel) {
+    sysPanel.style.display = isAdmin ? 'block' : 'none';
+  }
+  // Adjust settings grid: full-width if only one panel visible
+  const settingsGrid = document.getElementById('settingsGrid');
+  if (settingsGrid) {
+    settingsGrid.style.gridTemplateColumns = isAdmin ? '1fr 1fr' : '1fr';
+  }
 
   // 1. Pages/Views that only admins are allowed to see
   const adminOnlyViews = ['users', 'thresholds', 'devices', 'locations', 'system-logs'];
@@ -2777,7 +3315,11 @@ function closeAddDeviceModal() {
 }
 
 function handleModalBackdropClick(e) {
-  if (e.target === document.getElementById('addDeviceModal')) closeAddDeviceModal();
+  const backdrop = document.getElementById('addDeviceModal');
+  const container = backdrop.querySelector('.modal-container');
+  if (e.target === backdrop || e.target === container) {
+    closeAddDeviceModal();
+  }
 }
 
 function resetModalForm() {
@@ -3298,6 +3840,8 @@ async function executeDelete() {
     device:   `http://localhost:5000/api/devices/${id}`,
     readings: `http://localhost:5000/api/sensors`, // bulk endpoint — ids sent in body
     alerts:   `http://localhost:5000/api/alerts`, // bulk endpoint — ids sent in body
+    audit:    `http://localhost:5000/api/audit-logs/${id}`,
+    audits:   `http://localhost:5000/api/audit-logs`
   };
   const url = endpointMap[type];
   if (!url) {
@@ -3313,7 +3857,7 @@ async function executeDelete() {
       headers: { 'Authorization': `Bearer ${token}` },
     };
     // Bulk deletes send the selected ids as a JSON body
-    if (type === 'readings' || type === 'alerts') {
+    if (type === 'readings' || type === 'alerts' || type === 'audits') {
       fetchOpts.headers['Content-Type'] = 'application/json';
       fetchOpts.body = JSON.stringify({ ids: id });
     }
@@ -3328,7 +3872,7 @@ async function executeDelete() {
       const deletedName = pendingDelete.name;
 
       closeDeleteConfirmModal();
-      showToast('Deleted', `${deletedName} ${type === 'readings' || type === 'alerts' ? 'have' : 'has'} been removed.`);
+      showToast('Deleted', `${deletedName} ${type === 'readings' || type === 'alerts' || type === 'audits' ? 'have' : 'has'} been removed.`);
 
       if (type === 'location' && window.viewLoaders && window.viewLoaders.locations) {
         window.viewLoaders.locations();
@@ -3349,6 +3893,14 @@ async function executeDelete() {
         }
         if (typeof refreshAlertBadgeCounts === 'function') {
           refreshAlertBadgeCounts();
+        }
+      }
+      if (type === 'audit' || type === 'audits') {
+        if (type === 'audits' && typeof clearAuditsSelection === 'function') {
+          clearAuditsSelection();
+        }
+        if (window.viewLoaders && window.viewLoaders['system-logs']) {
+          window.viewLoaders['system-logs']();
         }
       }
     } else {
@@ -3822,6 +4374,48 @@ function handleReadingModalBackdrop(e) {
   }
 }
 
+function openAuditDetailsModal(log) {
+  document.getElementById('auditDetailHeaderSubtitle').textContent = `Log ID: #${log.id}`;
+  
+  const timeStr = log.created_at 
+    ? new Date(log.created_at).toLocaleString('en-PH', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true
+      })
+    : '—';
+  document.getElementById('auditDetailTime').textContent = timeStr;
+  document.getElementById('auditDetailIp').textContent = log.ip_address || '—';
+  document.getElementById('auditDetailUser').textContent = log.username || '—';
+  
+  const roleLower = (log.role || "").toLowerCase();
+  const roleLabelText = log.role ? log.role.toUpperCase() : "—";
+  let roleClass = roleLower;
+  if (roleLower !== "admin" && roleLower !== "gsu" && roleLower !== "hsu") {
+    roleClass = "";
+  }
+  document.getElementById('auditDetailRole').innerHTML = `<span class="role-badge ${roleClass}">${roleLabelText}</span>`;
+  document.getElementById('auditDetailAction').textContent = log.action || '—';
+  document.getElementById('auditDetailDetails').textContent = log.details || '—';
+  
+  document.getElementById('auditDetailsModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAuditDetailsModal() {
+  document.getElementById('auditDetailsModal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleAuditDetailsModalBackdrop(e) {
+  if (e.target.id === 'auditDetailsModal') {
+    closeAuditDetailsModal();
+  }
+}
+
+window.openAuditDetailsModal = openAuditDetailsModal;
+window.closeAuditDetailsModal = closeAuditDetailsModal;
+window.handleAuditDetailsModalBackdrop = handleAuditDetailsModalBackdrop;
+
 // ── Device details modal handlers ───────────────────────────────────────────
 document.addEventListener('click', (e) => {
   const row = e.target.closest('.device-clickable-row');
@@ -4052,6 +4646,79 @@ function clearReadingsFilters() {
     window.viewLoaders.readings();
   }
 }
+
+// ── Maintenance Filter bar ──────────────────────────────────────────────────
+let maintActiveFilters = { search: '', device_id: '', range: '' };
+
+function toggleMaintFilterBar() {
+  const bar = document.getElementById('maintFilterBar');
+  if (!bar) return;
+  const showing = bar.style.display !== 'none';
+  bar.style.display = showing ? 'none' : 'flex';
+  if (!showing) populateMaintDeviceFilter();
+}
+
+async function populateMaintDeviceFilter() {
+  const sel = document.getElementById('maintFilterDevice');
+  if (!sel || sel.dataset.loaded === 'true') return;
+
+  try {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res   = await fetch('http://localhost:5000/api/devices', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to fetch devices');
+    const rows = await res.json();
+
+    rows.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.device_id;
+      opt.textContent = `${d.device_id}${d.device_name ? ' — ' + d.device_name : ''}`;
+      sel.appendChild(opt);
+    });
+    sel.dataset.loaded = 'true';
+  } catch (err) {
+    console.warn('[AquaSense] Could not load devices for maint filter:', err);
+  }
+}
+
+function applyMaintFilters() {
+  maintActiveFilters = {
+    search:    document.getElementById('maintFilterSearch')?.value || '',
+    device_id: document.getElementById('maintFilterDevice')?.value || '',
+    range:     document.getElementById('maintFilterRange')?.value  || '',
+  };
+
+  const badge = document.getElementById('maintFilterActiveBadge');
+  const isActive = !!(maintActiveFilters.search || maintActiveFilters.device_id || maintActiveFilters.range);
+  if (badge) badge.style.display = isActive ? 'inline-block' : 'none';
+
+  if (typeof loadMaintenanceLogs === 'function') {
+    loadMaintenanceLogs();
+  }
+}
+
+function clearMaintFilters() {
+  const searchInput = document.getElementById('maintFilterSearch');
+  const devSel = document.getElementById('maintFilterDevice');
+  const rangeSel = document.getElementById('maintFilterRange');
+  if (searchInput) searchInput.value = '';
+  if (devSel)      devSel.value      = '';
+  if (rangeSel)    rangeSel.value    = '';
+
+  maintActiveFilters = { search: '', device_id: '', range: '' };
+  const badge = document.getElementById('maintFilterActiveBadge');
+  if (badge) badge.style.display = 'none';
+
+  if (typeof loadMaintenanceLogs === 'function') {
+    loadMaintenanceLogs();
+  }
+}
+
+window.maintActiveFilters = maintActiveFilters;
+window.toggleMaintFilterBar = toggleMaintFilterBar;
+window.applyMaintFilters = applyMaintFilters;
+window.clearMaintFilters = clearMaintFilters;
 
 // ── EDIT USER MODAL HANDLERS ──────────────────────────────────────────────────
 function openEditUserModal(user) {

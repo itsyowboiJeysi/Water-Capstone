@@ -12,6 +12,7 @@ const googleRoutes   = require("./routes/google");
 const { generalLimiter } = require("./middleware/rateLimiter");
 const dataRoutes     = require("./routes/dataRoutes");
 const mqtt           = require("mqtt");
+const { classifyWaterQuality } = require("./utils/waterQualityClassifier");
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -55,14 +56,84 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "AquaMonitor", time: new Date().toISOString() });
 });
 
+// ── Settings & SMS Helpers ───────────────────────────────────────────────────
+async function getSettingsMap() {
+  try {
+    const [rows] = await pool.query("SELECT * FROM system_settings");
+    const settings = {};
+    rows.forEach(r => {
+      settings[r.setting_key] = r.setting_value;
+    });
+    return settings;
+  } catch (err) {
+    console.error("Error loading system settings:", err.message);
+    return {
+      sms_alerts: "1",
+      critical_alerts_only: "0",
+      device_offline_alerts: "1",
+      daily_summary_report: "1",
+      auto_refresh_dashboard: "1",
+      data_logging: "1",
+      maintenance_mode: "0",
+      google_oauth_login: "1"
+    };
+  }
+}
+
+async function triggerSmsAlert(deviceId, alertMsg, alertLevel) {
+  try {
+    const systemSettings = await getSettingsMap();
+
+    // Get phone numbers of admin, gsu, or hsu users
+    const [users] = await pool.query(
+      "SELECT user_id, fullname, phone_number FROM users WHERE role IN ('admin', 'gsu', 'hsu') AND phone_number IS NOT NULL AND phone_number != ''"
+    );
+
+    if (users.length === 0) {
+      if (systemSettings.sms_alerts === "1" && (systemSettings.critical_alerts_only !== "1" || alertLevel === "critical")) {
+        await pool.query(
+          "INSERT INTO sms_logs (device_id, message, recipient, provider, status) VALUES (?, ?, ?, 'Semaphore', 'sent')",
+          [deviceId, alertMsg.slice(0, 250), "+639123456789"]
+        );
+      }
+    } else {
+      for (const u of users) {
+        // Fetch user preferences
+        const [userSettingsRows] = await pool.query(
+          "SELECT setting_key, setting_value FROM user_settings WHERE user_id = ?",
+          [u.user_id]
+        );
+        const userSettings = {};
+        userSettingsRows.forEach(r => {
+          userSettings[r.setting_key] = r.setting_value;
+        });
+
+        // Resolve setting value: user preference first, then fallback to global system setting
+        const smsAlertsPref = userSettings.sms_alerts !== undefined ? userSettings.sms_alerts : systemSettings.sms_alerts;
+        const critOnlyPref  = userSettings.critical_alerts_only !== undefined ? userSettings.critical_alerts_only : systemSettings.critical_alerts_only;
+
+        if (smsAlertsPref !== "1") continue;
+        if (critOnlyPref === "1" && alertLevel !== "critical") continue;
+
+        await pool.query(
+          "INSERT INTO sms_logs (device_id, message, recipient, provider, status) VALUES (?, ?, ?, 'Semaphore', 'sent')",
+          [deviceId, alertMsg.slice(0, 250), u.phone_number]
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[SMS Alert Trigger] Error:", err.message);
+  }
+}
+
 // ── MQTT Subscriber ───────────────────────────────────────────────────────────
 // Connects to the public HiveMQ broker — no auth, no TLS required.
 // Device lookup uses mqtt_topic (VARCHAR), NOT esp32_uid (column does not exist).
 function initMqtt() {
   const mqttClient = mqtt.connect("mqtt://broker.hivemq.com:1883");
 
-  mqttClient.on("connect", () => {
-    // Subscribe to all AquaSense device topics
+  mqttClient.on("connect", async () => {
+    // Subscribe to all AquaSense device topics (wildcard backup)
     mqttClient.subscribe("esp32/aquasense/#", (err) => {
       if (err) {
         console.error("[MQTT] Subscribe error:", err.message);
@@ -70,6 +141,25 @@ function initMqtt() {
         console.log("[MQTT] Subscriber ready — listening on esp32/aquasense/#");
       }
     });
+
+    // Dynamically subscribe to all custom topics stored in the database
+    try {
+      const [devices] = await pool.query("SELECT mqtt_topic FROM devices WHERE mqtt_topic IS NOT NULL");
+      for (const dev of devices) {
+        const topic = dev.mqtt_topic.trim();
+        if (topic) {
+          mqttClient.subscribe(topic, (err) => {
+            if (err) {
+              console.error(`[MQTT] Failed to subscribe to topic on startup: ${topic}`, err.message);
+            } else {
+              console.log(`[MQTT] Subscribed to registered topic on startup: ${topic}`);
+            }
+          });
+        }
+      }
+    } catch (dbErr) {
+      console.error("[MQTT] Failed to fetch device topics for subscription on startup:", dbErr.message);
+    }
   });
 
   mqttClient.on("error", (err) => {
@@ -108,6 +198,9 @@ function initMqtt() {
         return;
       }
 
+      // Fetch system settings
+      const settings = await getSettingsMap();
+
       // ── 3. Insert sensor reading ──────────────────────────────────────────
       // Compute score, safety classification, allowed use, and explanation
       const cls = classifyWaterQuality({
@@ -118,25 +211,27 @@ function initMqtt() {
         ammonia:     d.ammonia       ?? null,
       });
 
-      await pool.query(
-        `INSERT INTO sensor_readings
-           (device_id, ph_level, turbidity, tds, temperature, ammonia, flow_rate, water_consumed, score, safety_classification, allowed_use, explanation)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          dev.device_id,
-          d.ph_level      ?? null,
-          d.turbidity     ?? null,
-          d.tds           ?? null,
-          d.temperature   ?? null,
-          d.ammonia       ?? null,
-          d.flow_rate     ?? null,
-          d.water_consumed ?? null,
-          cls.score,
-          cls.classification,
-          cls.recommended_use,
-          cls.explanation
-        ]
-      );
+      if (settings.data_logging === "1") {
+        await pool.query(
+          `INSERT INTO sensor_readings
+             (device_id, ph_level, turbidity, tds, temperature, ammonia, flow_rate, water_consumed, score, safety_classification, allowed_use, explanation)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            dev.device_id,
+            d.ph_level      ?? null,
+            d.turbidity     ?? null,
+            d.tds           ?? null,
+            d.temperature   ?? null,
+            d.ammonia       ?? null,
+            d.flow_rate     ?? null,
+            d.water_consumed ?? null,
+            cls.score,
+            cls.classification,
+            cls.recommended_use,
+            cls.explanation
+          ]
+        );
+      }
 
       // ── 4. Mark device as online ──────────────────────────────────────────
       await pool.query(
@@ -181,11 +276,14 @@ function initMqtt() {
         );
 
         if (!existingSensorAlert) {
-          await pool.query(
-            `INSERT INTO alerts (device_id, parameter, value, level, status, message)
-             VALUES (?, 'sensor_health', ?, 'high', 'unresolved', ?)`,
-            [dev.device_id, activeSensorsCount, alertMsg]
-          );
+          if (settings.maintenance_mode !== "1") {
+            await pool.query(
+              `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+               VALUES (?, 'sensor_health', ?, 'high', 'unresolved', ?)`,
+              [dev.device_id, activeSensorsCount, alertMsg]
+            );
+            await triggerSmsAlert(dev.device_id, alertMsg, "high");
+          }
         } else {
           // Update message if it changed
           await pool.query(
@@ -220,6 +318,9 @@ function initMqtt() {
 // Reads threshold_settings and inserts an alert row if any param is out of range.
 async function evaluateThresholds(deviceId, reading) {
   try {
+    const settings = await getSettingsMap();
+    if (settings.maintenance_mode === "1") return; // Skip all alerts in maintenance mode
+
     const [thresholds] = await pool.query("SELECT * FROM threshold_settings");
 
     const paramMap = {
@@ -282,6 +383,7 @@ async function evaluateThresholds(deviceId, reading) {
              VALUES (?, ?, ?, ?, 'unresolved', ?)`,
             [deviceId, t.parameter_name, v, level, message]
           );
+          await triggerSmsAlert(deviceId, message, level);
         }
       }
 
@@ -316,6 +418,7 @@ async function evaluateThresholds(deviceId, reading) {
                VALUES (?, ?, ?, 'high', 'unresolved', ?)`,
               [deviceId, t.parameter_name, v, message]
             );
+            await triggerSmsAlert(deviceId, message, "high");
           }
         }
       }
@@ -332,6 +435,7 @@ async function evaluateThresholds(deviceId, reading) {
 // won't spam a new alert every tick while the device stays down.
 async function checkDeviceHealth() {
   try {
+    const settings = await getSettingsMap();
     const [staleDevices] = await pool.query(
       `SELECT device_id, device_name
        FROM devices
@@ -355,13 +459,18 @@ async function checkDeviceHealth() {
       );
 
       if (!existing) {
-        const message = `${dev.device_name} stopped sending data ${OFFLINE_THRESHOLD_MINUTES}+ minutes ago and has been marked offline.`;
-        await pool.query(
-          `INSERT INTO alerts (device_id, parameter, value, level, status, message)
-           VALUES (?, 'connectivity', NULL, 'medium', 'unresolved', ?)`,
-          [dev.device_id, message]
-        );
-        console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert raised.`);
+        if (settings.device_offline_alerts === "1" && settings.maintenance_mode !== "1") {
+          const message = `${dev.device_name} stopped sending data ${OFFLINE_THRESHOLD_MINUTES}+ minutes ago and has been marked offline.`;
+          await pool.query(
+            `INSERT INTO alerts (device_id, parameter, value, level, status, message)
+             VALUES (?, 'connectivity', NULL, 'medium', 'unresolved', ?)`,
+            [dev.device_id, message]
+          );
+          await triggerSmsAlert(dev.device_id, message, "medium");
+          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert raised.`);
+        } else {
+          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert skipped due to system settings.`);
+        }
       }
     }
   } catch (err) {
@@ -380,7 +489,8 @@ async function checkDeviceHealth() {
     });
 
     // Start MQTT after DB is confirmed ready
-    initMqtt();
+    const mqttClient = initMqtt();
+    app.set("mqttClient", mqttClient);
     console.log("[AquaMonitor] MQTT subscriber initializing…");
 
     // Start periodic offline-device health checks

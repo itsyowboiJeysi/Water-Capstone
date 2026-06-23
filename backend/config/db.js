@@ -60,7 +60,59 @@ async function initDB() {
   `;
   await pool.query(createAuditLogsTable);
 
-  console.log("[AquaMonitor] Database & users & audit_logs tables ready.");
+  const createSettingsTable = `
+    CREATE TABLE IF NOT EXISTS system_settings (
+      setting_key   VARCHAR(100) NOT NULL,
+      setting_value LONGTEXT NOT NULL,
+      PRIMARY KEY (setting_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `;
+  await pool.query(createSettingsTable);
+  
+  // Safe alteration for existing schemas
+  try {
+    await pool.query("ALTER TABLE system_settings MODIFY COLUMN setting_value LONGTEXT NOT NULL");
+  } catch (err) {
+    console.warn("[AquaMonitor] Could not alter system_settings table schema:", err);
+  }
+
+  const createUserSettingsTable = `
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id       INT          NOT NULL,
+      setting_key   VARCHAR(100) NOT NULL,
+      setting_value LONGTEXT NOT NULL,
+      PRIMARY KEY (user_id, setting_key),
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `;
+  await pool.query(createUserSettingsTable);
+
+  try {
+    await pool.query("ALTER TABLE user_settings MODIFY COLUMN setting_value LONGTEXT NOT NULL");
+  } catch (err) {
+    console.warn("[AquaMonitor] Could not alter user_settings table schema:", err);
+  }
+
+  // Seed default settings individually if they are missing
+  const defaults = [
+    ["sms_alerts", "1"],
+    ["critical_alerts_only", "0"],
+    ["device_offline_alerts", "1"],
+    ["daily_summary_report", "1"],
+    ["auto_refresh_dashboard", "1"],
+    ["data_logging", "1"],
+    ["maintenance_mode", "0"],
+    ["google_oauth_login", "1"]
+  ];
+  for (const [key, val] of defaults) {
+    const [existing] = await pool.query("SELECT setting_key FROM system_settings WHERE setting_key = ?", [key]);
+    if (existing.length === 0) {
+      await pool.query("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)", [key, val]);
+      console.log(`[AquaMonitor] Seeded missing default setting: ${key} = ${val}`);
+    }
+  }
+
+  console.log("[AquaMonitor] Database & users, audit_logs & settings tables ready.");
 }
 
 module.exports = { pool, initDB };

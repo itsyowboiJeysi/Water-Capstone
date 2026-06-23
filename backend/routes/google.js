@@ -34,7 +34,7 @@ router.get(
     res.redirect(`${process.env.FRONTEND_URL}/dashboard.html?code=${code}`);
 
     } catch (err) {
-      console.error("[AquaMonitor] OAuth callback error:", err);
+      console.error("[OAuth] Callback error:", err);
       res.redirect(`${process.env.FRONTEND_URL}/login.html?error=server_error`);
     }
   }
@@ -42,23 +42,46 @@ router.get(
 
 router.post("/exchange-code", async (req, res) => {
   const { code } = req.body;
-  if (!code) return res.status(400).json({ message: "Code is required." });
+  console.log("[OAuth] /exchange-code request received for code prefix:", code ? code.slice(0, 8) : "none");
+  if (!code) {
+    console.warn("[OAuth] Exchange failed: No code provided.");
+    return res.status(400).json({ message: "Code is required." });
+  }
 
   try {
     const [rows] = await pool.query(
-      "SELECT * FROM oauth_codes WHERE code = ? AND expires_at > NOW()",
+      "SELECT * FROM oauth_codes WHERE code = ?",
       [code]
     );
-    if (rows.length === 0) return res.status(401).json({ message: "Code is invalid or expired." });
+    console.log("[OAuth] Database lookup found codes count:", rows.length);
+    if (rows.length === 0) {
+      console.warn("[OAuth] Exchange failed: Code not found in database.");
+      return res.status(401).json({ message: "Code is invalid." });
+    }
 
-    const { user_id } = rows[0];
+    const record = rows[0];
+    const expDate = new Date(record.expires_at);
+    const nowDate = new Date();
+    console.log("[OAuth] Expiration check: expires_at =", expDate.toISOString(), "now =", nowDate.toISOString());
+    if (expDate < nowDate) {
+      console.warn("[OAuth] Exchange failed: Code has expired.");
+      await pool.query("DELETE FROM oauth_codes WHERE code = ?", [code]);
+      return res.status(401).json({ message: "Code has expired." });
+    }
+
+    const { user_id } = record;
+    console.log("[OAuth] Exchange code valid for user_id:", user_id);
 
     // Delete used code immediately
     await pool.query("DELETE FROM oauth_codes WHERE code = ?", [code]);
 
     // Fetch user
     const [users] = await pool.query("SELECT * FROM users WHERE user_id = ?", [user_id]);
-    if (users.length === 0) return res.status(404).json({ message: "User not found." });
+    console.log("[OAuth] User query returned rows count:", users.length);
+    if (users.length === 0) {
+      console.warn("[OAuth] Exchange failed: Associated user not found in DB.");
+      return res.status(404).json({ message: "User not found." });
+    }
 
     const user = users[0];
     const token = jwt.sign(
@@ -66,6 +89,7 @@ router.post("/exchange-code", async (req, res) => {
       process.env.JWT_SECRET || "aquamonitor_secret",
       { expiresIn: "7d" }
     );
+    console.log("[OAuth] JWT generated successfully for user:", user.email);
 
     res.json({
       token,
@@ -78,7 +102,7 @@ router.post("/exchange-code", async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("[OAuth] exchange-code error:", err);
+    console.error("[OAuth] exchange-code exception:", err);
     res.status(500).json({ message: "Server error." });
   }
 });
