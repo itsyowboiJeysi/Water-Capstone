@@ -2717,6 +2717,21 @@ document.addEventListener("DOMContentLoaded", () => {
         loadAuditLogs();
       });
     }
+    
+    // Pre-fill Report Metadata with logged in user data
+    const authorNameInput = document.getElementById("reportAuthorName");
+    const authorRoleInput = document.getElementById("reportAuthorRole");
+    if (authorNameInput && authorRoleInput) {
+      const userStr = localStorage.getItem("user") || sessionStorage.getItem("user");
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          authorNameInput.value = user.fullname || "System Operator";
+          const labels = { admin: "Administrator", gsu: "GSU Personnel", hsu: "HSU Personnel" };
+          authorRoleInput.value = labels[(user.role || "").toLowerCase()] || "Staff";
+        } catch(e){}
+      }
+    }
   };
 
   setupListeners();
@@ -3014,8 +3029,19 @@ async function exportReportPDF() {
   document.getElementById("tplRecipientRole").textContent = currentUser.role ? currentUser.role.toUpperCase() : "—";
   document.getElementById("tplReportPeriod").textContent = `${startDate} to ${endDate}`;
   document.getElementById("tplReportGeneratedDate").textContent = `Generated: ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  document.getElementById("tplAuthorName").textContent = currentUser.fullname || "System Operator";
-  document.getElementById("tplAuthorRole").textContent = roleLabels[role] || "Staff";
+  const inputAuthorName = document.getElementById("reportAuthorName").value.trim();
+  const inputAuthorRole = document.getElementById("reportAuthorRole").value.trim();
+  const inputRemarks = document.getElementById("reportRemarks").value.trim();
+
+  document.getElementById("tplAuthorName").textContent = inputAuthorName || currentUser.fullname || "System Operator";
+  document.getElementById("tplAuthorRole").textContent = inputAuthorRole || roleLabels[role] || "Staff";
+
+  if (inputRemarks) {
+    document.getElementById("tplRemarksText").textContent = inputRemarks;
+    document.getElementById("tplRemarksContainer").style.display = "block";
+  } else {
+    document.getElementById("tplRemarksContainer").style.display = "none";
+  }
 
   // Build report body HTML formatted for paper print
   let bodyHtml = `
@@ -3058,6 +3084,11 @@ async function exportReportPDF() {
               <td style="border: 1px solid #E2E8F0; padding: 10px;">Ammonia</td>
               <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "—"}</td>
               <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ammonia_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ammonia_violations || 0}</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #E2E8F0; padding: 10px;">Temperature</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_temperature !== null && q.avg_temperature !== undefined ? Number(q.avg_temperature).toFixed(2) + " °C" : "—"}</td>
+              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.temperature_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.temperature_violations || 0}</td>
             </tr>
           </tbody>
         </table>
@@ -3103,6 +3134,44 @@ async function exportReportPDF() {
   bodyHtml += `</div>`;
   document.getElementById("tplReportBody").innerHTML = bodyHtml;
 
+  const formatRadio = document.querySelector('input[name="reportFormat"]:checked');
+  const reportFormat = formatRadio ? formatRadio.value : "average";
+  const locFilter = document.getElementById("reportLocationFilter").value;
+
+  if (reportFormat === "detailed") {
+    document.getElementById("tplReportBody").style.display = "none";
+    document.getElementById("detailedReportChartsContainer").style.display = "block";
+    
+    try {
+      showToast("Preparing Details", "Fetching timeline data...");
+      let url = `/api/sensors?limit=5000&startDate=${startDate}&endDate=${endDate}`;
+      if (locFilter) url += `&buildingId=${locFilter}`;
+      
+      const res = await apiGet(url);
+      const readings = res.data || [];
+      // reverse so it's chronological (oldest to newest)
+      readings.reverse();
+      
+      let chartsHtml = "";
+      chartsHtml += drawDetailedSvgChartString(readings, "ph_level", 0, 14, "pH Level Over Time", "");
+      chartsHtml += drawDetailedSvgChartString(readings, "tds", 0, 1000, "TDS Over Time", " ppm");
+      chartsHtml += drawDetailedSvgChartString(readings, "turbidity", 0, 20, "Turbidity Over Time", " NTU");
+      chartsHtml += drawDetailedSvgChartString(readings, "ammonia", 0, 5, "Ammonia Over Time", " mg/L");
+      chartsHtml += drawDetailedSvgChartString(readings, "temperature", 15, 40, "Temperature Over Time", " °C");
+      
+      document.getElementById("detailedChartsContent").innerHTML = chartsHtml;
+    } catch(err) {
+      console.error(err);
+      showToast("Error", "Could not fetch detailed data.");
+      return;
+    }
+  } else {
+    document.getElementById("tplReportBody").style.display = "block";
+    document.getElementById("detailedReportChartsContainer").style.display = "none";
+    document.getElementById("detailedChartsContent").innerHTML = "";
+  }
+
+
   // Run PDF download using html2pdf.js
   const tplWrapper = document.getElementById("printableReportTemplate");
   const outerWrapper = tplWrapper.parentElement;
@@ -3118,6 +3187,9 @@ async function exportReportPDF() {
 
   try {
     await html2pdf().set(opt).from(tplWrapper).save();
+    try {
+      await apiPost("/api/audit-logs/export", { action: "EXPORT_PDF", details: `Exported Analytics Report PDF (${startDate} to ${endDate})` });
+    } catch(e) { console.error(e); }
   } catch (err) {
     showToast("Export failed", "Could not generate PDF report.");
     console.error(err);
@@ -3126,62 +3198,352 @@ async function exportReportPDF() {
   }
 }
 
-function exportReportCSV() {
+function drawDetailedSvgChartString(data, key, yMin, yMax, title, unit) {
+  if (!data || data.length === 0) {
+    return `<div style="padding: 15px; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 20px;">
+      <h4 style="font-size: 13px; font-weight: 700; color: #1E3A8A; margin: 0 0 10px 0;">${title}</h4>
+      <p style="font-size: 12px; color: #64748B;">No data available for this parameter.</p>
+    </div>`;
+  }
+
+  const svgW = 680; 
+  const svgH = 120;
+  const chartH = 80;
+  const leftPad = 65;
+  const rightPad = 20;
+  const topPad = 15;
+  const slotW = (svgW - leftPad - rightPad) / Math.max(data.length - 1, 1);
+
+  // Y-axis grid
+  const steps = 4;
+  let gridLines = "";
+  for (let i = 0; i <= steps; i++) {
+    const val = yMin + ((yMax - yMin) / steps) * i;
+    const y = topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH;
+    gridLines += `
+      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="#E2E8F0" stroke-width="1.2" stroke-dasharray="4,4"/>
+      <text x="${leftPad - 8}" y="${y + 4}" font-size="9.5" fill="#64748B" text-anchor="end">${val.toFixed(1)}${unit}</text>
+    `;
+  }
+
+  const baseLine = `<line x1="${leftPad}" y1="${topPad + chartH}" x2="${svgW - rightPad}" y2="${topPad + chartH}" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>`;
+
+  const coords = data.map((d, i) => {
+    const x = leftPad + i * slotW;
+    const rawVal = d[key];
+    const val = (rawVal !== null && rawVal !== undefined && rawVal !== "") ? Number(rawVal) : null;
+    const y = (val !== null && !isNaN(val)) ? (topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH) : null;
+    // Format date as "Jun 24 10:00"
+    const dObj = new Date(d.recorded_at);
+    const dateStr = d.recorded_at ? dObj.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) + ' ' + dObj.getHours().toString().padStart(2, '0') + ':00' : "";
+    return { x, y, val, dateStr };
+  });
+
+  const validCoords = coords.filter(c => c.y !== null);
+  let pathHtml = "";
+  let dotsHtml = "";
+  
+  if (validCoords.length > 0) {
+    const polyPoints = validCoords.map(c => `${c.x},${c.y}`).join(" ");
+    const areaPath = `M ${validCoords[0].x},${topPad + chartH} ` + validCoords.map(c => `L ${c.x},${c.y}`).join(" ") + ` L ${validCoords[validCoords.length - 1].x},${topPad + chartH} Z`;
+    
+    pathHtml = `
+      <path d="${areaPath}" fill="url(#detailGrad_${key})" />
+      <polyline fill="none" stroke="#2C9AD1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
+    `;
+
+    if (data.length <= 50) {
+      dotsHtml = validCoords.map(c => `
+        <circle cx="${c.x}" cy="${c.y}" r="1.5" fill="#FFFFFF" stroke="#1A6FA8" stroke-width="1.0" />
+      `).join("");
+      
+      // X-axis labels for max 10 points
+      const labelStep = Math.ceil(validCoords.length / 8);
+      dotsHtml += validCoords.filter((_, i) => i % labelStep === 0).map(c => `
+        <text x="${c.x}" y="${svgH - 5}" font-size="8.5" fill="#64748B" text-anchor="middle">${c.dateStr.split(' ')[0]}</text>
+      `).join("");
+    } else {
+      // Just draw start and end dates
+      const first = validCoords[0];
+      const last = validCoords[validCoords.length - 1];
+      dotsHtml = `
+        <text x="${first.x}" y="${svgH - 5}" font-size="9" fill="#64748B" text-anchor="start">${first.dateStr.split(' ')[0]}</text>
+        <text x="${last.x}" y="${svgH - 5}" font-size="9" fill="#64748B" text-anchor="end">${last.dateStr.split(' ')[0]}</text>
+      `;
+    }
+  }
+
+  return `
+    <div style="border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; background: white; page-break-inside: avoid; margin-bottom: 20px;">
+      <h4 style="font-size: 13px; font-weight: 700; color: #1E3A8A; margin: 0 0 10px 0;">${title}</h4>
+      <svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" style="width:100%; height:${svgH}px; overflow:hidden;">
+        <defs>
+          <linearGradient id="detailGrad_${key}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2C9AD1" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#1A6FA8" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        ${gridLines}
+        ${baseLine}
+        ${pathHtml}
+        ${dotsHtml}
+      </svg>
+    </div>
+  `;
+}
+
+async function exportReportCSV() {
   const startDate = document.getElementById("reportStartDate").value;
   const endDate = document.getElementById("reportEndDate").value;
   if (!startDate || !endDate) {
     showToast("Invalid Dates", "Please select dates first.");
     return;
   }
-  const data = window.lastGeneratedReportData;
-  if (!data) {
-    showToast("No Data", "Please generate a preview before exporting CSV.");
-    return;
-  }
-
-  let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += `AquaSense Water Analytics Report\n`;
-  csvContent += `Reporting Period,${startDate} to ${endDate}\n`;
-  csvContent += `Generated At,${new Date().toLocaleString()}\n\n`;
-
+  
+  const formatRadio = document.querySelector('input[name="reportFormat"]:checked');
+  const reportFormat = formatRadio ? formatRadio.value : "average";
+  const locFilter = document.getElementById("reportLocationFilter").value;
+  
   let currentUser = {};
   try {
     currentUser = JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "{}");
   } catch(e) {}
   const role = (currentUser.role || "").toLowerCase();
 
-  if (role === "hsu" || role === "admin") {
-    const q = data.waterQuality || {};
-    csvContent += `--- WATER QUALITY SUMMARY (HSU) ---\n`;
-    csvContent += `Quality Parameter,Average Observed Value,Regulatory Breaches\n`;
-    csvContent += `pH Level,${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"},${q.ph_violations || 0}\n`;
-    csvContent += `Turbidity (NTU),${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) : "—"},${q.turbidity_violations || 0}\n`;
-    csvContent += `TDS (ppm),${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) : "—"},0\n`;
-    csvContent += `Ammonia (mg/L),${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) : "—"},${q.ammonia_violations || 0}\n`;
-    csvContent += `Total Water Samples Analyzed,${q.total_readings || 0}\n\n`;
+  let htmlContent = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="utf-8">
+      <style>
+        table { border-collapse: collapse; font-family: 'Inter', Arial, sans-serif; width: 100%; margin-bottom: 20px; }
+        th { background-color: #1A6FA8; color: #ffffff; padding: 12px; border: 1px solid #E2E8F0; text-align: left; font-size: 14px; font-weight: bold; }
+        td { padding: 10px; border: 1px solid #E2E8F0; color: #334155; font-size: 13px; }
+        .section-header { background-color: #F8FAFC; color: #1E3A8A; font-weight: bold; font-size: 16px; text-transform: uppercase; border-bottom: 2px solid #1A6FA8; padding: 15px; }
+        .title-row td { background-color: #ffffff; padding: 20px 0; border: none; }
+        .title { font-size: 24px; font-weight: bold; color: #1E3A8A; }
+        .subtitle { font-size: 14px; color: #64748B; margin-top: 5px; }
+      </style>
+    </head>
+    <body>
+      <table>
+        <tr class="title-row">
+          <td colspan="6">
+            <div class="title">AquaSense Water Analytics Report ${reportFormat === 'detailed' ? '(Detailed Timeline)' : ''}</div>
+            <div class="subtitle">Generated: ${new Date().toLocaleString('en-PH')}</div>
+            <div class="subtitle">Reporting Period: ${startDate} to ${endDate}</div>
+          </td>
+        </tr>
+  `;
+
+  if (reportFormat === "detailed") {
+    try {
+      showToast("Preparing Details", "Fetching timeline data...");
+      let url = `/api/sensors?limit=10000&startDate=${startDate}&endDate=${endDate}`;
+      if (locFilter) url += `&buildingId=${locFilter}`;
+      
+      const res = await apiGet(url);
+      const readings = res.data || [];
+      readings.reverse();
+      
+      htmlContent += `
+        <tr><td colspan="6" class="section-header">DETAILED SENSOR TIMELINE</td></tr>
+        <tr>
+          <th>Timestamp</th>
+          <th>pH Level</th>
+          <th>Turbidity (NTU)</th>
+          <th>TDS (ppm)</th>
+          <th>Ammonia (mg/L)</th>
+          <th>Temperature (°C)</th>
+        </tr>
+      `;
+      
+      readings.forEach(r => {
+        const timeStr = r.recorded_at ? new Date(r.recorded_at).toLocaleString('en-PH') : "—";
+        htmlContent += `
+          <tr>
+            <td>${timeStr}</td>
+            <td>${r.ph_level !== null && r.ph_level !== undefined ? Number(r.ph_level).toFixed(2) : "—"}</td>
+            <td>${r.turbidity !== null && r.turbidity !== undefined ? Number(r.turbidity).toFixed(2) : "—"}</td>
+            <td>${r.tds !== null && r.tds !== undefined ? Number(r.tds).toFixed(0) : "—"}</td>
+            <td>${r.ammonia !== null && r.ammonia !== undefined ? Number(r.ammonia).toFixed(3) : "—"}</td>
+            <td>${r.temperature !== null && r.temperature !== undefined ? Number(r.temperature).toFixed(2) : "—"}</td>
+          </tr>
+        `;
+      });
+      
+    } catch(err) {
+      console.error(err);
+      showToast("Error", "Could not fetch detailed data.");
+      return;
+    }
+  } else {
+    // AVERAGE SUMMARY
+    const data = window.lastGeneratedReportData;
+    if (!data) {
+      showToast("No Data", "Please generate a preview before exporting.");
+      return;
+    }
+    
+    if (role === "hsu" || role === "admin") {
+      const q = data.waterQuality || {};
+      htmlContent += `
+          <tr><td colspan="3" class="section-header">WATER QUALITY SUMMARY (HSU)</td></tr>
+          <tr><th>Quality Parameter</th><th>Average Observed Value</th><th>Regulatory Breaches</th></tr>
+          <tr><td>pH Level</td><td>${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"}</td><td style="color:${q.ph_violations > 0 ? '#EF4444' : '#10B981'}; font-weight:bold;">${q.ph_violations || 0}</td></tr>
+          <tr><td>Turbidity (NTU)</td><td>${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) : "—"}</td><td style="color:${q.turbidity_violations > 0 ? '#EF4444' : '#10B981'}; font-weight:bold;">${q.turbidity_violations || 0}</td></tr>
+          <tr><td>TDS (ppm)</td><td>${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) : "—"}</td><td style="color:#10B981; font-weight:bold;">0</td></tr>
+          <tr><td>Ammonia (mg/L)</td><td>${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) : "—"}</td><td style="color:${q.ammonia_violations > 0 ? '#EF4444' : '#10B981'}; font-weight:bold;">${q.ammonia_violations || 0}</td></tr>
+          <tr><td>Temperature (°C)</td><td>${q.avg_temperature !== null && q.avg_temperature !== undefined ? Number(q.avg_temperature).toFixed(2) : "—"}</td><td style="color:${q.temperature_violations > 0 ? '#EF4444' : '#10B981'}; font-weight:bold;">${q.temperature_violations || 0}</td></tr>
+          <tr><td>Total Water Samples Analyzed</td><td><b>${q.total_readings || 0}</b></td><td></td></tr>
+          <tr><td colspan="3" style="border:none; padding:15px;"></td></tr>
+      `;
+    }
+
+    if (role === "gsu" || role === "admin") {
+      const c = data.consumption || {};
+      const m = data.maintenance || {};
+      htmlContent += `
+          <tr><td colspan="2" class="section-header">CONSUMPTION & OPERATIONS SUMMARY (GSU)</td></tr>
+          <tr><th>Operational Metric</th><th>Consolidated Total / Average</th></tr>
+          <tr><td>Total Water Consumption (Liters)</td><td><b>${c.total_consumed !== null && c.total_consumed !== undefined ? Number(c.total_consumed).toLocaleString() + " L" : "0 L"}</b></td></tr>
+          <tr><td>Average Campus Flow Rate</td><td><b>${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "—"}</b></td></tr>
+          <tr><td>Completed Maintenance Activities</td><td><b>${m.total_maintenance_logs || 0} repairs</b></td></tr>
+      `;
+    }
   }
 
-  if (role === "gsu" || role === "admin") {
-    const c = data.consumption || {};
-    const m = data.maintenance || {};
-    csvContent += `--- CONSUMPTION & OPERATIONS SUMMARY (GSU) ---\n`;
-    csvContent += `Operational Metric,Value\n`;
-    csvContent += `Total Consumption (L),${c.total_consumed || 0}\n`;
-    csvContent += `Average Flow Rate (L/min),${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) : "—"}\n`;
-    csvContent += `Completed Maintenance Interventions,${m.total_maintenance_logs || 0}\n\n`;
-  }
+  htmlContent += `
+      </table>
+    </body>
+    </html>
+  `;
 
-  const encodedUri = encodeURI(csvContent);
+  const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel' });
+  const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `AquaSense_Report_${startDate}_to_${endDate}.csv`);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `AquaSense_Report_${startDate}_to_${endDate}.xls`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }
 
 window.loadReportsView = loadReportsView;
 window.fetchReportPreview = fetchReportPreview;
 window.exportReportPDF = exportReportPDF;
 window.exportReportCSV = exportReportCSV;
+
+async function generateReadingReport() {
+  if (!window.currentReadingForReport) {
+    alert("No reading selected.");
+    return;
+  }
+  const reading = window.currentReadingForReport;
+  const timeStr = reading.recorded_at ? new Date(reading.recorded_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '—';
+  const cls = reading.classification || {};
+  const overrides = cls.triggered_overrides || [];
+  
+  let overrideHtml = '';
+  if (overrides.length > 0) {
+    overrideHtml = `<div style="background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 9px; padding: 10px 12px; font-size: 12px; color: #DC2626; margin-top: 15px;">
+      <div style="font-weight: 700; margin-bottom: 2px;">⚠️ Safety Override Triggered</div>
+      <div>${overrides.map(o => `• <strong>${o.label} Out of Range:</strong> ${o.reason} (Forced to: <span style="text-transform: capitalize;">${o.forced_level}</span>)`).join('<br/>')}</div>
+    </div>`;
+  }
+
+  const preparedBy = document.getElementById("readingReportPreparedBy")?.value || "—";
+  const notes = document.getElementById("readingReportNotes")?.value || "—";
+  const generatedDate = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+
+  const html = `
+    <div style="font-family: 'Inter', sans-serif; color: #1E293B; width: 680px; box-sizing: border-box; padding: 30px; background: white;">
+      
+      <!-- Top Letterhead -->
+      <div style="display: grid; grid-template-columns: 80px 1fr; gap: 20px; align-items: center; border-bottom: 2.5px solid #1A6FA8; padding-bottom: 20px; margin-bottom: 24px;">
+        <div>
+          <div style="width: 75px; height: 75px; border-radius: 8px; background: #1A6FA8; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">
+            CSPC
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; margin: 0 0 4px 0; font-weight: 700;">
+              Camarines Sur Polytechnic Colleges
+            </h3>
+            <h1 style="font-size: 22px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">
+              AquaSense Water Analytics
+            </h1>
+            <p style="font-size: 11px; color: #64748B; margin: 4px 0 0 0;">
+              Nabua, Camarines Sur, Philippines
+            </p>
+          </div>
+          <div style="text-align: right;">
+            <span style="display: inline-block; background: rgba(44,154,209,0.1); color: #1A6FA8; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">
+              Reading Report
+            </span>
+            <p style="font-size: 11px; color: #64748B; margin: 8px 0 0 0;">
+              Generated: ${generatedDate}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+        <div>
+          <div style="font-size: 10px; text-transform: uppercase; color: #94A3B8; font-weight: 700; margin-bottom: 4px;">Reading Details</div>
+          <div style="font-size: 14px; font-weight: 600; color: #0F172A;">ID #${reading.id} — Device: ${reading.device_id}</div>
+          <div style="font-size: 13px; color: #475569; margin-top: 2px;">${reading.building_name || 'No location'}</div>
+        </div>
+        <div>
+          <div style="font-size: 10px; text-transform: uppercase; color: #94A3B8; font-weight: 700; margin-bottom: 4px;">Report Metadata</div>
+          <div style="font-size: 13px; color: #475569; margin-bottom: 2px;"><strong>Recorded Time:</strong> ${timeStr}</div>
+          <div style="font-size: 13px; color: #475569;"><strong>Prepared By:</strong> ${preparedBy}</div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div style="border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #475569; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">Parameters</h4>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">pH Level</span> <strong>${Number(reading.ph_level).toFixed(2)} pH</strong></div>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">TDS (Solids)</span> <strong>${Number(reading.tds).toFixed(0)} ppm</strong></div>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">Ammonia</span> <strong>${Number(reading.ammonia).toFixed(2)} mg/L</strong></div>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">Turbidity</span> <strong>${Number(reading.turbidity).toFixed(2)} NTU</strong></div>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">Temperature</span> <strong>${Number(reading.temperature).toFixed(2)} °C</strong></div>
+          <div style="display: flex; justify-content: space-between; margin: 6px 0;"><span style="color:#64748B;">Flow Rate</span> <strong>${Number(reading.flow_rate).toFixed(1)} L/min</strong></div>
+        </div>
+        <div style="border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; font-size: 14px; color: #475569; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px;">Classification: <span style="text-transform: capitalize; color: #0F172A;">${cls.label || 'Safe'}</span></h4>
+          <p style="margin: 6px 0; font-size: 13px;"><strong>Score:</strong> ${cls.score !== undefined ? cls.score + '/100' : '—'}</p>
+          <p style="margin: 6px 0; font-size: 13px;"><strong>Recommended Uses:</strong><br/>${cls.recommended_use || '—'}</p>
+          <p style="margin: 6px 0; font-size: 13px; color: #DC2626;"><strong>Not Recommended:</strong><br/>${cls.not_recommended || '—'}</p>
+          <p style="margin: 6px 0; font-size: 13px;"><strong>Explanation:</strong><br/>${cls.explanation || '—'}</p>
+        </div>
+      </div>
+      
+      ${overrideHtml}
+
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #E2E8F0;">
+        <h4 style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #94A3B8; font-weight: 700;">Remarks & Notes</h4>
+        <p style="margin: 0; font-size: 13px; color: #475569; white-space: pre-wrap;">${notes}</p>
+      </div>
+    </div>
+  `;
+
+  const opt = {
+    margin: [0.5, 0.5],
+    filename: `Reading_Report_${reading.id}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+  };
+  await html2pdf().set(opt).from(html).save();
+  try {
+    await apiPost("/api/audit-logs/export", { action: "EXPORT_PDF", details: `Exported Reading Report PDF (ID: ${reading.id})` });
+  } catch(e) { console.error(e); }
+}
+
+window.generateReadingReport = generateReadingReport;
+
 

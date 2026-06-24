@@ -80,11 +80,13 @@ async function getLatestReadings(req, res) {
 // ─────────────────────────────────────────────────────────────────────────
 async function getSensorReadings(req, res) {
   try {
-    const limit    = Math.min(parseInt(req.query.limit) || 50, 200);
+    const limit    = Math.min(parseInt(req.query.limit) || 50, 10000);
     const page     = Math.max(parseInt(req.query.page)  || 1,  1);
     const offset   = (page - 1) * limit;
     const deviceId = req.query.device_id;
     const range    = req.query.range; // 'today' | '7d' | '30d'
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
 
     const conditions = [];
     const params = [];
@@ -94,7 +96,10 @@ async function getSensorReadings(req, res) {
       params.push(deviceId);
     }
 
-    if (range === "today") {
+    if (startDate && endDate) {
+      conditions.push("DATE(sr.recorded_at) >= ? AND DATE(sr.recorded_at) <= ?");
+      params.push(startDate, endDate);
+    } else if (range === "today") {
       conditions.push("DATE(sr.recorded_at) = CURDATE()");
     } else if (range === "7d") {
       conditions.push("sr.recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
@@ -245,6 +250,18 @@ async function getAlerts(req, res) {
   } catch (err) {
     console.error("[AquaSense] getAlerts error:", err);
     res.status(500).json({ message: "Server error fetching alerts." });
+  }
+}
+
+// POST /api/audit-logs/export
+async function logExportAction(req, res) {
+  try {
+    const { action, details } = req.body;
+    await logAudit(req, action || "EXPORT_PDF", details || "Exported PDF report");
+    res.json({ message: "Export logged successfully" });
+  } catch (err) {
+    console.error("[AquaSense] logExportAction error:", err);
+    res.status(500).json({ message: "Server error logging export." });
   }
 }
 
@@ -667,6 +684,7 @@ async function getReportsSummary(req, res) {
         COUNT(CASE WHEN sr.ph_level < 6.5 OR sr.ph_level > 8.5 THEN 1 END) AS ph_violations,
         COUNT(CASE WHEN sr.turbidity > 5.0 THEN 1 END) AS turbidity_violations,
         COUNT(CASE WHEN sr.ammonia > 0.5 THEN 1 END) AS ammonia_violations,
+        COUNT(CASE WHEN sr.temperature < 20.0 OR sr.temperature > 35.0 THEN 1 END) AS temperature_violations,
         COUNT(*) AS total_readings
       FROM sensor_readings sr
       JOIN devices d ON sr.device_id = d.device_id
@@ -1260,6 +1278,7 @@ module.exports = {
   getAuditLogs,
   deleteAuditLog,
   deleteAuditLogsBulk,
+  logExportAction,
   getSmsLogs,
   getSystemSettings,
   updateSystemSettings,

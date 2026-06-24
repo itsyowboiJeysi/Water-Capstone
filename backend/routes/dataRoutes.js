@@ -31,6 +31,7 @@ const {
   updateSystemSettings,
   getGoogleOauthSetting,
   getReportsSummary,
+  logExportAction,
 } = require("../controllers/dataController");
 const {
   updateDevice,
@@ -60,6 +61,9 @@ router.get  ("/system-settings/google-oauth", getGoogleOauthSetting); // Public 
 
 // GSU and Admin can submit maintenance logs
 router.post ("/maintenance",            verifyToken, createMaintenanceLog);
+
+// Audit logs
+router.post ("/audit-logs/export",      verifyToken, logExportAction);
 
 // Audit logs (RESTRICTED: Admin only)
 router.get  ("/audit-logs",             verifyToken, requireAdmin, getAuditLogs);
