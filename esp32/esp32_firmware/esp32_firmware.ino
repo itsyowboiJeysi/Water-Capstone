@@ -27,12 +27,44 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <mbedtls/md.h>
+#include <ModbusMaster.h>
 
 // ─────────────────────────────────────────────────────────────
 //  PINS & HARDCODED SETTINGS
 // ─────────────────────────────────────────────────────────────
 #define PIN_RESET_BTN  0   // GPIO0  — BOOT button (hold 3 s to reset)
 #define PIN_STATUS_LED 2   // GPIO2  — Built-in LED
+
+// Analog/Digital Sensor Pins
+#define PIN_TDS_SENSOR 34  // GPIO34 — TDS Analog Sensor
+#define PIN_PH_SENSOR  35  // GPIO35 — pH Analog Sensor
+#define PIN_TURB_SENSOR 32 // GPIO32 — Turbidity Analog Sensor
+#define PIN_FLOW_SENSOR 27 // GPIO27 — Flow Rate Digital Sensor (Interrupt)
+
+// RS485 Modbus Pins (NHN-106 Ammonia & Temp)
+#define RS485_RX 16
+#define RS485_TX 17
+#define MAX485_DE_RE 4 // Drive DE & RE tied together
+
+ModbusMaster node;
+
+void preTransmission() {
+  digitalWrite(MAX485_DE_RE, HIGH);
+}
+
+void postTransmission() {
+  digitalWrite(MAX485_DE_RE, LOW);
+}
+
+// Flow Sensor Globals
+volatile int pulseCount = 0;
+unsigned long lastFlowTime = 0;
+float calibrationFactor = 5.0; // YF-S201C specifies 5Hz per L/min
+
+void IRAM_ATTR flowInterrupt() {
+  pulseCount++;
+}
 
 // Hardcoded MQTT Settings
 const char* mqttServer = "broker.hivemq.com";
@@ -179,6 +211,13 @@ void startProvisioning() {
     shouldSaveConfig = false;
   }
 
+  // Fallback: If topic is empty, create a default one
+  if (strlen(mqttTopic) == 0) {
+    snprintf(mqttTopic, sizeof(mqttTopic), "esp32/aquasense/%s", deviceId);
+    saveConfig(); // Save the new default topic to memory
+    Serial.printf("[WiFi] No MQTT topic provided. Defaulting to: %s\n", mqttTopic);
+  }
+
   Serial.printf("[WiFi] ✓ Connected! IP: %s\n", WiFi.localIP().toString().c_str());
   ledBlink(5, 80);
 }
@@ -213,31 +252,142 @@ bool connectMQTT() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  SIMULATED SENSORS
-//  (Replace with real analogRead/digitalRead sensor values)
+//  ACTUAL SENSOR READINGS
 // ─────────────────────────────────────────────────────────────
+
+float currentAmmonia = 0.0;
+float currentTemp = 25.0;
+
+// Poll the RS485 Modbus Sensor (NHN-106) using ModbusMaster library
+void queryModbus() {
+  uint8_t result;
+  
+  // Read 4 Holding Registers starting at address 0x0000 based on your working config
+  // Reg 0 = Ammonia, Reg 2 = Temperature
+  result = node.readHoldingRegisters(0x0000, 4);
+  
+  if (result == node.ku8MBSuccess) {
+    int nh3Reg  = node.getResponseBuffer(0);
+    int tempReg = node.getResponseBuffer(2);
+    
+    // Divide by 10 based on the 00 5A (90 -> 9.0) and 00 F7 (247 -> 24.7) values
+    currentAmmonia = nh3Reg / 10.0f;
+    currentTemp = tempReg / 10.0f;
+  } else {
+    Serial.printf("[Modbus] Failed to read sensor. Error Code: 0x%02X\n", result);
+  }
+}
+
+// Helper function to average analog readings for stability
+int getAverageAnalogRead(int pin, int numSamples = 10) {
+  long sum = 0;
+  for (int i = 0; i < numSamples; i++) {
+    sum += analogRead(pin);
+    delay(10);
+  }
+  return sum / numSamples;
+}
+
 float readPH() {
-  return 7.0f + (random(-100, 101) / 100.0f); // pH 6.0 to 8.0
+  int buffer_arr[10];
+  
+  // Read 10 samples with 30ms delay
+  for (int i = 0; i < 10; i++) {
+    buffer_arr[i] = analogRead(PIN_PH_SENSOR);
+    delay(30);
+  }
+
+  // Sort samples (Bubble Sort) to drop extremes
+  for (int i = 0; i < 9; i++) {
+    for (int j = i + 1; j < 10; j++) {
+      if (buffer_arr[i] > buffer_arr[j]) {
+        int temp = buffer_arr[i];
+        buffer_arr[i] = buffer_arr[j];
+        buffer_arr[j] = temp;
+      }
+    }
+  }
+
+  // Average the middle 6 values (drops 2 highest and 2 lowest for high stability)
+  long avgval = 0;
+  for (int i = 2; i < 8; i++) {
+    avgval += buffer_arr[i];
+  }
+  float adcAverage = avgval / 6.0f;
+
+  // Convert ADC to voltage (Direct connection, no voltage divider multiplier)
+  float voltage = adcAverage * (3.3f / 4095.0f);
+
+  // Calculate pH using user calibration value
+  float calibration_value = 22.84f;
+  float ph = -5.70f * voltage + calibration_value;
+
+  if (ph > 14.0f) ph = 14.0f;
+  if (ph < 0.0f) ph = 0.0f;
+  return ph;
 }
 
 float readTurbidity() {
-  return 1.5f + (random(0, 30) / 10.0f); // 1.5 to 4.5 NTU
-}
+  // User Calibration Values
+  const int ADC_CLEAR = 1710;
+  const int ADC_DIRTY = 700;
 
-float readTDS() {
-  return 150.0f + random(0, 100); // 150 to 250 ppm
+  // Take 100 samples to match the calibration code
+  long sum = 0;
+  for (int i = 0; i < 100; i++) {
+    sum += analogRead(PIN_TURB_SENSOR);
+    delay(2);
+  }
+  int adc = sum / 100;
+  
+  // Map ADC values to 0-100% turbidity
+  float turbidity = (float)(ADC_CLEAR - adc) * 100.0f / (ADC_CLEAR - ADC_DIRTY);
+  
+  // Constrain between 0 and 100%
+  if (turbidity < 0.0f) turbidity = 0.0f;
+  if (turbidity > 100.0f) turbidity = 100.0f;
+  
+  return turbidity;
 }
 
 float readTemperature() {
-  return 25.0f + (random(-20, 21) / 10.0f); // 23°C to 27°C
+  return currentTemp;
+}
+
+float readTDS(float temperature) {
+  int analogValue = getAverageAnalogRead(PIN_TDS_SENSOR);
+  float voltage = analogValue * (3.3f / 4095.0f); // TDS outputs 0-2.3V natively, no divider needed
+  
+  // Temperature compensation formula
+  float compensationCoefficient = 1.0f + 0.02f * (temperature - 25.0f);
+  float compensationVoltage = voltage / compensationCoefficient;
+  
+  // Convert voltage to TDS value
+  float tdsValue = (133.42f * pow(compensationVoltage, 3) - 255.86f * pow(compensationVoltage, 2) + 857.39f * compensationVoltage) * 0.5f;
+  if (tdsValue < 0) return 0;
+  return tdsValue;
 }
 
 float readAmmonia() {
-  return 0.02f + (random(0, 10) / 100.0f); // 0.02 to 0.12 mg/L
+  return currentAmmonia;
 }
 
 float readFlowRate() {
-  return 10.0f + (random(-20, 21) / 10.0f); // 8.0 to 12.0 L/min
+  // Disable interrupts to safely read and reset the pulse count
+  noInterrupts();
+  int currentPulses = pulseCount;
+  pulseCount = 0;
+  interrupts();
+
+  unsigned long now = millis();
+  unsigned long timeElapsed = now - lastFlowTime;
+  lastFlowTime = now;
+
+  if (timeElapsed == 0) return 0;
+
+  // L/min = (pulses / calibrationFactor) / (timeElapsed in minutes)
+  float flowRate = (currentPulses / calibrationFactor) / (timeElapsed / 60000.0f);
+  return flowRate;
 }
 
 float calcWaterConsumed(float flowRate) {
@@ -248,17 +398,19 @@ float calcWaterConsumed(float flowRate) {
 //  SEND SENSOR READINGS IN JSON FORMAT
 // ─────────────────────────────────────────────────────────────
 void sensorCycle() {
+  queryModbus(); // Update Modbus sensor values first
+  
   float ph   = readPH();
   float turb = readTurbidity();
-  float tds  = readTDS();
   float temp = readTemperature();
+  float tds  = readTDS(temp);
   float nh3  = readAmmonia();
   float flow = readFlowRate();
   float cons = calcWaterConsumed(flow);
 
   Serial.println("┌─ Current Sensor Values ──────────────────┐");
   Serial.printf( "│  pH Level : %.2f\n", ph);
-  Serial.printf( "│  Turbidity: %.2f NTU\n", turb);
+  Serial.printf( "│  Turbidity: %.2f %%\n", turb);
   Serial.printf( "│  TDS      : %.1f ppm\n", tds);
   Serial.printf( "│  Temp     : %.1f °C\n", temp);
   Serial.printf( "│  Ammonia  : %.3f mg/L\n", nh3);
@@ -266,18 +418,52 @@ void sensorCycle() {
   Serial.printf( "│  Consumed : %.4f L\n", cons);
 
   if (mqttClient.connected() && strlen(mqttTopic) > 0) {
-    // Construct JSON payload
-    StaticJsonDocument<256> doc;
-    doc["device_id"]      = atoi(deviceId);
-    doc["ph_level"]       = round(ph * 100) / 100.0;
-    doc["turbidity"]      = round(turb * 100) / 100.0;
-    doc["tds"]            = round(tds * 100) / 100.0;
-    doc["temperature"]    = round(temp * 100) / 100.0;
-    doc["ammonia"]        = round(nh3 * 1000) / 1000.0;
-    doc["flow_rate"]      = round(flow * 100) / 100.0;
-    doc["water_consumed"] = round(cons * 10000) / 10000.0;
+    // Format values exactly as backend expects to prevent hashing mismatches
+    char phStr[16], turbStr[16], tdsStr[16], tempStr[16], nh3Str[16], flowStr[16], consStr[16];
+    snprintf(phStr, sizeof(phStr), "%.2f", round(ph * 100) / 100.0);
+    snprintf(turbStr, sizeof(turbStr), "%.2f", round(turb * 100) / 100.0);
+    snprintf(tdsStr, sizeof(tdsStr), "%.2f", round(tds * 100) / 100.0);
+    snprintf(tempStr, sizeof(tempStr), "%.2f", round(temp * 100) / 100.0);
+    snprintf(nh3Str, sizeof(nh3Str), "%.3f", round(nh3 * 1000) / 1000.0);
+    snprintf(flowStr, sizeof(flowStr), "%.2f", round(flow * 100) / 100.0);
+    snprintf(consStr, sizeof(consStr), "%.4f", round(cons * 10000) / 10000.0);
 
-    char payload[256];
+    // Construct raw payload for hashing
+    // Format: "device_id|ph_level|turbidity|tds|temperature|ammonia|flow_rate|water_consumed"
+    String rawPayload = String(atoi(deviceId)) + "|" + phStr + "|" + turbStr + "|" + tdsStr + "|" + tempStr + "|" + nh3Str + "|" + flowStr + "|" + consStr;
+    
+    // Generate HMAC-SHA256
+    const char* secretKey = "AquaSense_IoT_Secret_2026";
+    byte hmacResult[32];
+    mbedtls_md_context_t ctx;
+    mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+    mbedtls_md_init(&ctx);
+    mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(md_type), 1);
+    mbedtls_md_hmac_starts(&ctx, (const unsigned char*)secretKey, strlen(secretKey));
+    mbedtls_md_hmac_update(&ctx, (const unsigned char*)rawPayload.c_str(), rawPayload.length());
+    mbedtls_md_hmac_finish(&ctx, hmacResult);
+    mbedtls_md_free(&ctx);
+
+    String signature = "";
+    for(int i = 0; i < 32; i++){
+      char str[3];
+      sprintf(str, "%02x", (int)hmacResult[i]);
+      signature += str;
+    }
+
+    // Construct JSON payload
+    StaticJsonDocument<512> doc;
+    doc["device_id"]      = atoi(deviceId);
+    doc["ph_level"]       = phStr;
+    doc["turbidity"]      = turbStr;
+    doc["tds"]            = tdsStr;
+    doc["temperature"]    = tempStr;
+    doc["ammonia"]        = nh3Str;
+    doc["flow_rate"]      = flowStr;
+    doc["water_consumed"] = consStr;
+    doc["signature"]      = signature;
+
+    char payload[512];
     serializeJson(doc, payload);
 
     if (mqttClient.publish(mqttTopic, payload)) {
@@ -290,26 +476,6 @@ void sensorCycle() {
     Serial.println("│  MQTT Sent: ✗ Not connected to broker");
   }
   Serial.println("└──────────────────────────────────────────┘");
-}
-
-// ─────────────────────────────────────────────────────────────
-//  RESET WIPE BUTTON INSTRUCTIONS (BOOT Pin hold 3s)
-// ─────────────────────────────────────────────────────────────
-void checkResetButton() {
-  if (digitalRead(PIN_RESET_BTN) == LOW) {
-    Serial.println("[Reset] Button held. Keep pressing for 3s to clear settings...");
-    unsigned long t0 = millis();
-    while (digitalRead(PIN_RESET_BTN) == LOW) {
-      ledBlink(1, 80);
-      if (millis() - t0 > 3000) {
-        Serial.println("[Reset] Cleaning settings and rebooting...");
-        clearConfig();
-        ledBlink(10, 60);
-        delay(500);
-        ESP.restart();
-      }
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -326,9 +492,28 @@ void setup() {
   Serial.println("╚══════════════════════════════════════════╝");
 
   pinMode(PIN_STATUS_LED, OUTPUT);
-  pinMode(PIN_RESET_BTN,  INPUT_PULLUP);
+  pinMode(PIN_TDS_SENSOR, INPUT);
+  pinMode(PIN_PH_SENSOR, INPUT);
+  pinMode(PIN_TURB_SENSOR, INPUT);
+  
+  pinMode(PIN_FLOW_SENSOR, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_FLOW_SENSOR), flowInterrupt, FALLING);
+  
   ledOff();
   randomSeed(analogRead(0));
+
+  pinMode(MAX485_DE_RE, OUTPUT);
+  digitalWrite(MAX485_DE_RE, LOW); // Start in receive mode
+
+  // Initialize RS485 Serial (Serial2) for Ammonia/Temp sensor
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX, RS485_TX);
+  
+  // Initialize ModbusMaster to communicate with Slave ID 6 over Serial2
+  node.begin(6, Serial2);
+  node.preTransmission(preTransmission);
+  node.postTransmission(postTransmission);
+
+  lastFlowTime = millis();
 
   loadConfig();
   startProvisioning();
@@ -341,13 +526,23 @@ void setup() {
 //  MAIN EXECUTION LOOP
 // ─────────────────────────────────────────────────────────────
 void loop() {
-  checkResetButton();
-
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WiFi] Connection lost. Reconnecting...");
+    Serial.println("[WiFi] Connection lost. Attempting to reconnect for 5 seconds...");
     ledOff();
     WiFi.reconnect();
-    delay(5000);
+    
+    unsigned long startWait = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startWait < 5000) {
+      delay(100);
+    }
+    
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("[WiFi] AP not responding for 5 seconds. Wiping saved AP and restarting...");
+      clearConfig(); // Deletes saved Wi-Fi and NVS settings
+      ESP.restart();
+    }
+    
+    Serial.println("[WiFi] Reconnected successfully.");
     return;
   }
 

@@ -375,6 +375,7 @@ window.loadDashboardFiltered = async function() {
     renderDashboardStats(summary);
     renderLiveParams(summary.latestReading, "dashboard-params");
     renderHsuDashboard(summary.latestReading);
+    renderDashboardConsumptionChart(summary.dailyConsumption);
   } catch (err) {
     console.error("[AquaSense] loadDashboardFiltered error:", err);
   }
@@ -457,6 +458,9 @@ function renderDashboardStats(summary) {
   const phS   = paramStatus("ph",          r.ph_level);
   const turbS = paramStatus("turbidity",   r.turbidity);
   const tdsS  = paramStatus("tds",         r.tds);
+  const tempS = paramStatus("temperature", r.temperature);
+  const nh3S  = paramStatus("ammonia",     r.ammonia);
+  const flowS = paramStatus("flow_rate",   r.flow_rate);
 
   grid.innerHTML = `
     <div class="stat-card ${phS}">
@@ -487,6 +491,36 @@ function renderDashboardStats(summary) {
       <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
       <div class="stat-label">TDS</div>
       <div class="stat-sub">Safe: ${rangeLabel("tds")} ppm</div>
+    </div>
+
+    <div class="stat-card ${tempS}">
+      <div class="stat-header">
+        <div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div>
+        <span class="stat-badge ${tempS}">${statusLabel(tempS)}</span>
+      </div>
+      <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
+      <div class="stat-label">Temperature</div>
+      <div class="stat-sub">Safe: ${rangeLabel("temperature")} °C</div>
+    </div>
+
+    <div class="stat-card ${nh3S}">
+      <div class="stat-header">
+        <div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div>
+        <span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span>
+      </div>
+      <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
+      <div class="stat-label">Ammonia</div>
+      <div class="stat-sub">Safe: ${rangeLabel("ammonia")} mg/L</div>
+    </div>
+
+    <div class="stat-card ${flowS}">
+      <div class="stat-header">
+        <div class="stat-icon-wrap ${flowS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+        <span class="stat-badge ${flowS}">${statusLabel(flowS)}</span>
+      </div>
+      <div class="stat-value">${fmt(r.flow_rate, 1)}<span class="stat-unit">L/min</span></div>
+      <div class="stat-label">Flow Rate</div>
+      <div class="stat-sub">Safe: ${rangeLabel("flow_rate")} L/min</div>
     </div>
 
     <div class="stat-card info">
@@ -536,8 +570,80 @@ function renderLiveParams(r, containerId) {
       </div>`;
   }).join("");
 }
+// ── Water Consumption chart (dashboard middle-right) ───────────────────────
+function renderDashboardConsumptionChart(dailyConsumption) {
+  const chartEl = document.getElementById("dashboard-consumption-chart");
+  if (!chartEl) return;
 
-// ── Recent readings table (dashboard bottom-right) ───────────────────────────
+  if (!dailyConsumption || dailyConsumption.length === 0) {
+    chartEl.parentElement.innerHTML = emptyPanel("No consumption data available yet.");
+    return;
+  }
+
+  // Find max value for scaling
+  const maxVal = Math.max(...dailyConsumption.map(d => Number(d.consumed) || 0), 500);
+  const chartH = 120; // usable bar height in px
+  const svgW   = 600;
+  const svgH   = 180;
+  const leftPad = 50;
+  const days    = 7; // Last 7 days
+  const slotW   = (svgW - leftPad - 20) / days;
+  const barW    = Math.min(slotW * 0.6, 48);
+
+  // Y-axis labels
+  const yLabels = [maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25].map(v => Math.round(v));
+  const yPositions = [20, 60, 100, 140];
+
+  let gridLines = yLabels.map((val, i) => `
+    <line x1="${leftPad}" y1="${yPositions[i]}" x2="${svgW - 20}" y2="${yPositions[i]}" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
+    <text x="${leftPad - 10}" y="${yPositions[i] + 3}" font-size="10" fill="#8292B0" text-anchor="end">${val}L</text>
+  `).join("");
+
+  let bars = "";
+  
+  // Create an array of the last 7 dates to map against
+  const dateArray = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dateArray.push(d);
+  }
+
+  dateArray.forEach((date, i) => {
+    const dateString = date.toISOString().split('T')[0];
+    const dataPoint = dailyConsumption.find(d => {
+      // Backend returns date object or string, parse it to YYYY-MM-DD
+      const ptDate = new Date(d.date);
+      return ptDate.toISOString().split('T')[0] === dateString;
+    });
+
+    const val = dataPoint ? Number(dataPoint.consumed) || 0 : 0;
+    const x = leftPad + i * slotW + (slotW - barW) / 2;
+    const y = 20 + chartH - (val / maxVal) * chartH;
+    const h = (val / maxVal) * chartH;
+    
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+
+    bars += `
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="5" fill="url(#bg1)"/>
+      <text x="${x + barW / 2}" y="${20 + chartH + 18}" font-size="10" fill="#8292B0" text-anchor="middle">${dayName}</text>
+    `;
+  });
+
+  chartEl.innerHTML = `
+    <defs>
+      <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2C9AD1" stop-opacity=".9"/>
+        <stop offset="100%" stop-color="#1A6FA8" stop-opacity=".7"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <line x1="${leftPad}" y1="${20 + chartH}" x2="${svgW - 20}" y2="${20 + chartH}" stroke="#DDE3EE" stroke-width="1.5"/>
+    <line x1="${leftPad}" y1="30" x2="${svgW - 20}" y2="30" stroke="#EF4444" stroke-width="1.5" stroke-dasharray="6,4" opacity=".5"/>
+    <text x="${svgW - 18}" y="34" font-size="9" fill="#EF4444" opacity=".7">Limit</text>
+    ${bars}
+  `;
+}
 async function loadRecentReadingsTable() {
   const tbody = document.getElementById("dashboard-recent-readings");
   if (!tbody) return;
@@ -664,9 +770,10 @@ function renderLiveStats(r) {
 
   const phS   = paramStatus("ph",          r.ph_level);
   const turbS = paramStatus("turbidity",   r.turbidity);
+  const tdsS  = paramStatus("tds",         r.tds);
   const tempS = paramStatus("temperature", r.temperature);
+  const nh3S  = paramStatus("ammonia",     r.ammonia);
   const flowS = paramStatus("flow_rate",   r.flow_rate);
-
   grid.innerHTML = `
     <div class="stat-card ${phS}">
       <div class="stat-header"><div class="stat-icon-wrap ${phS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="stat-badge ${phS}">${statusLabel(phS)}</span></div>
@@ -678,10 +785,20 @@ function renderLiveStats(r) {
       <div class="stat-value">${fmt(r.turbidity)}<span class="stat-unit">NTU</span></div>
       <div class="stat-label">Turbidity</div><div class="stat-sub">Latest reading</div>
     </div>
+    <div class="stat-card ${tdsS}">
+      <div class="stat-header"><div class="stat-icon-wrap ${tdsS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge ${tdsS}">${statusLabel(tdsS)}</span></div>
+      <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
+      <div class="stat-label">TDS</div><div class="stat-sub">Latest reading</div>
+    </div>
     <div class="stat-card ${tempS}">
       <div class="stat-header"><div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><span class="stat-badge ${tempS}">${statusLabel(tempS)}</span></div>
       <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
       <div class="stat-label">Temperature</div><div class="stat-sub">${tempS === "safe" ? "Within safe range" : "Check threshold"}</div>
+    </div>
+    <div class="stat-card ${nh3S}">
+      <div class="stat-header"><div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div><span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span></div>
+      <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
+      <div class="stat-label">Ammonia</div><div class="stat-sub">Latest reading</div>
     </div>
     <div class="stat-card ${flowS}">
       <div class="stat-header"><div class="stat-icon-wrap ${flowS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge ${flowS}">${statusLabel(flowS)}</span></div>
@@ -2227,6 +2344,12 @@ async function loadSettingsView() {
         const file = e.target.files[0];
         if (!file) return;
         
+        if (!file.type.startsWith("image/")) {
+          showToast("Upload failed", "Please select a valid image file (PNG, JPG, etc).", true);
+          e.target.value = '';
+          return;
+        }
+        
         const reader = new FileReader();
         reader.onloadend = async () => {
           const base64String = reader.result;
@@ -3025,16 +3148,22 @@ async function exportReportPDF() {
     fallbackLogo.style.display = "flex";
   }
 
+  const inputAuthorName = document.getElementById("reportAuthorName").value.trim();
+  const inputAuthorRole = document.getElementById("reportAuthorRole").value.trim();
+  const inputAckName = document.getElementById("reportAckName").value.trim();
+  const inputAckRole = document.getElementById("reportAckRole").value.trim();
+  const inputRemarks = document.getElementById("reportRemarks").value.trim();
+
   // Populate metadata
   document.getElementById("tplRecipientRole").textContent = currentUser.role ? currentUser.role.toUpperCase() : "—";
   document.getElementById("tplReportPeriod").textContent = `${startDate} to ${endDate}`;
   document.getElementById("tplReportGeneratedDate").textContent = `Generated: ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-  const inputAuthorName = document.getElementById("reportAuthorName").value.trim();
-  const inputAuthorRole = document.getElementById("reportAuthorRole").value.trim();
-  const inputRemarks = document.getElementById("reportRemarks").value.trim();
 
   document.getElementById("tplAuthorName").textContent = inputAuthorName || currentUser.fullname || "System Operator";
   document.getElementById("tplAuthorRole").textContent = inputAuthorRole || roleLabels[role] || "Staff";
+  
+  document.getElementById("tplAckName").textContent = inputAckName || "Institutional Head";
+  document.getElementById("tplAckRole").textContent = inputAckRole || "CSPC Administration";
 
   if (inputRemarks) {
     document.getElementById("tplRemarksText").textContent = inputRemarks;

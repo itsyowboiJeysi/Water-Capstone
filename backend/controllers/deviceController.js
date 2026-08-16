@@ -55,7 +55,7 @@ async function createDevice(req, res) {
     // Prevent duplicate mqtt_topic (device_id is now auto-assigned, so this
     // is the new uniqueness check that matters)
     const [existingTopic] = await pool.query(
-      "SELECT device_id FROM devices WHERE mqtt_topic = ?",
+      "SELECT device_id FROM devices WHERE mqtt_topic = ? AND is_deleted = 0",
       [mqtt_topic.trim()]
     );
     if (existingTopic.length > 0) {
@@ -212,9 +212,15 @@ async function deleteDevice(req, res) {
       return res.status(404).json({ message: "Device not found." });
     }
 
-    await pool.query("DELETE FROM devices WHERE device_id = ?", [id]);
+    const mode = req.query.mode || 'soft';
 
-    await logAudit(req, "DELETE_DEVICE", `Deleted device ID: ${id}`);
+    if (mode === 'hard') {
+      await pool.query("DELETE FROM devices WHERE device_id = ?", [id]);
+      await logAudit(req, "DELETE_DEVICE_HARD", `Permanently hard-deleted device ID: ${id} and all associated data.`);
+    } else {
+      await pool.query("UPDATE devices SET is_deleted = 1 WHERE device_id = ?", [id]);
+      await logAudit(req, "DELETE_DEVICE_SOFT", `Soft-deleted device ID: ${id}`);
+    }
 
     return res.status(200).json({ message: "Device deleted successfully." });
 

@@ -12,6 +12,7 @@ const googleRoutes   = require("./routes/google");
 const { generalLimiter } = require("./middleware/rateLimiter");
 const dataRoutes     = require("./routes/dataRoutes");
 const mqtt           = require("mqtt");
+const crypto         = require("crypto");
 const { classifyWaterQuality } = require("./utils/waterQualityClassifier");
 
 const app  = express();
@@ -33,7 +34,8 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ limit: "5mb", extended: true }));
 app.use(generalLimiter);
 
 // Session required by Passport (even though we issue JWTs)
@@ -183,12 +185,22 @@ function initMqtt() {
         return;
       }
 
+      // ── 1.5 Verify HMAC-SHA256 Data Integrity Signature ───────────────────
+      const rawPayload = `${d.device_id}|${d.ph_level}|${d.turbidity}|${d.tds}|${d.temperature}|${d.ammonia}|${d.flow_rate}|${d.water_consumed}`;
+      const secretKey = process.env.ESP32_HMAC_SECRET || "AquaSense_IoT_Secret_2026";
+      const calculatedHash = crypto.createHmac('sha256', secretKey).update(rawPayload).digest('hex');
+
+      if (!d.signature || d.signature !== calculatedHash) {
+        console.warn(`[SECURITY WARNING] Dropped unauthenticated or tampered payload on topic "${topic}". Invalid signature.`);
+        return;
+      }
+
       // ── 2. Look up device by mqtt_topic ───────────────────────────────────
       // The devices table uses device_id (auto-increment INT) as PK.
       // mqtt_topic (VARCHAR) is the correct column to match against — there
       // is NO esp32_uid column.
       const [[dev]] = await pool.query(
-        "SELECT device_id FROM devices WHERE mqtt_topic = ?",
+        "SELECT device_id FROM devices WHERE mqtt_topic = ? AND is_deleted = 0",
         [topic]
       );
 

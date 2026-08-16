@@ -962,7 +962,7 @@
             <div class="panel" id="dashboard-consumption-panel">
               <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>Water Consumption — Last 7 Days</div><button class="panel-action">Export →</button></div>
               <div class="panel-body" style="padding-bottom:8px;">
-                <svg viewBox="0 0 600 180" style="width:100%;height:180px;overflow:visible;">
+                <svg id="dashboard-consumption-chart" viewBox="0 0 600 180" style="width:100%;height:180px;overflow:visible;">
                   <defs><linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2C9AD1" stop-opacity=".9"/><stop offset="100%" stop-color="#1A6FA8" stop-opacity=".7"/></linearGradient><linearGradient id="wg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D4A017" stop-opacity=".9"/><stop offset="100%" stop-color="#C97A00" stop-opacity=".7"/></linearGradient></defs>
                   <line x1="50" y1="20"  x2="580" y2="20"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/><line x1="50" y1="60"  x2="580" y2="60"  stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/><line x1="50" y1="100" x2="580" y2="100" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/><line x1="50" y1="140" x2="580" y2="140" stroke="#DDE3EE" stroke-width="1" stroke-dasharray="4,4"/>
                   <text x="40" y="23" font-size="10" fill="#8292B0" text-anchor="end">500L</text><text x="40" y="63" font-size="10" fill="#8292B0" text-anchor="end">375L</text><text x="40" y="103" font-size="10" fill="#8292B0" text-anchor="end">250L</text><text x="40" y="143" font-size="10" fill="#8292B0" text-anchor="end">125L</text>
@@ -1387,6 +1387,20 @@
               You're about to permanently delete <strong id="deleteModalItemName">this item</strong>.
               Type <strong>CONFIRM</strong> below to proceed.
             </p>
+
+            <div id="deviceDeleteOptions" style="display:none; margin-top:15px; margin-bottom:15px;">
+              <label style="display:block; font-size:13px; font-weight:600; color:var(--text-dark); margin-bottom:8px;">Deletion Mode</label>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--text-mid); cursor:pointer;">
+                  <input type="radio" name="deleteMode" value="soft" checked />
+                  Soft Delete (Archive sensor data)
+                </label>
+                <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--text-mid); cursor:pointer;">
+                  <input type="radio" name="deleteMode" value="hard" />
+                  Hard Delete (Permanently erase device and all its data)
+                </label>
+              </div>
+            </div>
 
             <div class="modal-field">
               <label for="deleteConfirmInput">Type CONFIRM to continue</label>
@@ -2692,8 +2706,16 @@
                 <input type="text" id="reportAuthorName" placeholder="e.g., John Doe" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
               </div>
               <div>
-                <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Role / Title</label>
+                <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Prepared By Role / Title</label>
                 <input type="text" id="reportAuthorRole" placeholder="e.g., Facility Manager" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+              </div>
+              <div>
+                <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Acknowledged By (Name)</label>
+                <input type="text" id="reportAckName" placeholder="e.g., Institutional Head" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+              </div>
+              <div>
+                <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Acknowledged By Role / Title</label>
+                <input type="text" id="reportAckRole" placeholder="e.g., CSPC Administration" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
               </div>
             </div>
             <div>
@@ -2820,8 +2842,8 @@
             </div>
             <div>
               <p style="font-size: 12px; margin-bottom: 40px; color: #64748B;">Acknowledged by:</p>
-              <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: 12px; color: #334155;">Institutional Head</div>
-              <div style="font-size: 11px; color: #64748B; margin-top: 2px;">CSPC Administration</div>
+              <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: 12px; color: #334155;" id="tplAckName">Institutional Head</div>
+              <div style="font-size: 11px; color: #64748B; margin-top: 2px;" id="tplAckRole">CSPC Administration</div>
             </div>
           </div>
 
@@ -3837,6 +3859,17 @@ function openDeleteConfirmModal(type, id, name) {
 
   const input = document.getElementById('deleteConfirmInput');
   input.value = '';
+  
+  const optionsDiv = document.getElementById('deviceDeleteOptions');
+  if (type === 'device') {
+    optionsDiv.style.display = 'block';
+    // Reset to soft delete by default
+    const radios = document.getElementsByName('deleteMode');
+    radios.forEach(r => r.checked = (r.value === 'soft'));
+  } else {
+    optionsDiv.style.display = 'none';
+  }
+  
   hideDeleteModalError();
   setDeleteModalLoading(false);
   updateDeleteButtonState();
@@ -3926,7 +3959,11 @@ async function executeDelete() {
     audit:    `http://localhost:5000/api/audit-logs/${id}`,
     audits:   `http://localhost:5000/api/audit-logs`
   };
-  const url = endpointMap[type];
+  let url = endpointMap[type];
+  if (type === 'device') {
+    const selectedMode = document.querySelector('input[name="deleteMode"]:checked')?.value || 'soft';
+    url += `?mode=${selectedMode}`;
+  }
   if (!url) {
     showDeleteModalError('Unknown item type.');
     setDeleteModalLoading(false);

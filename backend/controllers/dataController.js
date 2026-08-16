@@ -24,6 +24,7 @@ async function getDashboardSummary(req, res) {
         SUM(status = 'maintenance') AS maintenance,
         COUNT(*)                    AS total
       FROM devices
+      WHERE is_deleted = 0
     `);
 
     const [alertCounts] = await pool.query(`
@@ -31,6 +32,16 @@ async function getDashboardSummary(req, res) {
     `);
 
     const [thresholds] = await pool.query(`SELECT * FROM threshold_settings`);
+
+    const [dailyConsumption] = await pool.query(`
+      SELECT 
+        DATE(recorded_at) as date, 
+        COALESCE(SUM(water_consumed), 0) as consumed 
+      FROM sensor_readings 
+      WHERE recorded_at >= CURDATE() - INTERVAL 6 DAY 
+      GROUP BY DATE(recorded_at) 
+      ORDER BY date ASC
+    `);
 
     const latestReading = latestRows[0] || null;
     if (latestReading) {
@@ -42,6 +53,7 @@ async function getDashboardSummary(req, res) {
       devices:       deviceCounts[0],
       activeAlerts:  alertCounts[0].active,
       thresholds,
+      dailyConsumption,
     });
   } catch (err) {
     console.error("[AquaSense] getDashboardSummary error:", err);
@@ -379,6 +391,7 @@ async function getDevices(req, res) {
         (SELECT MAX(recorded_at) FROM sensor_readings sr WHERE sr.device_id = d.device_id) AS last_reading_at
       FROM devices d
       LEFT JOIN locations l ON d.location_id = l.location_id
+      WHERE d.is_deleted = 0
       ORDER BY d.device_id ASC
     `);
     res.json(rows);
@@ -418,7 +431,7 @@ async function createDevice(req, res) {
   try {
     // ── Check duplicate mqtt_topic ──────────────────────────────────────
     const [existing] = await pool.query(
-      "SELECT device_id FROM devices WHERE mqtt_topic = ?",
+      "SELECT device_id FROM devices WHERE mqtt_topic = ? AND is_deleted = 0",
       [mqtt_topic.trim()]
     );
     if (existing.length > 0) {
@@ -478,7 +491,7 @@ async function getLocations(req, res) {
         l.*,
         COUNT(d.device_id) AS device_count
       FROM locations l
-      LEFT JOIN devices d ON d.location_id = l.location_id
+      LEFT JOIN devices d ON d.location_id = l.location_id AND d.is_deleted = 0
       GROUP BY l.location_id
       ORDER BY l.location_id ASC
     `);
@@ -566,6 +579,7 @@ async function getAnalyticsSummary(req, res) {
         SUM(status = 'online') AS online,
         COUNT(*) AS total
       FROM devices
+      WHERE is_deleted = 0
     `);
     const onlineDevices = deviceStats?.online || 0;
     const totalDevices = deviceStats?.total || 0;
@@ -629,18 +643,39 @@ async function getAnalyticsSummary(req, res) {
       GROUP BY l.building_name
     `);
 
+    const [dailyConsumption] = await pool.query(`
+      SELECT 
+        DATE(recorded_at) as date, 
+        COALESCE(SUM(water_consumed), 0) as consumed 
+      FROM sensor_readings 
+      WHERE recorded_at >= CURDATE() - INTERVAL 6 DAY 
+      GROUP BY DATE(recorded_at) 
+      ORDER BY date ASC
+    `);
+
+    const [qualityAnomalies] = await pool.query(`
+      SELECT COUNT(*) AS total FROM alerts WHERE parameter IN ('ph', 'turbidity', 'tds', 'ammonia')
+    `);
+
+    const [flowAnomalies] = await pool.query(`
+      SELECT COUNT(*) AS total FROM alerts WHERE parameter = 'flow_rate'
+    `);
+
     res.json({
-      totalWeekConsumption: Number(weekConsumption.total),
+      totalWeekConsumption: Number(weekConsumption?.total || 0),
       uptimePercent,
       onlineDevices,
       totalDevices,
       alertStats: {
-        total_month: alertStats.total_month || 0,
-        unresolved: alertStats.unresolved || 0,
+        total_month: alertStats?.total_month || 0,
+        unresolved: alertStats?.unresolved || 0,
       },
-      avgPh: phStats.avg_ph ? Number(phStats.avg_ph) : null,
-      dailyTotals,
+      avgPh: phStats ? phStats.avg_ph : null,
+      qualityAnomalies: qualityAnomalies[0].total,
+      flowAnomalies: flowAnomalies[0].total,
       buildingDaily,
+      dailyTotals,
+      dailyConsumption
     });
   } catch (err) {
     console.error("[AquaSense] getAnalyticsSummary error:", err);
@@ -750,6 +785,7 @@ async function getDevicesHealth(req, res) {
         SELECT * FROM sensor_readings
         WHERE id IN (SELECT MAX(id) FROM sensor_readings GROUP BY device_id)
       ) sr ON d.device_id = sr.device_id
+      WHERE d.is_deleted = 0
       ORDER BY d.device_name ASC
     `);
 
@@ -1218,6 +1254,9 @@ async function updateSystemSettings(req, res) {
         }
       } else if (SYSTEM_SETTINGS_KEYS.has(key)) {
         if (isAdmin) {
+          if (key === 'report_logo_base64' && valStr && !valStr.startsWith('data:image/')) {
+            return res.status(400).json({ message: "Invalid format: Logo must be an image file." });
+          }
           await pool.query(
             `INSERT INTO system_settings (setting_key, setting_value) 
              VALUES (?, ?) 
