@@ -47,7 +47,7 @@ async function apiPost(path, body) {
     },
     body: JSON.stringify(body)
   });
-  if (res.status === 401 || res.status === 403) {
+  if (res.status === 401) {
     logout();
     return null;
   }
@@ -67,7 +67,7 @@ async function apiPut(path, body) {
     },
     body: JSON.stringify(body)
   });
-  if (res.status === 401 || res.status === 403) {
+  if (res.status === 401) {
     logout();
     return null;
   }
@@ -2100,25 +2100,51 @@ async function loadDevicesHealthTracker() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SMS LOGS VIEW
+// SMS LOGS VIEW (Paginated & Super Admin Deletable)
 // ═════════════════════════════════════════════════════════════════════════════
+let smsCurrentPage = 1;
+let smsTotalPages = 1;
+const smsPageSize = 15;
+let selectedSmsIds = new Set();
+let smsSearchTimeout = null;
 
-async function loadSmsLogs() {
-  // ── Stat cards ──────────────────────────────────────────────────────────
+async function loadSmsLogs(page = 1) {
+  smsCurrentPage = page;
   const statsEl = document.getElementById("sms-stats");
- 
-  // ── Log list ────────────────────────────────────────────────────────────
   const listEl = document.getElementById("sms-list");
- 
+
+  const searchInput = document.getElementById("smsSearchInput");
+  const statusFilter = document.getElementById("smsStatusFilter");
+  const search = searchInput ? searchInput.value.trim() : "";
+  const status = statusFilter ? statusFilter.value.trim() : "";
+
   try {
-    const rows = await apiGet("/api/sms-logs?limit=50");
-    if (!rows) return;
- 
-    // ── Compute counts ────────────────────────────────────────────────────
-    const sent    = rows.filter(r => r.status === "sent").length;
-    const failed  = rows.filter(r => r.status === "failed").length;
-    const pending = rows.filter(r => r.status === "pending").length;
- 
+    const params = new URLSearchParams();
+    params.set("page", smsCurrentPage);
+    params.set("limit", smsPageSize);
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+
+    const res = await apiGet(`/api/sms-logs?${params.toString()}`);
+    if (!res) return;
+
+    // Handle both object response format and legacy array format
+    const rows = Array.isArray(res) ? res : (res.data || []);
+    const pagination = res.pagination || {
+      page: smsCurrentPage,
+      limit: smsPageSize,
+      total: rows.length,
+      totalPages: 1
+    };
+    const stats = res.stats || {
+      sent: rows.filter(r => r.status === "sent").length,
+      failed: rows.filter(r => r.status === "failed").length,
+      pending: rows.filter(r => r.status === "pending").length,
+      total: rows.length
+    };
+
+    smsTotalPages = pagination.totalPages || 1;
+
     // ── Render stat cards ─────────────────────────────────────────────────
     if (statsEl) {
       statsEl.innerHTML = `
@@ -2131,10 +2157,10 @@ async function loadSmsLogs() {
             </div>
             <span class="stat-badge safe">Sent</span>
           </div>
-          <div class="stat-value">${sent}</div>
+          <div class="stat-value">${stats.sent}</div>
           <div class="stat-label">Messages Sent</div>
         </div>
- 
+
         <div class="stat-card danger">
           <div class="stat-header">
             <div class="stat-icon-wrap danger">
@@ -2145,10 +2171,10 @@ async function loadSmsLogs() {
             </div>
             <span class="stat-badge danger">Failed</span>
           </div>
-          <div class="stat-value">${failed}</div>
+          <div class="stat-value">${stats.failed}</div>
           <div class="stat-label">Failed</div>
         </div>
- 
+
         <div class="stat-card warn">
           <div class="stat-header">
             <div class="stat-icon-wrap warn">
@@ -2158,62 +2184,869 @@ async function loadSmsLogs() {
             </div>
             <span class="stat-badge warn">Pending</span>
           </div>
-          <div class="stat-value">${pending}</div>
+          <div class="stat-value">${stats.pending}</div>
           <div class="stat-label">Pending</div>
         </div>`;
     }
- 
+
     // ── Render log list ───────────────────────────────────────────────────
     if (!listEl) return;
- 
+
     if (rows.length === 0) {
-      listEl.innerHTML = emptyPanel("No SMS notifications sent yet.");
+      listEl.innerHTML = emptyPanel("No SMS notifications match your criteria.");
+      updateSmsPaginationUI(0, 0, 0, 1, 1);
       return;
     }
- 
+
+    const isAdmin = currentUserIsAdmin();
     const phoneIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
     </svg>`;
- 
+
     listEl.innerHTML = rows.map(s => {
       const statusClass = s.status === "sent"    ? "sent"
                         : s.status === "failed"  ? "failed"
                         : "pending";
- 
+
       const iconBg = s.status === "failed"
         ? "background:rgba(239,68,68,.1);stroke:#DC2626"
         : "background:rgba(44,154,209,.1);stroke:var(--water-1)";
- 
+
       const location = s.building_name
         ? `${s.building_name}${s.device_id ? " · " + s.device_id : ""}`
         : (s.device_id || "—");
- 
+
       const sentAt = s.created_at
         ? new Date(s.created_at).toLocaleString("en-PH", {
             month: "short", day: "numeric", year: "numeric",
             hour: "numeric", minute: "2-digit", hour12: true,
           })
         : "—";
- 
+
+      const isChecked = selectedSmsIds.has(s.id);
+      const checkboxHtml = isAdmin ? `
+        <input type="checkbox" class="sms-row-checkbox" data-id="${s.id}" ${isChecked ? 'checked' : ''} onchange="toggleSelectSms('${s.id}', this.checked)" style="margin-right:6px;align-self:center;cursor:pointer;" />
+      ` : '';
+
+      const deleteBtnHtml = isAdmin ? `
+        <button class="delete-sms-btn" data-id="${s.id}" data-name="${escapeHtml(s.message || 'SMS Log')}" title="Delete SMS log" aria-label="Delete SMS log" style="background:transparent;border:none;color:var(--danger);cursor:pointer;padding:6px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;align-self:center;flex-shrink:0;margin-left:8px;transition:background 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      ` : '';
+
       return `
         <div class="sms-item">
+          ${checkboxHtml}
           <div class="sms-icon-wrap" style="${iconBg}">${phoneIcon}</div>
           <div class="sms-info">
-            <div class="sms-msg">${s.message}</div>
+            <div class="sms-msg">${escapeHtml(s.message)}</div>
             <div class="sms-meta">
-              To: ${s.recipient} · ${location} · Provider: ${s.provider || "Semaphore"} · ${sentAt}
+              To: ${escapeHtml(s.recipient)} · ${escapeHtml(location)} · Provider: ${escapeHtml(s.provider || "Semaphore")} · ${sentAt}
             </div>
           </div>
           <span class="sms-status ${statusClass}">${s.status.charAt(0).toUpperCase() + s.status.slice(1)}</span>
+          ${deleteBtnHtml}
         </div>`;
     }).join("");
- 
+
+    // Update bulk action controls
+    updateSmsBulkDeleteButton();
+
+    // Update Pagination UI
+    const startCount = (pagination.page - 1) * pagination.limit + 1;
+    const endCount = Math.min(pagination.page * pagination.limit, pagination.total);
+    updateSmsPaginationUI(startCount, endCount, pagination.total, pagination.page, pagination.totalPages);
+
   } catch (err) {
     console.error("[AquaSense] loadSmsLogs error:", err);
     if (listEl) listEl.innerHTML = emptyPanel("Unable to load SMS logs.");
     if (statsEl) statsEl.innerHTML = "";
   }
 }
+
+function updateSmsPaginationUI(start, end, total, page, totalPages) {
+  const startEl = document.getElementById("smsPageStart");
+  const endEl = document.getElementById("smsPageEnd");
+  const totalEl = document.getElementById("smsTotalCount");
+  const pageNumEl = document.getElementById("smsPageNum");
+  const prevBtn = document.getElementById("smsPrevBtn");
+  const nextBtn = document.getElementById("smsNextBtn");
+
+  if (startEl) startEl.textContent = total > 0 ? start : 0;
+  if (endEl) endEl.textContent = end;
+  if (totalEl) totalEl.textContent = total;
+  if (pageNumEl) pageNumEl.textContent = `Page ${page} of ${totalPages || 1}`;
+
+  if (prevBtn) prevBtn.disabled = page <= 1;
+  if (nextBtn) nextBtn.disabled = page >= totalPages;
+}
+
+function smsPrevPage() {
+  if (smsCurrentPage > 1) {
+    loadSmsLogs(smsCurrentPage - 1);
+  }
+}
+
+function smsNextPage() {
+  if (smsCurrentPage < smsTotalPages) {
+    loadSmsLogs(smsCurrentPage + 1);
+  }
+}
+
+function filterSmsStatus() {
+  loadSmsLogs(1);
+}
+
+function debounceSmsSearch() {
+  clearTimeout(smsSearchTimeout);
+  smsSearchTimeout = setTimeout(() => {
+    loadSmsLogs(1);
+  }, 300);
+}
+
+function toggleSelectSms(id, isChecked) {
+  const numId = Number(id);
+  if (isChecked) {
+    selectedSmsIds.add(numId);
+  } else {
+    selectedSmsIds.delete(numId);
+  }
+  updateSmsBulkDeleteButton();
+}
+
+function clearSmsSelection() {
+  selectedSmsIds.clear();
+  updateSmsBulkDeleteButton();
+}
+
+function updateSmsBulkDeleteButton() {
+  const btn = document.getElementById("bulkDeleteSmsBtn");
+  const countEl = document.getElementById("smsSelectedCount");
+  if (!btn || !countEl) return;
+
+  if (selectedSmsIds.size > 0 && currentUserIsAdmin()) {
+    countEl.textContent = selectedSmsIds.size;
+    btn.style.display = "inline-flex";
+  } else {
+    btn.style.display = "none";
+  }
+}
+
+function openBulkDeleteSmsModal() {
+  if (selectedSmsIds.size === 0) return;
+  const ids = Array.from(selectedSmsIds);
+  const label = `${ids.length} selected SMS log(s)`;
+  if (typeof window.openDeleteConfirmModal === "function") {
+    window.openDeleteConfirmModal("smss", ids, label);
+  }
+}
+
+// Expose handlers to window object for inline onclick triggers
+window.smsPrevPage = smsPrevPage;
+window.smsNextPage = smsNextPage;
+window.filterSmsStatus = filterSmsStatus;
+window.debounceSmsSearch = debounceSmsSearch;
+window.toggleSelectSms = toggleSelectSms;
+window.clearSmsSelection = clearSmsSelection;
+window.openBulkDeleteSmsModal = openBulkDeleteSmsModal;
+window.loadSmsLogs = loadSmsLogs;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THRESHOLD SETTINGS VIEW
+// ═════════════════════════════════════════════════════════════════════════════
+let currentThresholdData = [];
+
+let currentActiveStandardKey = "pnsdw";
+
+const SYSTEM_THRESHOLDS_STANDARDS = {
+  pnsdw: [
+    { parameter_name: "ph", min_value: 6.50, max_value: 8.50, unit: "pH", description: "PNSDW 2017 Acidity / Alkalinity Standard Range" },
+    { parameter_name: "tds", min_value: 0.00, max_value: 500.00, unit: "ppm", description: "PNSDW 2017 Total Dissolved Solids Maximum Limit" },
+    { parameter_name: "temperature", min_value: 0.00, max_value: 35.00, unit: "°C", description: "PNSDW 2017 Thermal Water Conditioning Range" },
+    { parameter_name: "turbidity", min_value: 0.00, max_value: 5.00, unit: "NTU", description: "PNSDW 2017 Maximum Allowable Water Cloudiness" },
+    { parameter_name: "ammonia", min_value: 0.00, max_value: 0.50, unit: "mg/L", description: "PNSDW 2017 NH3 Concentration Maximum Limit" },
+    { parameter_name: "flow_rate", min_value: 0.00, max_value: 100.00, unit: "L/min", description: "Standard Operational Water Flow Displacement" }
+  ],
+  who: [
+    { parameter_name: "ph", min_value: 6.50, max_value: 8.50, unit: "pH", description: "WHO International Drinking-Water Quality Guideline" },
+    { parameter_name: "tds", min_value: 0.00, max_value: 600.00, unit: "ppm", description: "WHO Water Palatability Threshold (Max 600 ppm)" },
+    { parameter_name: "temperature", min_value: 0.00, max_value: 30.00, unit: "°C", description: "WHO Recommended Maximum Temperature Limit" },
+    { parameter_name: "turbidity", min_value: 0.00, max_value: 1.00, unit: "NTU", description: "WHO Effluent & Disinfection Safeguard (Max 1.0 NTU)" },
+    { parameter_name: "ammonia", min_value: 0.00, max_value: 1.50, unit: "mg/L", description: "WHO Health & Aesthetic Guideline (Max 1.50 mg/L)" },
+    { parameter_name: "flow_rate", min_value: 0.00, max_value: 100.00, unit: "L/min", description: "Standard Operational Water Flow Displacement" }
+  ]
+};
+
+async function loadThresholdsView(overrideStandardKey) {
+  const gridEl = document.getElementById("thresholdGrid");
+  const bannerEl = document.getElementById("thresholdsStatusBanner");
+  
+  if (!gridEl) return;
+
+  const isAdmin = currentUserIsAdmin();
+
+  if (overrideStandardKey && (overrideStandardKey === "who" || overrideStandardKey === "pnsdw")) {
+    currentActiveStandardKey = overrideStandardKey;
+  }
+
+  if (bannerEl) {
+    if (!isAdmin) {
+      bannerEl.style.display = "block";
+      bannerEl.style.background = "rgba(44,154,209,0.1)";
+      bannerEl.style.color = "var(--water-1)";
+      bannerEl.style.border = "1px solid rgba(44,154,209,0.2)";
+      bannerEl.innerHTML = `ℹ️ <strong>System Threshold Standard:</strong> Showing live operational limits evaluated for water quality safety charts.`;
+    } else {
+      bannerEl.style.display = "none";
+    }
+  }
+
+  try {
+    let data = [];
+
+    if (overrideStandardKey && SYSTEM_THRESHOLDS_STANDARDS[overrideStandardKey]) {
+      data = SYSTEM_THRESHOLDS_STANDARDS[overrideStandardKey];
+    } else {
+      const res = await apiGet("/api/thresholds").catch(() => null);
+      if (Array.isArray(res)) {
+        data = res;
+      } else if (res && Array.isArray(res.thresholds)) {
+        data = res.thresholds;
+      } else if (res && Array.isArray(res.data)) {
+        data = res.data;
+      }
+    }
+
+    if (!data || data.length === 0) {
+      data = SYSTEM_THRESHOLDS_STANDARDS[currentActiveStandardKey] || SYSTEM_THRESHOLDS_STANDARDS.pnsdw;
+    }
+
+    currentThresholdData = data;
+    buildThresholdMap(data); // update global cache
+
+    const paramMetadata = {
+      ph: {
+        title: "pH Level",
+        subtitle: "Acidity / Alkalinity Balance",
+        stdPnsdw: "🇵🇭 PNSDW: 6.5–8.5",
+        stdWho: "🌐 WHO: 6.5–8.5",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+        step: "0.1",
+        minRange: 0,
+        maxRange: 14,
+        gradient: "linear-gradient(90deg, #3DD68C, #27AE60)"
+      },
+      tds: {
+        title: "TDS (Total Dissolved Solids)",
+        subtitle: "Dissolved Inorganic & Organic Matter",
+        stdPnsdw: "🇵🇭 PNSDW: Max 500",
+        stdWho: "🌐 WHO: Max 600 ppm",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12s1.5-2 4-2 4 2 4 2"/></svg>`,
+        step: "1",
+        minRange: 0,
+        maxRange: 1000,
+        gradient: "linear-gradient(90deg, #D4A017, #F39C12)"
+      },
+      temperature: {
+        title: "Temperature",
+        subtitle: "Thermal Water Conditioning",
+        stdPnsdw: "🇵🇭 PNSDW: 0–35 °C",
+        stdWho: "🌐 WHO: 0–30 °C",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>`,
+        step: "0.5",
+        minRange: 0,
+        maxRange: 50,
+        gradient: "linear-gradient(90deg, #3DD68C, #27AE60)"
+      },
+      turbidity: {
+        title: "Turbidity",
+        subtitle: "Water Clarity & Suspended Particles",
+        stdPnsdw: "🇵🇭 PNSDW: Max 5.0",
+        stdWho: "🌐 WHO: Max 1.0 NTU",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path d="M12 12v6"/></svg>`,
+        step: "0.1",
+        minRange: 0,
+        maxRange: 20,
+        gradient: "linear-gradient(90deg, #3DD68C, #27AE60)"
+      },
+      ammonia: {
+        title: "Ammonia (NH₃)",
+        subtitle: "Ammonia & Organic Nitrogen Levels",
+        stdPnsdw: "🇵🇭 PNSDW: Max 0.50",
+        stdWho: "🌐 WHO: Max 1.50 mg/L",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>`,
+        step: "0.01",
+        minRange: 0,
+        maxRange: 5,
+        gradient: "linear-gradient(90deg, #E67E22, #D35400)"
+      },
+      flow_rate: {
+        title: "Flow Rate",
+        subtitle: "Volumetric Water Displacement",
+        stdPnsdw: "⚡ Benchmark: 0 - 100 L/min",
+        stdWho: "",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>`,
+        step: "1",
+        minRange: 0,
+        maxRange: 200,
+        gradient: "linear-gradient(90deg, #2C9AD1, #1A6FA8)"
+      }
+    };
+
+    gridEl.innerHTML = data.map(t => {
+      const pKey = (t.parameter_name || "").toLowerCase().trim();
+      const meta = paramMetadata[pKey] || {
+        title: t.parameter_name.toUpperCase(),
+        subtitle: t.description || "Water Quality Parameter",
+        stdPnsdw: "Standard Range",
+        stdWho: "",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`,
+        step: "0.1",
+        minRange: 0,
+        maxRange: 100,
+        gradient: "linear-gradient(90deg, #3DD68C, #2C9AD1)"
+      };
+
+      const displayUnit = t.unit || meta.unit || "";
+
+      // Calculate bar width for visual display
+      const rangeSpan = (meta.maxRange - meta.minRange) || 100;
+      const minPercent = Math.max(0, Math.min(100, ((t.min_value - meta.minRange) / rangeSpan) * 100));
+      const maxPercent = Math.max(0, Math.min(100, ((t.max_value - meta.minRange) / rangeSpan) * 100));
+      const fillWidth = Math.max(5, maxPercent - minPercent);
+
+      return `
+        <div class="threshold-card" id="card_thresh_${pKey}">
+          <div class="threshold-card-head">
+            <div class="threshold-param-info">
+              <div class="threshold-icon-wrap">${meta.icon}</div>
+              <div>
+                <div class="threshold-title">${meta.title}</div>
+                <div class="threshold-subtitle">${meta.subtitle}</div>
+              </div>
+            </div>
+            <div class="threshold-std-badge">
+              <span>${meta.stdPnsdw || meta.std || ''}</span>
+              ${meta.stdWho ? `<span>${meta.stdWho}</span>` : ''}
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 14px; margin-bottom: 14px;">
+            <div style="flex:1; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+              <div style="font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.5px;">System Min Limit</div>
+              <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">
+                ${t.min_value} <span style="font-size: 12px; font-weight: 500; color: var(--text-mid);">${displayUnit}</span>
+              </div>
+            </div>
+            <div style="flex:1; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
+              <div style="font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.5px;">System Max Limit</div>
+              <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">
+                ${t.max_value} <span style="font-size: 12px; font-weight: 500; color: var(--text-mid);">${displayUnit}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="threshold-visual-bar">
+            <div class="threshold-visual-track">
+              <div class="threshold-visual-fill" id="visual_fill_${pKey}" style="margin-left:${minPercent}%;width:${fillWidth}%;background:${meta.gradient};"></div>
+            </div>
+            <div class="threshold-visual-labels">
+              <span>Safe System Operating Zone</span>
+              <span id="visual_text_${pKey}" style="font-weight:600;color:var(--water-1);">${t.min_value} - ${t.max_value} ${displayUnit}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join("");
+
+  } catch (err) {
+    console.error("[AquaSense] loadThresholdsView error:", err);
+    if (gridEl) gridEl.innerHTML = emptyPanel("Failed to load threshold settings.");
+  }
+}
+
+function updateThresholdCardVisual(paramName) {
+  const minInput = document.getElementById(`thresh_min_${paramName}`);
+  const maxInput = document.getElementById(`thresh_max_${paramName}`);
+  const textEl = document.getElementById(`visual_text_${paramName}`);
+  const fillEl = document.getElementById(`visual_fill_${paramName}`);
+
+  if (!minInput || !maxInput) return;
+
+  const minV = parseFloat(minInput.value);
+  const maxV = parseFloat(maxInput.value);
+
+  const metaRanges = {
+    ph: { min: 0, max: 14, unit: "pH" },
+    tds: { min: 0, max: 1000, unit: "ppm" },
+    temperature: { min: 0, max: 50, unit: "°C" },
+    turbidity: { min: 0, max: 20, unit: "NTU" },
+    ammonia: { min: 0, max: 5, unit: "mg/L" },
+    flow_rate: { min: 0, max: 200, unit: "L/min" }
+  };
+  const range = metaRanges[paramName] || { min: 0, max: 100, unit: "" };
+
+  if (isNaN(minV) || isNaN(maxV) || minV > maxV) {
+    if (textEl) {
+      textEl.textContent = "Invalid Range!";
+      textEl.style.color = "var(--danger, #EF4444)";
+    }
+    return;
+  }
+
+  if (textEl) {
+    textEl.textContent = `${minV} - ${maxV} ${range.unit}`;
+    textEl.style.color = "var(--text-dark)";
+  }
+
+  if (fillEl) {
+    const rangeSpan = (range.max - range.min) || 100;
+    const minPercent = Math.max(0, Math.min(100, ((minV - range.min) / rangeSpan) * 100));
+    const maxPercent = Math.max(0, Math.min(100, ((maxV - range.min) / rangeSpan) * 100));
+    const fillWidth = Math.max(5, maxPercent - minPercent);
+
+    fillEl.style.marginLeft = `${minPercent}%`;
+    fillEl.style.width = `${fillWidth}%`;
+  }
+}
+
+async function switchSystemStandard(stdKey) {
+  const isWho = stdKey === "who";
+  const btnPnsdw = document.getElementById("btnTogglePnsdw");
+  const btnWho = document.getElementById("btnToggleWho");
+  const titleEl = document.getElementById("thresholdActiveTitle");
+  const subEl = document.getElementById("thresholdActiveSub");
+
+  if (btnPnsdw && btnWho) {
+    if (isWho) {
+      btnWho.style.background = "var(--water-1)";
+      btnWho.style.color = "#fff";
+      btnWho.style.border = "none";
+      btnWho.style.boxShadow = "0 4px 12px rgba(44,154,209,0.3)";
+      btnWho.style.fontWeight = "600";
+
+      btnPnsdw.style.background = "var(--bg-card)";
+      btnPnsdw.style.color = "var(--text-dark)";
+      btnPnsdw.style.border = "1px solid var(--border)";
+      btnPnsdw.style.boxShadow = "none";
+      btnPnsdw.style.fontWeight = "500";
+    } else {
+      btnPnsdw.style.background = "var(--water-1)";
+      btnPnsdw.style.color = "#fff";
+      btnPnsdw.style.border = "none";
+      btnPnsdw.style.boxShadow = "0 4px 12px rgba(44,154,209,0.3)";
+      btnPnsdw.style.fontWeight = "600";
+
+      btnWho.style.background = "var(--bg-card)";
+      btnWho.style.color = "var(--text-dark)";
+      btnWho.style.border = "1px solid var(--border)";
+      btnWho.style.boxShadow = "none";
+      btnWho.style.fontWeight = "500";
+    }
+  }
+
+  if (titleEl && subEl) {
+    if (isWho) {
+      titleEl.textContent = "WHO Guidelines Active";
+      subEl.textContent = "World Health Organization Guidelines for Drinking-water Quality. System telemetry and automated safety alerts evaluate water parameters against WHO international benchmarks.";
+    } else {
+      titleEl.textContent = "PNSDW 2017 Standards Active";
+      subEl.textContent = "Official Philippine National Standards for Drinking Water 2017. System telemetry and automated safety alerts evaluate water parameters against PNSDW mandatory limits.";
+    }
+  }
+
+  if (currentUserIsAdmin()) {
+    try {
+      const res = await apiPost("/api/thresholds/reset", { standard: stdKey });
+      if (res && res.thresholds) {
+        currentThresholdData = res.thresholds;
+        buildThresholdMap(res.thresholds);
+        showToast("Standard Active", res.message || `Switched active water threshold standard to ${isWho ? "WHO Guidelines" : "PNSDW 2017"}!`);
+      }
+    } catch (e) {
+      console.warn("[AquaSense] switchSystemStandard reset notice:", e.message);
+    }
+  }
+
+  await loadThresholdsView();
+}
+
+async function saveThresholdSettings() {
+  if (!currentUserIsAdmin()) {
+    showToast("Access Denied", "Only administrators can update threshold settings.", "error");
+    return;
+  }
+
+  const saveBtn = document.getElementById("saveThresholdsBtn");
+  const bannerEl = document.getElementById("thresholdsStatusBanner");
+
+  const thresholdsToSave = [];
+  const minInputs = document.querySelectorAll("input[id^='thresh_min_']");
+
+  minInputs.forEach(minEl => {
+    const p = minEl.id.replace("thresh_min_", "");
+    const maxEl = document.getElementById(`thresh_max_${p}`);
+
+    if (minEl && maxEl) {
+      const minVal = parseFloat(minEl.value);
+      const maxVal = parseFloat(maxEl.value);
+
+      if (isNaN(minVal) || isNaN(maxVal)) return;
+      if (minVal > maxVal) {
+        showToast("Validation Error", `Min (${minVal}) cannot exceed Max (${maxVal}) for ${p.toUpperCase()}`, "error");
+        return;
+      }
+
+      thresholdsToSave.push({
+        parameter_name: p,
+        min_value: minVal,
+        max_value: maxVal
+      });
+    }
+  });
+
+  if (thresholdsToSave.length === 0) {
+    showToast("Validation Error", "No valid threshold parameters found to save.", "error");
+    return;
+  }
+
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `Saving...`;
+    }
+
+    const res = await apiPut("/api/thresholds", { thresholds: thresholdsToSave });
+
+    if (res) {
+      if (res.thresholds) {
+        currentThresholdData = res.thresholds;
+        buildThresholdMap(res.thresholds);
+      }
+
+      showToast("Success", res.message || "Water quality thresholds updated successfully!");
+
+      if (bannerEl) {
+        bannerEl.style.display = "block";
+        bannerEl.style.background = "rgba(61,214,140,0.12)";
+        bannerEl.style.color = "#0F7050";
+        bannerEl.style.border = "1px solid rgba(61,214,140,0.3)";
+        bannerEl.innerHTML = `✓ <strong>Thresholds Saved:</strong> ${res.message || 'Operational limits have been updated across all connected monitoring nodes.'}`;
+        setTimeout(() => { bannerEl.style.display = "none"; }, 5000);
+      }
+
+      await loadThresholdsView();
+    }
+  } catch (err) {
+    console.error("[AquaSense] saveThresholdSettings error:", err);
+    showToast("Error", err.message || "Failed to save threshold settings", "error");
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 5px;">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Save Thresholds`;
+    }
+  }
+}
+
+async function resetThresholdsToDefaults(standard = "pnsdw") {
+  if (!currentUserIsAdmin()) {
+    showToast("Access Denied", "Only administrators can reset threshold settings.", "error");
+    return;
+  }
+
+  const label = standard === "who" ? "WHO Drinking Water Guidelines" : "PNSDW 2017 Standards";
+  if (!confirm(`Are you sure you want to reset all parameter thresholds back to ${label}?`)) {
+    return;
+  }
+
+  try {
+    const res = await apiPost("/api/thresholds/reset", { standard });
+    if (res && res.thresholds) {
+      currentThresholdData = res.thresholds;
+      buildThresholdMap(res.thresholds);
+      showToast("Preset Applied", `Thresholds restored to ${label}.`);
+      await loadThresholdsView();
+    }
+  } catch (err) {
+    console.error("[AquaSense] resetThresholdsToDefaults error:", err);
+    showToast("Error", err.message || "Failed to reset thresholds.", "error");
+  }
+}
+
+// ── Customize & Preset Modal State ──────────────────────────────────────────
+let activePresetTab = "pnsdw";
+let presetModalValues = {};
+
+const PRESET_STANDARDS = {
+  pnsdw: {
+    title: "PNSDW 2017 Standards",
+    desc: "Philippine National Standards for Drinking Water (DOH AO 2017-0010). Recommended baseline for Philippine educational and campus water supplies.",
+    values: {
+      ph: { min: 6.50, max: 8.50, unit: "pH", badge: "PNSDW: 6.5 - 8.5" },
+      tds: { min: 0.00, max: 500.00, unit: "ppm", badge: "PNSDW: Max 500 ppm" },
+      temperature: { min: 0.00, max: 35.00, unit: "°C", badge: "PNSDW: 0 - 35 °C" },
+      turbidity: { min: 0.00, max: 5.00, unit: "NTU", badge: "PNSDW: Max 5 NTU" },
+      ammonia: { min: 0.00, max: 0.50, unit: "mg/L", badge: "PNSDW: Max 0.50 mg/L" },
+      flow_rate: { min: 0.00, max: 100.00, unit: "L/min", badge: "Standard: 0 - 100 L/min" }
+    }
+  },
+  who: {
+    title: "WHO Drinking Water Guidelines",
+    desc: "World Health Organization Guidelines for Drinking-water Quality (4th Ed). International benchmark prioritizing strict disinfection and thermal bounds.",
+    values: {
+      ph: { min: 6.50, max: 8.50, unit: "pH", badge: "WHO: 6.5 - 8.5" },
+      tds: { min: 0.00, max: 600.00, unit: "ppm", badge: "WHO: Max 600 ppm" },
+      temperature: { min: 0.00, max: 30.00, unit: "°C", badge: "WHO: 0 - 30 °C" },
+      turbidity: { min: 0.00, max: 1.00, unit: "NTU", badge: "WHO: Max 1.0 NTU" },
+      ammonia: { min: 0.00, max: 1.50, unit: "mg/L", badge: "WHO: Max 1.50 mg/L" },
+      flow_rate: { min: 0.00, max: 100.00, unit: "L/min", badge: "Standard: 0 - 100 L/min" }
+    }
+  },
+  current: {
+    title: "Current Active Thresholds",
+    desc: "Existing threshold parameters loaded directly from your database. You can fine-tune individual min/max numbers below.",
+    values: {}
+  }
+};
+
+function openPresetModal(presetType = "pnsdw") {
+  if (!currentUserIsAdmin()) {
+    showToast("Access Denied", "Only administrators can customize threshold presets.", "error");
+    return;
+  }
+
+  const modal = document.getElementById("thresholdPresetModal");
+  const errEl = document.getElementById("presetModalError");
+  if (errEl) errEl.style.display = "none";
+
+  // Build current values from inputs in card grid
+  PRESET_STANDARDS.current.values = {};
+  const params = ["ph", "tds", "temperature", "turbidity", "ammonia", "flow_rate"];
+  params.forEach(p => {
+    const minVal = parseFloat(document.getElementById(`thresh_min_${p}`)?.value) || 0;
+    const maxVal = parseFloat(document.getElementById(`thresh_max_${p}`)?.value) || 100;
+    PRESET_STANDARDS.current.values[p] = {
+      min: minVal,
+      max: maxVal,
+      unit: getParamUnit(p),
+      badge: "Custom Threshold"
+    };
+  });
+
+  switchPresetTab(presetType);
+
+  if (modal) {
+    modal.style.display = "flex";
+    modal.classList.add("fade-in");
+  }
+}
+
+function closePresetModal() {
+  const modal = document.getElementById("thresholdPresetModal");
+  if (modal) modal.style.display = "none";
+}
+
+function handlePresetModalBackdrop(e) {
+  if (e.target.id === "thresholdPresetModal") {
+    closePresetModal();
+  }
+}
+
+function switchPresetTab(presetType) {
+  activePresetTab = presetType;
+
+  // Update tab highlights
+  ["pnsdw", "who", "current"].forEach(t => {
+    const tabBtn = document.getElementById(t === "pnsdw" ? "tabPnsdw" : t === "who" ? "tabWho" : "tabCurrent");
+    if (tabBtn) {
+      if (t === presetType) {
+        tabBtn.style.background = "var(--water-1)";
+        tabBtn.style.color = "#fff";
+        tabBtn.style.border = "none";
+        tabBtn.style.fontWeight = "600";
+      } else {
+        tabBtn.style.background = "var(--bg)";
+        tabBtn.style.color = "var(--text-mid)";
+        tabBtn.style.border = "1px solid var(--border)";
+        tabBtn.style.fontWeight = "500";
+      }
+    }
+  });
+
+  // Update banner text
+  const stdInfo = PRESET_STANDARDS[presetType] || PRESET_STANDARDS.pnsdw;
+  const banner = document.getElementById("presetModalInfoBanner");
+  if (banner) {
+    banner.innerHTML = `<strong>${stdInfo.title}:</strong> ${stdInfo.desc}`;
+  }
+
+  // Load baseline preset values into presetModalValues state
+  presetModalValues = JSON.parse(JSON.stringify(stdInfo.values));
+
+  renderPresetModalFields();
+}
+
+function getParamUnit(p) {
+  const units = { ph: "pH", tds: "ppm", temperature: "°C", turbidity: "NTU", ammonia: "mg/L", flow_rate: "L/min" };
+  return units[p] || "";
+}
+
+function getParamNameLabel(p) {
+  const names = {
+    ph: "pH Level",
+    tds: "TDS (Solids)",
+    temperature: "Temperature",
+    turbidity: "Turbidity",
+    ammonia: "Ammonia (NH₃)",
+    flow_rate: "Flow Rate"
+  };
+  return names[p] || p.toUpperCase();
+}
+
+function renderPresetModalFields() {
+  const listEl = document.getElementById("presetModalParamList");
+  if (!listEl) return;
+
+  const params = ["ph", "tds", "temperature", "turbidity", "ammonia", "flow_rate"];
+
+  listEl.innerHTML = params.map(p => {
+    const data = presetModalValues[p] || { min: 0, max: 100, unit: getParamUnit(p), badge: "Standard" };
+    const step = (p === "ammonia" ? "0.01" : p === "ph" || p === "turbidity" ? "0.1" : p === "temperature" ? "0.5" : "1");
+
+    return `
+      <div style="display:grid; grid-template-columns: 140px 1fr 1fr 110px; gap:10px; align-items:center; background:var(--bg); border:1px solid var(--border); padding:10px 14px; border-radius:8px;">
+        <div>
+          <div style="font-size:13px; font-weight:600; color:var(--text-dark);">${getParamNameLabel(p)}</div>
+          <div style="font-size:11px; color:var(--text-mid);">${data.unit}</div>
+        </div>
+
+        <div>
+          <span style="font-size:10.5px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:2px;">MIN</span>
+          <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+            <input type="number" step="${step}" id="modal_min_${p}" value="${data.min}" oninput="updatePresetModalVal('${p}', 'min', this.value)" style="width:100%; border:none; padding:4px 8px; font-size:12.5px; font-weight:600; outline:none;" />
+          </div>
+        </div>
+
+        <div>
+          <span style="font-size:10.5px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:2px;">MAX</span>
+          <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+            <input type="number" step="${step}" id="modal_max_${p}" value="${data.max}" oninput="updatePresetModalVal('${p}', 'max', this.value)" style="width:100%; border:none; padding:4px 8px; font-size:12.5px; font-weight:600; outline:none;" />
+          </div>
+        </div>
+
+        <div style="text-align:right;">
+          <span style="font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:12px; background:rgba(61,214,140,0.12); color:#0F7050; white-space:nowrap;">${data.badge}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function updatePresetModalVal(param, field, val) {
+  if (!presetModalValues[param]) presetModalValues[param] = {};
+  presetModalValues[param][field] = parseFloat(val);
+}
+
+async function confirmApplyPreset() {
+  if (!currentUserIsAdmin()) {
+    showToast("Access Denied", "Only administrators can apply threshold presets.", "error");
+    return;
+  }
+
+  const submitBtn = document.getElementById("presetModalSubmitBtn");
+  const spinner = document.getElementById("presetModalSpinner");
+  const errEl = document.getElementById("presetModalError");
+  const errText = document.getElementById("presetModalErrorText");
+
+  if (errEl) errEl.style.display = "none";
+
+  const thresholdsToSave = [];
+  const minInputs = document.querySelectorAll("input[id^='modal_min_']");
+
+  minInputs.forEach(minInput => {
+    const p = minInput.id.replace("modal_min_", "");
+    const maxInput = document.getElementById(`modal_max_${p}`);
+
+    if (minInput && maxInput) {
+      const minVal = parseFloat(minInput.value);
+      const maxVal = parseFloat(maxInput.value);
+
+      if (isNaN(minVal) || isNaN(maxVal)) return;
+      if (minVal > maxVal) {
+        if (errEl && errText) {
+          errText.textContent = `Minimum (${minVal}) cannot be greater than Maximum (${maxVal}) for ${getParamNameLabel(p)}`;
+          errEl.style.display = "flex";
+        }
+        return;
+      }
+
+      thresholdsToSave.push({
+        parameter_name: p,
+        min_value: minVal,
+        max_value: maxVal
+      });
+    }
+  });
+
+  if (thresholdsToSave.length === 0) {
+    if (errEl && errText) {
+      errText.textContent = "No valid threshold parameters found to save.";
+      errEl.style.display = "flex";
+    }
+    return;
+  }
+
+  try {
+    if (submitBtn) submitBtn.disabled = true;
+    if (spinner) spinner.style.display = "inline-block";
+
+    const res = await apiPut("/api/thresholds", { thresholds: thresholdsToSave });
+
+    if (res) {
+      if (res.thresholds) {
+        currentThresholdData = res.thresholds;
+        buildThresholdMap(res.thresholds);
+      }
+
+      const label = activePresetTab === "who" ? "WHO Guidelines" : activePresetTab === "pnsdw" ? "PNSDW 2017 Standards" : "Customized Thresholds";
+      showToast("Thresholds Saved", res.message || `Successfully applied ${label}!`);
+
+      closePresetModal();
+      await loadThresholdsView();
+    }
+  } catch (err) {
+    console.error("[AquaSense] confirmApplyPreset error:", err);
+    if (errEl && errText) {
+      errText.textContent = err.message || "Failed to apply threshold settings.";
+      errEl.style.display = "flex";
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+    if (spinner) spinner.style.display = "none";
+  }
+}
+
+// Expose handlers to window
+window.loadThresholdsView = loadThresholdsView;
+window.updateThresholdCardVisual = updateThresholdCardVisual;
+window.saveThresholdSettings = saveThresholdSettings;
+window.resetThresholdsToDefaults = resetThresholdsToDefaults;
+window.openPresetModal = openPresetModal;
+window.closePresetModal = closePresetModal;
+window.handlePresetModalBackdrop = handlePresetModalBackdrop;
+window.switchPresetTab = switchPresetTab;
+window.updatePresetModalVal = updatePresetModalVal;
+window.confirmApplyPreset = confirmApplyPreset;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SYSTEM SETTINGS VIEW
@@ -2399,6 +3232,7 @@ window.viewLoaders = {
   'flow-anomalies': loadFlowAnomalies,
   'health-tracker': loadDevicesHealthTracker,
   sms:              loadSmsLogs,
+  thresholds:       loadThresholdsView,
   users:            loadUsers,
   'system-logs':    loadAuditLogs,
   'compliance-trend': loadComplianceTrend,
@@ -3032,7 +3866,7 @@ async function fetchReportPreview() {
     const role = (currentUser.role || "").toLowerCase();
 
     let previewHtml = `
-      <div style="font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; gap: 20px;">
+      <div style="font-family: inherit; display: flex; flex-direction: column; gap: 20px;">
         <div style="font-size: 16px; font-weight: 700; color: var(--text-dark); border-bottom: 2px solid var(--border); padding-bottom: 8px;">
           Report Preview Summary
         </div>
@@ -3120,10 +3954,40 @@ async function exportReportPDF() {
   const data = window.lastGeneratedReportData;
   if (!data) return;
 
-  // Load custom template settings
+  // Load custom header settings from API
   let settings = {};
   try {
     settings = await apiGet("/api/system-settings") || {};
+  } catch(e) {}
+
+  // Load custom template layout config (drag-and-drop order, spacing, accent color)
+  let tplCfg = window.currentTemplateConfig || {
+    sections: [
+      { id: "header", name: "Top Letterhead & Logo", enabled: true },
+      { id: "summary", name: "Consolidated Overview & Dates", enabled: true },
+      { id: "waterQuality", name: "Water Quality Parameters Table", enabled: true },
+      { id: "consumption", name: "Consumption & Operations Table", enabled: true },
+      { id: "remarks", name: "Remarks & Field Observations", enabled: true },
+      { id: "signatures", name: "Signatures & Acknowledgements", enabled: true }
+    ],
+    sectionGap: 24,
+    pagePadding: 30,
+    headerGap: 20,
+    fontDensity: "standard",
+    accentColor: "#1A6FA8"
+  };
+
+  try {
+    let savedCfg = localStorage.getItem("reportTemplateConfig");
+    if (!savedCfg && settings.report_template_config) {
+      savedCfg = settings.report_template_config;
+    }
+    if (savedCfg) {
+      const parsed = typeof savedCfg === "string" ? JSON.parse(savedCfg) : savedCfg;
+      if (parsed && Array.isArray(parsed.sections)) {
+        tplCfg = Object.assign({}, tplCfg, parsed);
+      }
+    }
   } catch(e) {}
 
   let currentUser = {};
@@ -3132,145 +3996,175 @@ async function exportReportPDF() {
   } catch(e) {}
   const role = (currentUser.role || "").toLowerCase();
 
-  // Populate letterhead settings
-  document.getElementById("tplReportTitle").textContent = settings.report_header_title || "AquaSense Water Analytics";
-  document.getElementById("tplReportSubtitle").textContent = settings.report_header_subtitle || "Camarines Sur Polytechnic Colleges";
-  document.getElementById("tplReportAddress").textContent = settings.report_header_address || "Nabua, Camarines Sur, Philippines";
-
-  const logoImg = document.getElementById("tplReportLogo");
-  const fallbackLogo = document.getElementById("tplReportLogoFallback");
-  if (settings.report_logo_base64) {
-    logoImg.src = settings.report_logo_base64;
-    logoImg.style.display = "block";
-    fallbackLogo.style.display = "none";
-  } else {
-    logoImg.style.display = "none";
-    fallbackLogo.style.display = "flex";
-  }
-
   const inputAuthorName = document.getElementById("reportAuthorName").value.trim();
   const inputAuthorRole = document.getElementById("reportAuthorRole").value.trim();
   const inputAckName = document.getElementById("reportAckName").value.trim();
   const inputAckRole = document.getElementById("reportAckRole").value.trim();
   const inputRemarks = document.getElementById("reportRemarks").value.trim();
 
-  // Populate metadata
-  document.getElementById("tplRecipientRole").textContent = currentUser.role ? currentUser.role.toUpperCase() : "—";
-  document.getElementById("tplReportPeriod").textContent = `${startDate} to ${endDate}`;
-  document.getElementById("tplReportGeneratedDate").textContent = `Generated: ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const titleText = settings.report_header_title || "AquaSense Water Analytics";
+  const subtitleText = settings.report_header_subtitle || "Camarines Sur Polytechnic Colleges";
+  const addressText = settings.report_header_address || "Nabua, Camarines Sur, Philippines";
+  const logoBase64 = settings.report_logo_base64 || "";
 
-  document.getElementById("tplAuthorName").textContent = inputAuthorName || currentUser.fullname || "System Operator";
-  document.getElementById("tplAuthorRole").textContent = inputAuthorRole || roleLabels[role] || "Staff";
-  
-  document.getElementById("tplAckName").textContent = inputAckName || "Institutional Head";
-  document.getElementById("tplAckRole").textContent = inputAckRole || "CSPC Administration";
+  const accent = tplCfg.accentColor || "#1A6FA8";
+  const gap = tplCfg.sectionGap || 24;
+  const pad = tplCfg.pagePadding || 30;
+  const headerGap = tplCfg.headerGap || 20;
 
-  if (inputRemarks) {
-    document.getElementById("tplRemarksText").textContent = inputRemarks;
-    document.getElementById("tplRemarksContainer").style.display = "block";
-  } else {
-    document.getElementById("tplRemarksContainer").style.display = "none";
-  }
-
-  // Build report body HTML formatted for paper print
-  let bodyHtml = `
-    <div style="font-family: 'Inter', sans-serif;">
-      <p style="font-size: 13px; color: #475569; line-height: 1.5; margin-bottom: 24px;">
-        This document contains the consolidated water quality analytics and operation metrics monitored by the AquaSense system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
-      </p>
-  `;
-
-  if (role === "hsu" || role === "admin") {
-    const q = data.waterQuality || {};
-    bodyHtml += `
-      <div style="margin-bottom: 30px;">
-        <h3 style="font-size: 13.5px; font-weight: 700; color: #1E3A8A; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;">
-          <thead>
-            <tr style="background: #F8FAFC;">
-              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Quality Parameter</th>
-              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Average Observed Value</th>
-              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Regulatory Threshold Breaches</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">pH Level</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"}</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ph_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ph_violations || 0}</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Turbidity</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) + " NTU" : "—"}</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.turbidity_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.turbidity_violations || 0}</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Dissolved Solids (TDS)</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) + " ppm" : "—"}</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">0</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Ammonia</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "—"}</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ammonia_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ammonia_violations || 0}</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Temperature</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_temperature !== null && q.avg_temperature !== undefined ? Number(q.avg_temperature).toFixed(2) + " °C" : "—"}</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.temperature_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.temperature_violations || 0}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div style="font-size: 11px; color: #64748B; margin-top: 8px; font-style: italic;">
-          * Total recorded samples analyzed during this period: <strong>${q.total_readings || 0}</strong>. Standards referenced from the Philippine National Standards for Drinking Water (PNSDW 2017).
-        </div>
-      </div>
-    `;
-  }
-
-  if (role === "gsu" || role === "admin") {
-    const c = data.consumption || {};
-    const m = data.maintenance || {};
-    bodyHtml += `
-      <div>
-        <h3 style="font-size: 13.5px; font-weight: 700; color: #0284C7; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption and Operations Summary</h3>
-        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px;">
-          <thead>
-            <tr style="background: #F8FAFC;">
-              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Operational Parameter</th>
-              <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Consolidated Total / Average</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Water Consumption (Liters)</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.total_consumed !== null && c.total_consumed !== undefined ? Number(c.total_consumed).toLocaleString() + " L" : "0 L"}</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Average Campus Flow Rate</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "—"}</td>
-            </tr>
-            <tr>
-              <td style="border: 1px solid #E2E8F0; padding: 10px;">Completed Maintenance Activities</td>
-              <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${m.total_maintenance_logs || 0} repairs</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  bodyHtml += `</div>`;
-  document.getElementById("tplReportBody").innerHTML = bodyHtml;
+  const fontScale = tplCfg.fontDensity === "compact" ? 0.9 : tplCfg.fontDensity === "roomy" ? 1.1 : 1.0;
+  const baseFontSize = 12 * fontScale;
 
   const formatRadio = document.querySelector('input[name="reportFormat"]:checked');
   const reportFormat = formatRadio ? formatRadio.value : "average";
   const locFilter = document.getElementById("reportLocationFilter").value;
 
+  const printableElement = document.getElementById("printableReportTemplate");
+  printableElement.style.padding = `${pad}px`;
+  printableElement.style.fontFamily = "'Inter', sans-serif";
+
+  let pdfHtml = "";
+
+  (tplCfg.sections || []).forEach(sec => {
+    if (!sec.enabled) return;
+
+    if (sec.id === "header") {
+      pdfHtml += `
+        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 20px; align-items: center; border-bottom: 2.5px solid ${accent}; padding-bottom: ${headerGap}px; margin-bottom: ${gap}px;">
+          <div>
+            ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="width: 75px; height: 75px; object-fit: contain;" />` : `<div style="width: 75px; height: 75px; border-radius: 8px; background: ${accent}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">CSPC</div>`}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <h3 style="font-size: ${baseFontSize * 0.9}px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; margin: 0 0 4px 0; font-weight: 700;">${subtitleText}</h3>
+              <h1 style="font-size: ${baseFontSize * 1.8}px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">${titleText}</h1>
+              <p style="font-size: ${baseFontSize * 0.9}px; color: #64748B; margin: 4px 0 0 0;">${addressText}</p>
+            </div>
+            <div style="text-align: right;">
+              <span style="display: inline-block; background: rgba(44,154,209,0.1); color: ${accent}; font-size: ${baseFontSize * 0.8}px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase;">Executive Report</span>
+              <p style="font-size: ${baseFontSize * 0.9}px; color: #64748B; margin: 8px 0 0 0;">Generated: ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (sec.id === "summary") {
+      pdfHtml += `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: ${gap}px;">
+          <div>
+            <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Generated For</span>
+            <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">${currentUser.role ? currentUser.role.toUpperCase() : "SYSTEM OPERATOR"}</div>
+          </div>
+          <div>
+            <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Reporting Period</span>
+            <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">${startDate} to ${endDate}</div>
+          </div>
+        </div>
+        <p style="font-size: ${baseFontSize * 1.05}px; color: #475569; line-height: 1.5; margin-bottom: ${gap}px;">
+          This document contains consolidated water quality analytics and operation metrics monitored by the AquaSense system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
+        </p>
+      `;
+    } else if (sec.id === "waterQuality" && (role === "hsu" || role === "admin")) {
+      const q = data.waterQuality || {};
+      pdfHtml += `
+        <div style="margin-bottom: ${gap}px;">
+          <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: ${baseFontSize}px;">
+            <thead>
+              <tr style="background: #F8FAFC;">
+                <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Quality Parameter</th>
+                <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Average Observed Value</th>
+                <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Regulatory Threshold Breaches</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">pH Level</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ph !== null && q.avg_ph !== undefined ? Number(q.avg_ph).toFixed(2) : "—"}</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ph_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ph_violations || 0}</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Turbidity</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_turbidity !== null && q.avg_turbidity !== undefined ? Number(q.avg_turbidity).toFixed(2) + " NTU" : "—"}</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.turbidity_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.turbidity_violations || 0}</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Dissolved Solids (TDS)</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_tds !== null && q.avg_tds !== undefined ? Number(q.avg_tds).toFixed(0) + " ppm" : "—"}</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">0</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Ammonia</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_ammonia !== null && q.avg_ammonia !== undefined ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "—"}</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.ammonia_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.ammonia_violations || 0}</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Temperature</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${q.avg_temperature !== null && q.avg_temperature !== undefined ? Number(q.avg_temperature).toFixed(2) + " °C" : "—"}</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; color: ${q.temperature_violations > 0 ? '#EF4444' : '#1E293B'}; font-weight: 600;">${q.temperature_violations || 0}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size: ${baseFontSize * 0.85}px; color: #64748B; margin-top: 8px; font-style: italic;">
+            * Total recorded samples analyzed during this period: <strong>${q.total_readings || 0}</strong>. Standards referenced from the Philippine National Standards for Drinking Water (PNSDW 2017).
+          </div>
+        </div>
+      `;
+    } else if (sec.id === "consumption" && (role === "gsu" || role === "admin")) {
+      const c = data.consumption || {};
+      const m = data.maintenance || {};
+      pdfHtml += `
+        <div style="margin-bottom: ${gap}px;">
+          <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption and Operations Summary</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: ${baseFontSize}px;">
+            <thead>
+              <tr style="background: #F8FAFC;">
+                <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: left;">Operational Parameter</th>
+                <th style="border: 1px solid #E2E8F0; padding: 10px; text-align: right;">Consolidated Total / Average</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Total Water Consumption (Liters)</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.total_consumed !== null && c.total_consumed !== undefined ? Number(c.total_consumed).toLocaleString() + " L" : "0 L"}</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Average Campus Flow Rate</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${c.avg_flow_rate !== null && c.avg_flow_rate !== undefined ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "—"}</td>
+              </tr>
+              <tr>
+                <td style="border: 1px solid #E2E8F0; padding: 10px;">Completed Maintenance Activities</td>
+                <td style="border: 1px solid #E2E8F0; padding: 10px; text-align: right; font-weight: 600;">${m.total_maintenance_logs || 0} repairs</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (sec.id === "remarks" && inputRemarks) {
+      pdfHtml += `
+        <div style="margin-bottom: ${gap}px; background: #F1F5F9; border-left: 3px solid ${accent}; padding: 16px; border-radius: 0 8px 8px 0; page-break-inside: avoid;">
+          <h4 style="font-size: ${baseFontSize * 1.0}px; font-weight: 700; color: ${accent}; margin: 0 0 8px 0; text-transform: uppercase;">Remarks / Notes</h4>
+          <div style="font-size: ${baseFontSize * 1.0}px; color: #334155; line-height: 1.5; white-space: pre-wrap;">${inputRemarks}</div>
+        </div>
+      `;
+    } else if (sec.id === "signatures") {
+      pdfHtml += `
+        <div style="margin-top: ${gap * 1.5}px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+          <div>
+            <p style="font-size: ${baseFontSize}px; margin-bottom: 40px; color: #64748B;">Prepared by:</p>
+            <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: ${baseFontSize}px; color: #334155;">${inputAuthorName || currentUser.fullname || "System Operator"}</div>
+            <div style="font-size: ${baseFontSize * 0.9}px; color: #64748B; margin-top: 2px;">${inputAuthorRole || roleLabels[role] || "Staff"}</div>
+          </div>
+          <div>
+            <p style="font-size: ${baseFontSize}px; margin-bottom: 40px; color: #64748B;">Acknowledged by:</p>
+            <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: ${baseFontSize}px; color: #334155;">${inputAckName || "Institutional Head"}</div>
+            <div style="font-size: ${baseFontSize * 0.9}px; color: #64748B; margin-top: 2px;">${inputAckRole || "CSPC Administration"}</div>
+          </div>
+        </div>
+      `;
+    }
+  });
+
   if (reportFormat === "detailed") {
-    document.getElementById("tplReportBody").style.display = "none";
-    document.getElementById("detailedReportChartsContainer").style.display = "block";
-    
     try {
       showToast("Preparing Details", "Fetching timeline data...");
       let url = `/api/sensors?limit=5000&startDate=${startDate}&endDate=${endDate}`;
@@ -3278,28 +4172,28 @@ async function exportReportPDF() {
       
       const res = await apiGet(url);
       const readings = res.data || [];
-      // reverse so it's chronological (oldest to newest)
       readings.reverse();
       
-      let chartsHtml = "";
+      let chartsHtml = `<div style="margin-top: ${gap}px; margin-bottom: ${gap}px;">
+        <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 16px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">Detailed Timeline Charts</h3>
+        <div style="display: flex; flex-direction: column; gap: 30px;">
+      `;
       chartsHtml += drawDetailedSvgChartString(readings, "ph_level", 0, 14, "pH Level Over Time", "");
       chartsHtml += drawDetailedSvgChartString(readings, "tds", 0, 1000, "TDS Over Time", " ppm");
       chartsHtml += drawDetailedSvgChartString(readings, "turbidity", 0, 20, "Turbidity Over Time", " NTU");
       chartsHtml += drawDetailedSvgChartString(readings, "ammonia", 0, 5, "Ammonia Over Time", " mg/L");
       chartsHtml += drawDetailedSvgChartString(readings, "temperature", 15, 40, "Temperature Over Time", " °C");
+      chartsHtml += `</div></div>`;
       
-      document.getElementById("detailedChartsContent").innerHTML = chartsHtml;
+      pdfHtml += chartsHtml;
     } catch(err) {
       console.error(err);
       showToast("Error", "Could not fetch detailed data.");
       return;
     }
-  } else {
-    document.getElementById("tplReportBody").style.display = "block";
-    document.getElementById("detailedReportChartsContainer").style.display = "none";
-    document.getElementById("detailedChartsContent").innerHTML = "";
   }
 
+  printableElement.innerHTML = pdfHtml;
 
   // Run PDF download using html2pdf.js
   const tplWrapper = document.getElementById("printableReportTemplate");
@@ -3674,5 +4568,6 @@ async function generateReadingReport() {
 }
 
 window.generateReadingReport = generateReadingReport;
+window.switchSystemStandard = switchSystemStandard;
 
 

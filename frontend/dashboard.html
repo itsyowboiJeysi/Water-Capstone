@@ -4,19 +4,82 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AquaSense — Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
       --navy: #0D2353; --navy-dark: #081535; --navy-mid: #163574;
-      --gold: #D4A017; --gold-light: #F2CC6B;
+      --gold: #D4A017; --gold-light: #F2CC6B; --gold-pale: #FDF3D3;
       --water-1: #1A6FA8; --water-2: #2C9AD1; --water-pale: #EAF5FB;
       --white: #FFFFFF; --off-white: #F8F9FC;
       --text-dark: #0D1B3E; --text-mid: #4A5878; --text-light: #8292B0;
       --border: #DDE3EE; --error: #C0392B; --success: #0F7050; --warn: #C97A00;
+      --bg-card: #FFFFFF; --bg-hover: #F1F5F9; --bg-input: #FFFFFF;
+      --bg: #F8F9FC; --text: #0D1B3E; --card-bg: #FFFFFF;
       --sidebar-w: 260px;
     }
-    html, body { font-family: 'DM Sans', sans-serif; background: var(--off-white); height: 100%; overflow: hidden; }
+    [data-theme="dark"] {
+      --navy: #0F172A; --navy-dark: #0B0F19; --navy-mid: #1E293B;
+      --off-white: #090D16; --white: #111827;
+      --text-dark: #F8FAFC; --text-mid: #94A3B8; --text-light: #64748B;
+      --border: #1E293B; --bg-card: #111827; --bg-hover: #1E293B; --bg-input: #1E293B;
+      --bg: #090D16; --text: #F8FAFC; --card-bg: #111827;
+      --water-pale: #162436; --gold-pale: #2A2415;
+    }
+    [data-theme="dark"] .sidebar {
+      background: #060A12;
+      border-right: 1px solid var(--border);
+    }
+    [data-theme="dark"] .nav-section-label {
+      color: rgba(255, 255, 255, 0.50);
+    }
+    [data-theme="dark"] .nav-item {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    [data-theme="dark"] .nav-item:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #FFFFFF;
+    }
+    [data-theme="dark"] .nav-item.active {
+      background: #FFFFFF;
+      color: #060A12;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+    [data-theme="dark"] .nav-item.active svg {
+      stroke: #060A12;
+    }
+    [data-theme="dark"] .nav-item.active::before {
+      background: var(--water-1);
+    }
+    [data-theme="dark"] .user-name {
+      color: #FFFFFF;
+    }
+    [data-theme="dark"] .user-role {
+      color: rgba(255, 255, 255, 0.55);
+    }
+    html, body {
+      font-family: var(--font-body);
+      letter-spacing: -0.01em;
+      line-height: 1.5;
+      background: var(--off-white);
+      color: var(--text-dark);
+      height: 100%;
+      overflow: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
     .app { display: flex; height: 100vh; overflow: hidden; }
 
     /* ═══ SIDEBAR ═══ */
@@ -42,8 +105,8 @@
       border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .brand-icon svg { width: 24px; height: 24px; fill: var(--navy-dark); }
-    .brand-text .sys-name { font-weight: 600; font-size: 14px; color: var(--white); }
-    .brand-text .org-name { font-size: 10px; color: rgba(255,255,255,0.38); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
+    .brand-text .sys-name { font-weight: 700; font-size: 15px; color: #FFFFFF !important; letter-spacing: -0.01em; }
+    .brand-text .org-name { font-size: 10px; color: rgba(255,255,255,0.60) !important; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; }
     .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; position: relative; z-index: 1; }
     .sidebar-nav::-webkit-scrollbar { width: 0; }
     .nav-section-label {
@@ -72,35 +135,172 @@
       font-size: 10px; font-weight: 700; padding: 1px 6px;
       border-radius: 10px; line-height: 1.6;
     }
-    .sidebar-footer {
-      padding: 14px 16px; border-top: 1px solid rgba(255,255,255,0.07);
-      display: flex; align-items: center; gap: 10px; position: relative; z-index: 1;
-    }
     .user-avatar {
-      width: 34px; height: 34px; border-radius: 50%;
+      width: 32px; height: 32px; border-radius: 50%;
       background: linear-gradient(135deg, var(--water-1), var(--navy-mid));
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
       overflow: hidden;
     }
     .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .user-info { flex: 1; min-width: 0; }
-    .user-name { font-size: 12.5px; font-weight: 600; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .user-role { font-size: 10px; color: rgba(255,255,255,0.38); text-transform: uppercase; letter-spacing: 0.06em; }
-    .sidebar-profile-trigger {
-      flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
-      background: none; border: none; padding: 5px 6px; margin: -5px -6px;
-      border-radius: 9px; cursor: pointer; text-align: left;
-      transition: background 0.2s;
+
+    .topbar-user-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 3px 10px 3px 4px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      margin-left: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    .sidebar-profile-trigger:hover { background: rgba(255,255,255,0.07); }
-    .logout-btn {
-      background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.35);
-      padding: 5px; border-radius: 6px; display: flex; align-items: center;
-      transition: color 0.2s, background 0.2s;
+    .topbar-user-badge:hover {
+      border-color: var(--water-1);
+      box-shadow: 0 2px 8px rgba(44, 154, 209, 0.12);
     }
-    .logout-btn:hover { color: rgba(255,255,255,0.75); background: rgba(255,255,255,0.07); }
-    .logout-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .topbar-user-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      line-height: 1.2;
+      text-align: left;
+    }
+    .topbar-user-info .user-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      white-space: nowrap;
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-user-info .user-role {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-mid);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .profile-chevron {
+      transition: transform 0.2s ease;
+    }
+
+    /* Profile Dropdown Menu */
+    .profile-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 220px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(8, 21, 53, 0.15);
+      z-index: 1000;
+      overflow: hidden;
+      animation: fadeInDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .profile-dropdown-header {
+      padding: 14px 16px 12px;
+      background: var(--bg-hover);
+      border-bottom: 1px solid var(--border);
+    }
+    .dropdown-user-name {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dropdown-user-role {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--water-1);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+    .profile-dropdown-menu {
+      padding: 6px;
+    }
+    .profile-dropdown-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dark);
+      cursor: pointer;
+      text-align: left;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .profile-dropdown-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      stroke: currentColor;
+    }
+    .profile-dropdown-item:hover {
+      background: var(--bg-hover);
+      color: var(--water-1);
+    }
+    .profile-dropdown-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 6px;
+    }
+    .profile-dropdown-item.logout-item:hover {
+      background: rgba(192, 57, 43, 0.1);
+      color: var(--error);
+    }
+
+    [data-theme="dark"] .topbar-user-badge {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--border);
+    }
+    [data-theme="dark"] .topbar-user-info .user-name {
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .topbar-user-info .user-role {
+      color: #94A3B8;
+    }
+    [data-theme="dark"] .profile-dropdown {
+      background: #111827;
+      border-color: #1E293B;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+    }
+    [data-theme="dark"] .profile-dropdown-header {
+      background: #1E293B;
+      border-bottom-color: #334155;
+    }
+    [data-theme="dark"] .dropdown-user-name {
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .dropdown-user-role {
+      color: #38BDF8;
+    }
+    [data-theme="dark"] .profile-dropdown-item {
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .profile-dropdown-item:hover {
+      background: #1E293B;
+      color: #38BDF8;
+    }
+    [data-theme="dark"] .profile-dropdown-item.logout-item:hover {
+      background: rgba(239, 68, 68, 0.16);
+      color: #EF4444;
+    }
 
     /* ═══ MAIN ═══ */
     .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -109,7 +309,7 @@
       padding: 0 28px; height: 64px; background: var(--white);
       border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .page-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--text-dark); }
+    .page-title { font-family: var(--font-heading); font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); }
     .page-subtitle { font-size: 12px; color: var(--text-light); }
     .topbar-right { display: flex; align-items: center; gap: 12px; }
     .status-pill {
@@ -234,7 +434,7 @@
     .param-status-dot.safe   { background: #3DD68C; box-shadow: 0 0 5px rgba(61,214,140,.5); animation: pulse-dot 2.8s ease-in-out infinite; }
     .param-status-dot.warn   { background: var(--gold); box-shadow: 0 0 5px rgba(212,160,23,.5); animation: pulse-dot 3.2s ease-in-out infinite; }
     .param-status-dot.danger { background: #EF4444; box-shadow: 0 0 5px rgba(239,68,68,.5); animation: pulse-dot 1.8s ease-in-out infinite; }
-    .param-val  { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1; }
+    .param-val  { font-family: var(--font-heading); font-size: 24px; font-weight: 700; color: var(--text-dark); line-height: 1; letter-spacing: -0.02em; }
     .param-unit { font-size: 11px; font-weight: 400; color: var(--text-light); margin-left: 2px; }
     .param-range { font-size: 10.5px; color: var(--text-light); margin-top: 5px; }
     .param-bar-wrap { margin-top: 10px; background: var(--border); border-radius: 3px; height: 4px; overflow: hidden; }
@@ -296,7 +496,7 @@
 
     /* Section page headers */
     .section-header { margin-bottom: 20px; }
-    .section-header h2 { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+    .section-header h2 { font-family: var(--font-heading); font-size: 24px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); margin-bottom: 4px; }
     .section-header p  { font-size: 13px; color: var(--text-light); }
 
     /* Full-width panel */
@@ -309,14 +509,164 @@
     .device-badge.maintenance { background: rgba(212,160,23,0.12); color: var(--warn); }
     .device-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-    /* Threshold slider row */
-    .threshold-row { display: grid; grid-template-columns: 160px 1fr 140px; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
-    .threshold-row:last-child { border-bottom: none; }
-    .threshold-param { font-size: 13px; font-weight: 600; color: var(--text-dark); }
-    .threshold-sub   { font-size: 11px; color: var(--text-light); margin-top: 2px; }
-    .threshold-bar-bg { height: 8px; background: var(--border); border-radius: 4px; position: relative; overflow: hidden; }
-    .threshold-bar-fill { height: 100%; border-radius: 4px; }
-    .threshold-vals { text-align: right; font-size: 12px; color: var(--text-mid); font-weight: 500; }
+    /* Enhanced Threshold Management UI */
+    .threshold-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 16px;
+      padding: 4px 0 16px 0;
+    }
+    .threshold-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .threshold-card:hover {
+      border-color: var(--water-1);
+      box-shadow: 0 4px 14px rgba(44, 154, 209, 0.12);
+    }
+    .threshold-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .threshold-param-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+    .threshold-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(44, 154, 209, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--water-1);
+      flex-shrink: 0;
+    }
+    .threshold-icon-wrap svg {
+      width: 20px;
+      height: 20px;
+    }
+    .threshold-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      letter-spacing: -0.01em;
+    }
+    .threshold-subtitle {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+    .threshold-std-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(61, 214, 140, 0.12);
+      color: #0F7050;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+      text-align: right;
+      line-height: 1.25;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .threshold-inputs-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .threshold-input-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .threshold-input-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-mid);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .threshold-input-wrap {
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-input);
+      overflow: hidden;
+      transition: border-color 0.2s, background-color 0.25s;
+    }
+    .threshold-input-wrap:focus-within {
+      border-color: var(--water-1);
+    }
+    .threshold-input-wrap input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      padding: 8px 10px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-dark);
+      outline: none;
+    }
+    .threshold-input-unit {
+      padding: 8px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-mid);
+      background: var(--bg-hover);
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .threshold-visual-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .threshold-visual-track {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .threshold-visual-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #3DD68C, #2C9AD1);
+      transition: width 0.3s ease, margin-left 0.3s ease;
+    }
+    .threshold-visual-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-mid);
+      font-weight: 500;
+    }
+
+    [data-theme="dark"] .threshold-std-badge {
+      background: rgba(61, 214, 140, 0.2);
+      color: #3DD68C;
+    }
+    [data-theme="dark"] .threshold-input-unit {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-mid);
+    }
 
     /* Maintenance form-like entry */
     .maint-item { padding: 16px 20px; border-bottom: 1px solid var(--border); }
@@ -508,8 +858,8 @@
       background: linear-gradient(135deg, var(--navy-mid), var(--navy));
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .modal-icon-wrap svg { width: 22px; height: 22px; stroke: var(--white); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-    .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--text-dark); line-height: 1; }
+    .modal-icon-wrap svg { width: 22px; height: 22px; stroke: #FFFFFF !important; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .modal-title { font-family: var(--font-heading); font-size: 20px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); line-height: 1; }
     .modal-subtitle { font-size: 12px; color: var(--text-light); margin-top: 4px; }
     .modal-close-btn {
       width: 32px; height: 32px; border-radius: 8px;
@@ -520,6 +870,178 @@
     }
     .modal-close-btn:hover { background: #FEF2F2; color: var(--error); border-color: #FECACA; }
     .modal-close-btn svg { width: 15px; height: 15px; stroke: currentColor; }
+
+    /* Dark Mode Modal & Avatar Overrides */
+    [data-theme="dark"] .modal-box {
+      background: var(--bg-card);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border);
+    }
+    [data-theme="dark"] .modal-header {
+      background: var(--bg-card);
+      border-bottom-color: var(--border);
+    }
+    [data-theme="dark"] .modal-icon-wrap {
+      background: linear-gradient(135deg, var(--water-1), #0D2353);
+    }
+    [data-theme="dark"] .modal-icon-wrap svg {
+      stroke: #FFFFFF !important;
+    }
+    [data-theme="dark"] .modal-close-btn {
+      background: var(--bg-hover);
+      border-color: var(--border);
+      color: var(--text-mid);
+    }
+    [data-theme="dark"] .modal-close-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      color: #EF4444;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    [data-theme="dark"] .modal-footer {
+      background: var(--bg-card);
+      border-top-color: var(--border);
+    }
+    [data-theme="dark"] #profileAvatarPreview {
+      color: #FFFFFF !important;
+      border: 2px solid var(--border);
+    }
+    [data-theme="dark"] .user-avatar {
+      color: #FFFFFF !important;
+    }
+    [data-theme="dark"] .btn-report-outline {
+      background: var(--bg-card);
+      border-color: var(--border);
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .btn-report-outline:hover {
+      background: #1E293B;
+      color: #38BDF8;
+      border-color: #38BDF8;
+    }
+
+    /* Template Builder Drag-and-Drop & Customizer UI */
+    .template-ctrl-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .template-ctrl-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-dark);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    .drag-section-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .drag-section-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-hover);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: grab;
+      user-select: none;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+    .drag-section-item:active {
+      cursor: grabbing;
+      transform: scale(0.99);
+    }
+    .drag-section-item.dragging {
+      opacity: 0.4;
+      border: 2px dashed var(--water-1);
+    }
+    .drag-handle-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+    .drag-handle-icon {
+      color: var(--text-light);
+      cursor: grab;
+    }
+    .drag-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .drag-btn-arrow {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-mid);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .drag-btn-arrow:hover {
+      background: var(--bg-card);
+      color: var(--water-1);
+    }
+    .template-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-mid);
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+    .color-swatch.active {
+      border-color: var(--text-dark);
+      box-shadow: 0 0 0 2px var(--bg-card);
+    }
+
+    [data-theme="dark"] .template-ctrl-card {
+      background: #111827;
+      border-color: #1E293B;
+    }
+    [data-theme="dark"] .drag-section-item {
+      background: #1E293B;
+      border-color: #334155;
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .drag-handle-info {
+      color: #F8FAFC;
+    }
+    [data-theme="dark"] .drag-btn-arrow {
+      border-color: #334155;
+      color: #94A3B8;
+    }
+    [data-theme="dark"] .drag-btn-arrow:hover {
+      background: #334155;
+      color: #38BDF8;
+    }
 
     /* Modal error banner */
     .modal-error {
@@ -691,6 +1213,7 @@
       .page-title { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
       .page-subtitle { display: none !important; }
       .status-pill { display: none !important; }
+      .topbar-user-info { display: none !important; }
       .modal-field-row { grid-template-columns: 1fr; }
       .modal-box { border-radius: 14px; }
       .modal-header { padding: 18px 20px 16px; }
@@ -799,19 +1322,6 @@
         Settings
       </a>
     </nav>
-
-   <div class="sidebar-footer">
-  <button type="button" class="sidebar-profile-trigger" id="sidebarProfileTrigger" onclick="openProfileModal()" title="View / edit your profile">
-    <div class="user-avatar" id="userAvatar">?</div>
-    <div class="user-info">
-      <div class="user-name" id="userName">Loading...</div>
-      <div class="user-role" id="userRole">—</div>
-    </div>
-  </button>
-  <button class="logout-btn" title="Sign out" onclick="logout()">
-    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-  </button>
-</div>
   </aside>
 
   <!-- ═══════════════ MAIN ═══════════════ -->
@@ -846,6 +1356,37 @@
         <button class="icon-btn" title="Refresh" id="refreshBtn">
           <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
+        <button class="icon-btn theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme" onclick="toggleTheme()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <div style="position: relative;" id="profileDropdownWrapper">
+          <div class="topbar-user-badge" id="profileDropdownBtn" onclick="toggleProfileDropdown(event)" title="Account Menu">
+            <div class="user-avatar" id="userAvatar">?</div>
+            <div class="topbar-user-info">
+              <div class="user-name" id="userName">Loading...</div>
+              <div class="user-role" id="userRole">—</div>
+            </div>
+            <svg class="profile-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; color: var(--text-mid); margin-left: 2px;"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+
+          <div class="profile-dropdown" id="profileDropdown" style="display: none;">
+            <div class="profile-dropdown-header">
+              <div class="dropdown-user-name" id="dropdownUserName">User Account</div>
+              <div class="dropdown-user-role" id="dropdownUserRole">—</div>
+            </div>
+            <div class="profile-dropdown-menu">
+              <button type="button" class="profile-dropdown-item" onclick="openProfileModal(); toggleProfileDropdown();">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Edit Profile</span>
+              </button>
+              <div class="profile-dropdown-divider"></div>
+              <button type="button" class="profile-dropdown-item logout-item" onclick="logout()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -853,14 +1394,10 @@
 
       <!-- ════════════════════════ VIEW: DASHBOARD ════════════════════════ -->
       <div class="view active" id="view-dashboard">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom: 20px;">
-          <div>
-            <h2>Dashboard</h2>
-            <p>Real-time campus-wide water quality and consumption metrics</p>
-          </div>
+        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom: 20px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <label for="dashboardFilterDevice" style="font-size:12px; font-weight:600; color:var(--text-mid);">Select Device:</label>
-            <select id="dashboardFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:'DM Sans',sans-serif; cursor:pointer;" onchange="loadDashboardFiltered()">
+            <select id="dashboardFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:var(--font-body); cursor:pointer;" onchange="loadDashboardFiltered()">
               <option value="">All Devices (Latest)</option>
             </select>
           </div>
@@ -897,7 +1434,7 @@
                 
                 <div>
                   <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700; letter-spacing: 0.05em; margin-bottom: 3px;">Safety Classification</div>
-                  <div id="hsuClassificationLabel" style="font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; color: var(--success); line-height: 1.2;">—</div>
+                  <div id="hsuClassificationLabel" style="font-family: var(--font-heading); font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--success); line-height: 1.2;">—</div>
                   <div id="hsuLastUpdated" style="font-size: 11px; color: var(--text-light); margin-top: 5px;">Latest Reading</div>
                 </div>
               </div>
@@ -1005,14 +1542,10 @@
 
       <!-- ════════════════════════ VIEW: LIVE MONITORING ════════════════════════ -->
       <div class="view" id="view-live">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-          <div>
-            <h2>Live Monitoring</h2>
-            <p>Real-time sensor feed from active ESP32 devices on campus</p>
-          </div>
+        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom: 20px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <label for="liveFilterDevice" style="font-size:12px; font-weight:600; color:var(--text-mid);">Select Device:</label>
-            <select id="liveFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:'DM Sans',sans-serif; cursor:pointer;" onchange="loadLiveMonitoringFiltered()">
+            <select id="liveFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:var(--font-body); cursor:pointer;" onchange="loadLiveMonitoringFiltered()">
               <option value="">All Devices (Latest)</option>
             </select>
           </div>
@@ -1031,7 +1564,7 @@
 
       <!-- ════════════════════════ VIEW: SENSOR READINGS ════════════════════════ -->
       <div class="view" id="view-readings">
-        <div class="section-header"><h2>Sensor Readings</h2><p>All recorded readings from ESP32 devices across CSPC campus buildings</p></div>
+
         <div class="panel-full">
           <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
             <div class="panel-title">
@@ -1109,7 +1642,7 @@
 
       <!-- ════════════════════════ VIEW: ANALYTICS ════════════════════════ -->
      <div class="view" id="view-analytics">
-  <div class="section-header"><h2>Analytics</h2><p>Water quality trends and consumption insights across CSPC campus</p></div>
+
  
   <!-- Stat cards — populated by loadAnalytics() -->
   <div class="stats-grid" id="analytics-stats" style="grid-template-columns:repeat(4,1fr);">
@@ -1157,14 +1690,10 @@
 
       <!-- ════════════════════════ VIEW: COMPLIANCE TREND ════════════════════════ -->
       <div class="view" id="view-compliance-trend">
-        <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
-          <div>
-            <h2>Parameter Compliance Trend</h2>
-            <p>7-day compliance history for health-critical parameters. Reference lines represent DOH PNSDW 2017 limits.</p>
-          </div>
+        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom: 20px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <label for="complianceFilterDevice" style="font-size:12px; font-weight:600; color:var(--text-mid);">Select Device:</label>
-            <select id="complianceFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:'DM Sans',sans-serif; cursor:pointer;" onchange="loadComplianceTrendData()">
+            <select id="complianceFilterDevice" class="filter-select" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); font-size:13px; height:34px; font-family:var(--font-body); cursor:pointer;" onchange="loadComplianceTrendData()">
               <option value="">All Devices (Average)</option>
             </select>
           </div>
@@ -1223,7 +1752,7 @@
 
       <!-- ════════════════════════ VIEW: ALERTS ════════════════════════ -->
      <div class="view" id="view-alerts">
-  <div class="section-header"><h2>Alerts</h2><p>All system-generated alerts for water quality anomalies and device issues</p></div>
+
  
   <!-- Stat cards — populated by loadAlertsView() -->
   <div class="stats-grid" id="alerts-stats" style="grid-template-columns:repeat(4,1fr);">
@@ -1263,7 +1792,7 @@
 
       <!-- ════════════════════════ VIEW: LOCATIONS ════════════════════════ -->
       <div class="view" id="view-locations">
-        <div class="section-header"><h2>Locations</h2><p>CSPC campus buildings monitored by the AquaSense IoT system</p></div>
+
         <div class="panel-full">
           <div class="panel-head">
             <div class="panel-title">
@@ -1460,6 +1989,67 @@
               <span id="alertDeleteModalBtnLabel" style="display:flex;align-items:center;gap:7px;">
                 Delete Alert
               </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ════════════════════════ MODAL: THRESHOLD PRESET CUSTOMIZATION ════════════════════════ -->
+      <div class="modal-backdrop" id="thresholdPresetModal" style="display:none;" onclick="handlePresetModalBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" style="max-width:640px;">
+
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background:linear-gradient(135deg,var(--water-1),#1A6FA8);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;color:#fff;">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <div>
+                <div class="modal-title" id="presetModalTitle">Customize & Apply Threshold Preset</div>
+                <div class="modal-subtitle">Review, fine-tune, or customize parameter values before saving</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closePresetModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Preset Selector Tabs -->
+          <div style="padding: 14px 24px 0 24px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="panel-action" id="tabPnsdw" onclick="switchPresetTab('pnsdw')" style="background: var(--water-1); color: #fff; border: none; font-weight:600;">
+              🇵🇭 PNSDW 2017
+            </button>
+            <button type="button" class="panel-action" id="tabWho" onclick="switchPresetTab('who')" style="background: var(--bg); color: var(--text-mid); border: 1px solid var(--border); font-weight:500;">
+              🌐 WHO Guidelines
+            </button>
+            <button type="button" class="panel-action" id="tabCurrent" onclick="switchPresetTab('current')" style="background: var(--bg); color: var(--text-mid); border: 1px solid var(--border); font-weight:500;">
+              ⚙️ Current Values
+            </button>
+          </div>
+
+          <div class="modal-error" id="presetModalError" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="presetModalErrorText">Something went wrong.</span>
+          </div>
+
+          <div class="modal-body" style="padding: 16px 24px;">
+            <div id="presetModalInfoBanner" style="background: rgba(44,154,209,0.08); border: 1px solid rgba(44,154,209,0.2); padding: 10px 14px; border-radius: 8px; font-size: 12.5px; color: var(--text-dark); margin-bottom: 14px; line-height: 1.5;">
+              <!-- Dynamic banner content -->
+            </div>
+
+            <!-- Parameters Customization Rows -->
+            <div id="presetModalParamList" style="display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto; padding-right:4px;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closePresetModal()">Cancel</button>
+            <button class="modal-btn-submit" id="presetModalSubmitBtn" onclick="confirmApplyPreset()" style="background:var(--water-1); color:#fff; font-weight:600; padding:8px 20px;">
+              <span class="modal-btn-spinner" id="presetModalSpinner" style="display:none;"></span>
+              Apply & Save Thresholds →
             </button>
           </div>
 
@@ -2006,6 +2596,105 @@
         </div>
       </div>
 
+      <!-- ════════════════════════ REPORT TEMPLATE BUILDER MODAL ════════════════════════ -->
+      <div class="modal-backdrop" id="reportTemplateBuilderModal" style="display:none;" onclick="handleTemplateBuilderBackdrop(event)">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="templateBuilderTitle" style="max-width:960px; width:95%;">
+          
+          <div class="modal-header">
+            <div class="modal-title-wrap">
+              <div class="modal-icon-wrap" style="background: linear-gradient(135deg, var(--water-1), var(--water-2));">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div>
+                <div class="modal-title" id="templateBuilderTitle">Report PDF Template Builder</div>
+                <div class="modal-subtitle">Drag and drop sections to rearrange layout, customize spacing, and preview your PDF report</div>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeReportTemplateBuilderModal()" aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body" style="display: grid; grid-template-columns: 360px 1fr; gap: 20px; padding: 20px;">
+            
+            <!-- Left Controls Column -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              
+              <!-- Drag and Drop Sections -->
+              <div class="template-ctrl-card">
+                <div class="template-ctrl-title">
+                  <span>Arrange Report Sections</span>
+                  <span style="font-size:10.5px; font-weight:600; color:var(--text-light);">Drag or ▲ ▼ arrows</span>
+                </div>
+                <ul id="templateSectionList" class="drag-section-list">
+                  <!-- Rendered dynamically by JS -->
+                </ul>
+              </div>
+
+              <!-- Spacing & Typography Options -->
+              <div class="template-ctrl-card">
+                <div class="template-ctrl-title">Spacing & Layout Options</div>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+                  <div>
+                    <label class="template-label"><span>Section Vertical Gap</span> <span id="valSectionGap">24px</span></label>
+                    <input type="range" id="inputSectionGap" min="12" max="48" value="24" style="width:100%; accent-color:var(--water-1);" oninput="updateTemplatePreviewFromControls()">
+                  </div>
+                  <div>
+                    <label class="template-label"><span>Page Margin Padding</span> <span id="valPagePadding">30px</span></label>
+                    <input type="range" id="inputPagePadding" min="15" max="50" value="30" style="width:100%; accent-color:var(--water-1);" oninput="updateTemplatePreviewFromControls()">
+                  </div>
+                  <div>
+                    <label class="template-label"><span>Header Letterhead Spacing</span> <span id="valHeaderGap">20px</span></label>
+                    <input type="range" id="inputHeaderGap" min="10" max="40" value="20" style="width:100%; accent-color:var(--water-1);" oninput="updateTemplatePreviewFromControls()">
+                  </div>
+                  <div>
+                    <label class="template-label"><span>Font Scale Density</span></label>
+                    <select id="selectFontDensity" class="search-input" onchange="updateTemplatePreviewFromControls()" style="width:100%; height:32px; padding:4px 8px; font-size:12.5px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
+                      <option value="compact">Compact (Tighter Spacing)</option>
+                      <option value="standard" selected>Standard (Balanced)</option>
+                      <option value="roomy">Roomy (Spacious Spacing)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="template-label"><span>Primary Accent Color</span></label>
+                    <div style="display: flex; gap: 10px; margin-top: 6px;" id="templateColorSwatches">
+                      <button type="button" class="color-swatch active" data-color="#1A6FA8" style="background:#1A6FA8;" onclick="setTemplateAccentColor('#1A6FA8')" title="Aqua Blue"></button>
+                      <button type="button" class="color-swatch" data-color="#0F7050" style="background:#0F7050;" onclick="setTemplateAccentColor('#0F7050')" title="Emerald Green"></button>
+                      <button type="button" class="color-swatch" data-color="#0D2353" style="background:#0D2353;" onclick="setTemplateAccentColor('#0D2353')" title="Navy Blue"></button>
+                      <button type="button" class="color-swatch" data-color="#D4A017" style="background:#D4A017;" onclick="setTemplateAccentColor('#D4A017')" title="CSPC Gold"></button>
+                      <button type="button" class="color-swatch" data-color="#C0392B" style="background:#C0392B;" onclick="setTemplateAccentColor('#C0392B')" title="Crimson"></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right Live Preview Column -->
+            <div style="background: var(--bg-hover); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; height: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.05em;">Live Document Preview</div>
+                <span style="font-size: 11px; color: var(--text-light); font-weight: 600;">Real-time A4 Layout</span>
+              </div>
+              <div style="flex: 1; overflow-y: auto; display: flex; justify-content: center; background: rgba(0,0,0,0.06); padding: 16px; border-radius: 8px; max-height: 520px;">
+                <div id="livePdfTemplateCanvas" style="width: 100%; max-width: 480px; background: #FFFFFF; color: #1E293B; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: all 0.2s ease; transform-origin: top center;">
+                  <!-- Live dynamically rendered preview -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer">
+            <button class="modal-btn-cancel" onclick="closeReportTemplateBuilderModal()">Cancel</button>
+            <button class="modal-btn-submit" onclick="saveReportTemplateLayout()">
+              <span>Save & Apply Template</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ════════════════════════ EDIT PROFILE MODAL ════════════════════════ -->
       <div class="modal-backdrop" id="profileModal" style="display:none;" onclick="handleProfileModalBackdrop(event)">
         <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" style="max-width:500px;">
@@ -2142,7 +2831,7 @@
 
       <!-- ════════════════════════ VIEW: DEVICES ════════════════════════ -->
       <div class="view" id="view-devices">
-        <div class="section-header"><h2>Devices</h2><p>All ESP32 IoT devices registered in the AquaSense monitoring network</p></div>
+
            <div class="stats-grid" id="devices-stats">
 
         </div>
@@ -2412,10 +3101,7 @@
 
       <!-- ════════════════════════ VIEW: FLOW RATE ANOMALIES ════════════════════════ -->
       <div class="view" id="view-flow-anomalies">
-        <div class="section-header">
-          <h2>Flow Rate Anomalies</h2>
-          <p>Real-time per-device flow rates. Spikes or drops highlight potential leaks or blockages.</p>
-        </div>
+
         <div class="stats-grid" id="flow-anomalies-list" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px;">
           <!-- Loaded dynamically by JS -->
         </div>
@@ -2423,10 +3109,7 @@
 
       <!-- ════════════════════════ VIEW: DEVICE HEALTH TRACKER ════════════════════════ -->
       <div class="view" id="view-health-tracker">
-        <div class="section-header">
-          <h2>Device Health Tracker</h2>
-          <p>Live health logs, heartbeat tracking, and calculated uptime % for CSPC monitoring nodes.</p>
-        </div>
+
         <div class="panel-full">
           <div class="panel-head">
             <div class="panel-title">
@@ -2454,7 +3137,7 @@
 
       <!-- ════════════════════════ VIEW: MAINTENANCE LOGS ════════════════════════ -->
       <div class="view" id="view-maintenance">
-        <div class="section-header"><h2>Maintenance Logs</h2><p>Records of all maintenance and repair activities on campus water devices</p></div>
+
         <div class="panel-full">
           <div class="panel-head" style="flex-wrap:wrap;gap:10px;">
             <div class="panel-title">
@@ -2503,10 +3186,7 @@
       <!-- ════════════════════════ VIEW: SMS LOGS ════════════════════════ -->
       
 <div class="view" id="view-sms">
-  <div class="section-header">
-    <h2>SMS Logs</h2>
-    <p>History of all SMS notifications sent to GSU and HSU personnel</p>
-  </div>
+
  
   <!-- Stat cards — populated by loadSmsLogs() -->
   <div class="stats-grid" id="sms-stats" style="grid-template-columns:repeat(3,1fr);">
@@ -2515,38 +3195,81 @@
  
   <!-- Log list — populated by loadSmsLogs() -->
   <div class="panel-full">
-    <div class="panel-head">
+    <div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
       <div class="panel-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.4h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
         </svg>
         SMS Notification History
       </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="smsSearchInput" placeholder="Search message or recipient..." style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);" oninput="debounceSmsSearch()" />
+        <select id="smsStatusFilter" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);" onchange="filterSmsStatus()">
+          <option value="">All Statuses</option>
+          <option value="sent">Sent</option>
+          <option value="failed">Failed</option>
+          <option value="pending">Pending</option>
+        </select>
+        <button class="btn-bulk-delete" id="bulkDeleteSmsBtn" style="display:none;" onclick="openBulkDeleteSmsModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          Delete Selected (<span id="smsSelectedCount">0</span>)
+        </button>
+      </div>
     </div>
     <!-- JS renders .sms-item rows here -->
     <div id="sms-list"></div>
+    <div class="pagination-container" id="smsPaginationContainer" style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-top:1px solid var(--border);flex-wrap:wrap;gap:12px;">
+      <div style="font-size:13px;color:var(--text-mid);">
+        Showing <span id="smsPageStart">0</span>-<span id="smsPageEnd">0</span> of <span id="smsTotalCount">0</span> SMS logs
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="panel-action" id="smsPrevBtn" onclick="smsPrevPage()">← Prev</button>
+        <span style="font-size:13px;font-weight:600;color:var(--text);" id="smsPageNum">Page 1 of 1</span>
+        <button class="panel-action" id="smsNextBtn" onclick="smsNextPage()">Next →</button>
+      </div>
+    </div>
   </div>
 </div>
 
-      <!-- ════════════════════════ VIEW: THRESHOLDS ════════════════════════ -->
-      <div class="view" id="view-thresholds">
-        <div class="section-header"><h2>Threshold Settings</h2><p>Configure safe range limits for each water quality parameter per PNSDW 2017</p></div>
-        <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Water Quality Parameter Thresholds</div><button class="panel-action">Save Changes →</button></div>
-          <div>
-            <div class="threshold-row"><div><div class="threshold-param">pH Level</div><div class="threshold-sub">Acidity / Alkalinity</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:68%;background:linear-gradient(90deg,#3DD68C,#27AE60)"></div></div></div><div class="threshold-vals">Min: 6.5 &nbsp;|&nbsp; Max: 8.5</div></div>
-            <div class="threshold-row"><div><div class="threshold-param">TDS</div><div class="threshold-sub">Total Dissolved Solids</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:100%;background:linear-gradient(90deg,#D4A017,#F39C12)"></div></div></div><div class="threshold-vals">Min: 0 &nbsp;|&nbsp; Max: 500 ppm</div></div>
-            <div class="threshold-row"><div><div class="threshold-param">Temperature</div><div class="threshold-sub">Water thermal level</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:100%;background:linear-gradient(90deg,#3DD68C,#27AE60)"></div></div></div><div class="threshold-vals">Min: 0 &nbsp;|&nbsp; Max: 35 °C</div></div>
-            <div class="threshold-row"><div><div class="threshold-param">Turbidity</div><div class="threshold-sub">Water clarity (NTU)</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:100%;background:linear-gradient(90deg,#3DD68C,#27AE60)"></div></div></div><div class="threshold-vals">Min: 0 &nbsp;|&nbsp; Max: 5 NTU</div></div>
-            <div class="threshold-row"><div><div class="threshold-param">Ammonia</div><div class="threshold-sub">NH₃ concentration</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:100%;background:linear-gradient(90deg,#3DD68C,#27AE60)"></div></div></div><div class="threshold-vals">Min: 0 &nbsp;|&nbsp; Max: 0.50 mg/L</div></div>
-            <div class="threshold-row"><div><div class="threshold-param">Flow Rate</div><div class="threshold-sub">Water volume per minute</div></div><div><div class="threshold-bar-bg"><div class="threshold-bar-fill" style="width:100%;background:linear-gradient(90deg,#2C9AD1,#1A6FA8)"></div></div></div><div class="threshold-vals">Min: 0 &nbsp;|&nbsp; Max: 100 L/min</div></div>
-          </div>
-        </div>
+<!-- ════════════════════════ VIEW: THRESHOLDS ════════════════════════ -->
+<div class="view" id="view-thresholds">
+
+
+  <!-- Standard Compliance Banner & Actions -->
+  <div style="background:linear-gradient(135deg, rgba(44,154,209,0.08) 0%, rgba(61,214,140,0.08) 100%); border: 1px solid rgba(44,154,209,0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--water-1); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; box-shadow: 0 4px 10px rgba(44,154,209,0.25);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
       </div>
+      <div>
+        <div style="font-size: 14px; font-weight: 600; color: var(--text-dark);" id="thresholdActiveTitle">PNSDW 2017 Standards Active</div>
+        <div style="font-size: 12px; color: var(--text-mid); margin-top: 2px;" id="thresholdActiveSub">Official Philippine National Standards for Drinking Water 2017. System telemetry and automated alerts evaluate water quality against these limits.</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <button class="panel-action threshold-toggle-btn active" id="btnTogglePnsdw" onclick="switchSystemStandard('pnsdw')" style="background: var(--water-1); color: #fff; border: none; font-weight: 600; padding: 8px 18px; border-radius: 8px; box-shadow: 0 4px 12px rgba(44,154,209,0.3); cursor: pointer;">
+        🇵🇭 PNSDW 2017 Standard
+      </button>
+      <button class="panel-action threshold-toggle-btn" id="btnToggleWho" onclick="switchSystemStandard('who')" style="background: var(--bg); color: var(--text); border: 1px solid var(--border); font-weight: 500; padding: 8px 18px; border-radius: 8px; cursor: pointer;">
+        🌐 WHO Guidelines
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Alert Banner -->
+  <div id="thresholdsStatusBanner" style="display:none; margin-bottom: 16px; padding: 12px 16px; border-radius: 9px; font-size: 13px; font-weight: 500;"></div>
+
+  <!-- Threshold Parameter Cards Grid -->
+  <div class="threshold-grid" id="thresholdGrid">
+    <!-- Dynamically rendered by loadThresholdsView() -->
+  </div>
+</div>
 
       <!-- ════════════════════════ VIEW: USERS ════════════════════════ -->
       <div class="view" id="view-users">
-        <div class="section-header"><h2>User Management</h2><p>Manage system accounts for AquaSense — Admin, GSU, and HSU roles</p></div>
+
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>System Users</div></div>
           <table class="data-table">
@@ -2560,7 +3283,7 @@
 
       <!-- ════════════════════════ VIEW: SYSTEM LOGS ════════════════════════ -->
       <div class="view" id="view-system-logs">
-        <div class="section-header"><h2>System Audit Logs</h2><p>Detailed record of system access, operations, and role activities</p></div>
+
         <div class="panel-full">
           <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div class="panel-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Audit Logs</div>
@@ -2604,7 +3327,7 @@
 
       <!-- ════════════════════════ VIEW: SETTINGS ════════════════════════ -->
       <div class="view" id="view-settings">
-        <div class="section-header"><h2>Settings</h2><p>System configuration and notification preferences for AquaSense</p></div>
+
         <!-- Settings status banner -->
         <div id="settingsStatusBanner" style="display:none;margin-bottom:14px;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:500;"></div>
         <div id="settingsGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -2636,24 +3359,34 @@
                 <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
                   <div>
                     <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Title</label>
-                    <input type="text" id="reportHeaderTitleInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. AquaSense Water Analytics">
+                    <input type="text" id="reportHeaderTitleInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. AquaSense Water Analytics">
                   </div>
                   <div>
                     <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Subtitle</label>
-                    <input type="text" id="reportHeaderSubtitleInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. Camarines Sur Polytechnic Colleges">
+                    <input type="text" id="reportHeaderSubtitleInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Camarines Sur Polytechnic Colleges">
                   </div>
                   <div>
                     <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Address</label>
-                    <input type="text" id="reportHeaderAddressInput" class="search-input" style="width:100%; font-size:12.5px; padding:6px 10px; height:32px;" placeholder="e.g. Nabua, Camarines Sur, Philippines">
+                    <input type="text" id="reportHeaderAddressInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Nabua, Camarines Sur, Philippines">
                   </div>
                   <div>
                     <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Logo (PNG/JPG)</label>
-                    <input type="file" id="reportHeaderLogoInput" accept="image/*" style="font-size:12px; color:var(--text-mid);">
-                    <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                    <input type="file" id="reportHeaderLogoInput" accept="image/*" style="font-size:12px; color:var(--text-dark); background:var(--bg-input); border:1px solid var(--border); padding:6px 10px; border-radius:6px; width:100%; cursor:pointer;">
+                    <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
                       <span style="font-size:11px; color:var(--text-light);">Current Logo:</span>
-                      <img id="reportHeaderLogoPreview" style="max-height:36px; max-width:100px; object-fit:contain; display:none; border:1px solid var(--border); padding:2px; border-radius:4px; background:white;">
+                      <img id="reportHeaderLogoPreview" style="max-height:36px; max-width:100px; object-fit:contain; display:none; border:1px solid var(--border); padding:3px; border-radius:6px; background:var(--bg-card);">
                       <span id="reportHeaderNoLogoText" style="font-size:11px; color:var(--text-light); font-style:italic;">No logo uploaded</span>
                     </div>
+                  </div>
+                  <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn-report-outline" style="flex:1; min-width:240px; display:flex; align-items:center; justify-content:center; gap:8px; height:40px; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;" onclick="openReportTemplateBuilderModal()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                      <span>🎨 Open Interactive Drag & Drop Builder</span>
+                    </button>
+                    <button type="button" id="saveReportHeaderTemplateBtn" onclick="saveReportPdfHeaderSettings()" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 24px; border-radius:6px; font-weight:600; font-size:13px; background:var(--water-1); color:#fff; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(44,154,209,0.3); transition:all 0.2s;">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                      <span>Save Template Header</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2663,7 +3396,7 @@
       </div>
       <!-- ════════════════════════ VIEW: REPORTS ════════════════════════ -->
       <div class="view" id="view-reports">
-        <div class="section-header"><h2>Analytics Reports</h2><p>Generate and export role-specific water monitoring summaries</p></div>
+
         <div class="panel-full" style="padding: 24px;">
           <div class="panel-head" style="margin-bottom:20px; padding:0; border:none; background:transparent;">
             <div class="panel-title" style="font-size:15px; font-weight:700;">Report Parameters</div>
@@ -2671,56 +3404,56 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
             <div>
               <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Start Date</label>
-              <input type="date" id="reportStartDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+              <input type="date" id="reportStartDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dark);">
             </div>
             <div>
               <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">End Date</label>
-              <input type="date" id="reportEndDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+              <input type="date" id="reportEndDate" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dark);">
             </div>
             <div>
               <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Building Location</label>
-              <select id="reportLocationFilter" class="filter-select" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+              <select id="reportLocationFilter" class="filter-select" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-dark);">
                 <option value="">All Buildings</option>
               </select>
             </div>
           </div>
-          <div style="margin-bottom: 24px; padding: 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
+          <div style="margin-bottom: 24px; padding: 16px; background: var(--bg-hover); border: 1px solid var(--border); border-radius: 8px;">
             <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:10px;">Report Format</label>
             <div style="display: flex; gap: 24px;">
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer;">
                 <input type="radio" name="reportFormat" value="average" checked style="accent-color: #1A6FA8; transform: scale(1.2); cursor: pointer;">
                 Average Summary (Standard)
               </label>
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text-dark); cursor: pointer;">
                 <input type="radio" name="reportFormat" value="detailed" style="accent-color: #1A6FA8; transform: scale(1.2); cursor: pointer;">
                 Detailed Timeline (Line Graphs)
               </label>
             </div>
           </div>
 
-          <div style="margin-bottom: 24px; padding: 16px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px;">
-            <div style="font-size:13px; font-weight:700; color:var(--text); margin-bottom:12px;">Report Metadata</div>
+          <div style="margin-bottom: 24px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;">
+            <div style="font-size:13px; font-weight:700; color:var(--text-dark); margin-bottom:12px;">Report Metadata</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
               <div>
                 <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Prepared By (Name)</label>
-                <input type="text" id="reportAuthorName" placeholder="e.g., John Doe" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+                <input type="text" id="reportAuthorName" placeholder="e.g., John Doe" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
               </div>
               <div>
                 <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Prepared By Role / Title</label>
-                <input type="text" id="reportAuthorRole" placeholder="e.g., Facility Manager" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+                <input type="text" id="reportAuthorRole" placeholder="e.g., Facility Manager" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
               </div>
               <div>
                 <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Acknowledged By (Name)</label>
-                <input type="text" id="reportAckName" placeholder="e.g., Institutional Head" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+                <input type="text" id="reportAckName" placeholder="e.g., Institutional Head" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
               </div>
               <div>
                 <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Acknowledged By Role / Title</label>
-                <input type="text" id="reportAckRole" placeholder="e.g., CSPC Administration" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);">
+                <input type="text" id="reportAckRole" placeholder="e.g., CSPC Administration" class="search-input" style="width: 100%; height:36px; padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
               </div>
             </div>
             <div>
               <label style="font-size:12px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:6px;">Additional Remarks / Notes</label>
-              <textarea id="reportRemarks" placeholder="Add any comments, findings, or observations..." class="search-input" style="width: 100%; min-height:60px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text); resize: vertical;"></textarea>
+              <textarea id="reportRemarks" placeholder="Add any comments, findings, or observations..." class="search-input" style="width: 100%; min-height:60px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark); resize: vertical;"></textarea>
             </div>
           </div>
           
@@ -2728,15 +3461,15 @@
             .btn-report {
               display: inline-flex; align-items: center; justify-content: center;
               height: 38px; padding: 0 20px; border-radius: 8px;
-              font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+              font-family: var(--font-body); font-size: 14px; font-weight: 600;
               cursor: pointer; transition: all 0.2s ease;
               box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
             .btn-report:active { transform: translateY(1px); box-shadow: none; }
             .btn-report-outline {
-              background: #fff; border: 1px solid var(--border); color: var(--text);
+              background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dark);
             }
-            .btn-report-outline:hover { background: var(--bg); border-color: var(--water-1); color: var(--water-1); }
+            .btn-report-outline:hover { background: var(--bg-hover); border-color: var(--water-1); color: var(--water-1); }
             .btn-report-pdf {
               background: linear-gradient(135deg, #10B981, #059669); border: none; color: #fff;
             }
@@ -2947,24 +3680,405 @@ function logoutWithDeletedError() {
     return res;
   };
 })();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INTERACTIVE REPORT PDF TEMPLATE BUILDER
+// ══════════════════════════════════════════════════════════════════════════════
+
+window.currentTemplateConfig = {
+  sections: [
+    { id: "header", name: "Top Letterhead & Logo", enabled: true },
+    { id: "summary", name: "Consolidated Overview & Dates", enabled: true },
+    { id: "waterQuality", name: "Water Quality Parameters Table", enabled: true },
+    { id: "consumption", name: "Consumption & Operations Table", enabled: true },
+    { id: "remarks", name: "Remarks & Field Observations", enabled: true },
+    { id: "signatures", name: "Signatures & Acknowledgements", enabled: true }
+  ],
+  sectionGap: 24,
+  pagePadding: 30,
+  headerGap: 20,
+  fontDensity: "standard",
+  accentColor: "#1A6FA8"
+};
+
+// Load saved config on startup
+try {
+  const saved = localStorage.getItem("reportTemplateConfig");
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (parsed && Array.isArray(parsed.sections)) {
+      window.currentTemplateConfig = Object.assign({}, window.currentTemplateConfig, parsed);
+    }
+  }
+} catch(e) {}
+
+function openReportTemplateBuilderModal() {
+  const modal = document.getElementById("reportTemplateBuilderModal");
+  if (modal) modal.style.display = "flex";
+
+  // Sync inputs with current config
+  document.getElementById("inputSectionGap").value = window.currentTemplateConfig.sectionGap || 24;
+  document.getElementById("inputPagePadding").value = window.currentTemplateConfig.pagePadding || 30;
+  document.getElementById("inputHeaderGap").value = window.currentTemplateConfig.headerGap || 20;
+  document.getElementById("selectFontDensity").value = window.currentTemplateConfig.fontDensity || "standard";
+  
+  setTemplateAccentColor(window.currentTemplateConfig.accentColor || "#1A6FA8", false);
+
+  renderTemplateSectionList();
+  updateTemplatePreviewFromControls();
+}
+
+function closeReportTemplateBuilderModal() {
+  const modal = document.getElementById("reportTemplateBuilderModal");
+  if (modal) modal.style.display = "none";
+}
+
+function handleTemplateBuilderBackdrop(e) {
+  if (e.target === document.getElementById("reportTemplateBuilderModal")) {
+    closeReportTemplateBuilderModal();
+  }
+}
+
+function renderTemplateSectionList() {
+  const listEl = document.getElementById("templateSectionList");
+  if (!listEl) return;
+
+  const sections = window.currentTemplateConfig.sections;
+  listEl.innerHTML = sections.map((sec, idx) => `
+    <li class="drag-section-item" draggable="true" data-index="${idx}" ondragstart="handleTemplateDragStart(event)" ondragover="handleTemplateDragOver(event)" ondrop="handleTemplateDrop(event)" ondragend="handleTemplateDragEnd(event)">
+      <div class="drag-handle-info">
+        <span class="drag-handle-icon" title="Drag to reorder">⋮⋮</span>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" ${sec.enabled ? 'checked' : ''} onchange="toggleTemplateSection(${idx}, this.checked)" style="accent-color:var(--water-1); cursor:pointer;">
+          <span>${sec.name}</span>
+        </label>
+      </div>
+      <div class="drag-controls">
+        <button type="button" class="drag-btn-arrow" onclick="moveTemplateSection(${idx}, -1)" ${idx === 0 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''} title="Move Up">▲</button>
+        <button type="button" class="drag-btn-arrow" onclick="moveTemplateSection(${idx}, 1)" ${idx === sections.length - 1 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''} title="Move Down">▼</button>
+      </div>
+    </li>
+  `).join("");
+}
+
+// Drag & Drop handlers
+let draggedSectionIndex = null;
+function handleTemplateDragStart(e) {
+  draggedSectionIndex = parseInt(e.currentTarget.getAttribute("data-index"), 10);
+  e.currentTarget.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+}
+function handleTemplateDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+}
+function handleTemplateDrop(e) {
+  e.preventDefault();
+  const targetIndex = parseInt(e.currentTarget.getAttribute("data-index"), 10);
+  if (draggedSectionIndex !== null && targetIndex !== null && draggedSectionIndex !== targetIndex) {
+    const movedItem = window.currentTemplateConfig.sections.splice(draggedSectionIndex, 1)[0];
+    window.currentTemplateConfig.sections.splice(targetIndex, 0, movedItem);
+    renderTemplateSectionList();
+    updateTemplatePreviewFromControls();
+  }
+}
+function handleTemplateDragEnd(e) {
+  e.currentTarget.classList.remove("dragging");
+  draggedSectionIndex = null;
+}
+
+function moveTemplateSection(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= window.currentTemplateConfig.sections.length) return;
+  const item = window.currentTemplateConfig.sections.splice(index, 1)[0];
+  window.currentTemplateConfig.sections.splice(newIndex, 0, item);
+  renderTemplateSectionList();
+  updateTemplatePreviewFromControls();
+}
+
+function toggleTemplateSection(index, isChecked) {
+  window.currentTemplateConfig.sections[index].enabled = isChecked;
+  updateTemplatePreviewFromControls();
+}
+
+function setTemplateAccentColor(color, triggerUpdate = true) {
+  window.currentTemplateConfig.accentColor = color;
+  document.querySelectorAll("#templateColorSwatches .color-swatch").forEach(btn => {
+    if (btn.getAttribute("data-color") === color) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+  if (triggerUpdate) updateTemplatePreviewFromControls();
+}
+
+function updateTemplatePreviewFromControls() {
+  const sectionGap = parseInt(document.getElementById("inputSectionGap").value, 10) || 24;
+  const pagePadding = parseInt(document.getElementById("inputPagePadding").value, 10) || 30;
+  const headerGap = parseInt(document.getElementById("inputHeaderGap").value, 10) || 20;
+  const fontDensity = document.getElementById("selectFontDensity").value || "standard";
+
+  document.getElementById("valSectionGap").textContent = `${sectionGap}px`;
+  document.getElementById("valPagePadding").textContent = `${pagePadding}px`;
+  document.getElementById("valHeaderGap").textContent = `${headerGap}px`;
+
+  window.currentTemplateConfig.sectionGap = sectionGap;
+  window.currentTemplateConfig.pagePadding = pagePadding;
+  window.currentTemplateConfig.headerGap = headerGap;
+  window.currentTemplateConfig.fontDensity = fontDensity;
+
+  renderLivePdfTemplateCanvas();
+}
+
+function renderLivePdfTemplateCanvas() {
+  const canvas = document.getElementById("livePdfTemplateCanvas");
+  if (!canvas) return;
+
+  const cfg = window.currentTemplateConfig;
+  const accent = cfg.accentColor || "#1A6FA8";
+  const gap = cfg.sectionGap || 24;
+  const pad = cfg.pagePadding || 30;
+  const headerGap = cfg.headerGap || 20;
+
+  const fontScale = cfg.fontDensity === "compact" ? 0.9 : cfg.fontDensity === "roomy" ? 1.1 : 1.0;
+  const baseFontSize = 12 * fontScale;
+
+  const titleVal = document.getElementById("reportHeaderTitleInput")?.value.trim() || "AquaSense Water Analytics";
+  const subVal = document.getElementById("reportHeaderSubtitleInput")?.value.trim() || "Camarines Sur Polytechnic Colleges";
+  const addrVal = document.getElementById("reportHeaderAddressInput")?.value.trim() || "Nabua, Camarines Sur, Philippines";
+
+  let sectionsHtml = "";
+
+  cfg.sections.forEach(sec => {
+    if (!sec.enabled) return;
+
+    if (sec.id === "header") {
+      sectionsHtml += `
+        <div style="display: grid; grid-template-columns: 50px 1fr; gap: 14px; align-items: center; border-bottom: 2.5px solid ${accent}; padding-bottom: ${headerGap}px; margin-bottom: ${gap}px;">
+          <div style="width: 50px; height: 50px; border-radius: 6px; background: ${accent}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">CSPC</div>
+          <div>
+            <div style="font-size: ${baseFontSize * 0.85}px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; font-weight: 700;">${subVal}</div>
+            <div style="font-size: ${baseFontSize * 1.3}px; color: #111827; font-weight: 800; line-height: 1.2;">${titleVal}</div>
+            <div style="font-size: ${baseFontSize * 0.85}px; color: #64748B;">${addrVal}</div>
+          </div>
+        </div>
+      `;
+    } else if (sec.id === "summary") {
+      sectionsHtml += `
+        <div style="margin-bottom: ${gap}px; font-size: ${baseFontSize}px; color: #475569; line-height: 1.5;">
+          This document contains consolidated water quality and telemetry analytics from <strong>2026-08-01</strong> to <strong>2026-08-15</strong>.
+        </div>
+      `;
+    } else if (sec.id === "waterQuality") {
+      sectionsHtml += `
+        <div style="margin-bottom: ${gap}px;">
+          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics (HSU)</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.9}px;">
+            <thead>
+              <tr style="background: #F8FAFC;">
+                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: left;">Parameter</th>
+                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: right;">Average</th>
+                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: right;">Breaches</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">pH Level</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">7.35</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right;">0</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Turbidity</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">1.20 NTU</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right;">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (sec.id === "consumption") {
+      sectionsHtml += `
+        <div style="margin-bottom: ${gap}px;">
+          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption and Operations Summary (GSU)</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.9}px;">
+            <tbody>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Total Water Consumption</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">45,200 L</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Average Campus Flow Rate</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">18.50 L/min</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    } else if (sec.id === "remarks") {
+      sectionsHtml += `
+        <div style="margin-bottom: ${gap}px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: ${baseFontSize * 0.9}px;">
+          <div style="font-weight: 700; color: #1E293B; margin-bottom: 2px;">Remarks & Observations:</div>
+          <div style="color: #64748B;">All monitored campus parameters are operating within PNSDW 2017 standards.</div>
+        </div>
+      `;
+    } else if (sec.id === "signatures") {
+      sectionsHtml += `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 10px;">
+          <div>
+            <div style="font-size: ${baseFontSize * 0.8}px; color: #64748B; text-transform: uppercase;">Prepared By:</div>
+            <div style="font-weight: 700; font-size: ${baseFontSize * 0.95}px; color: #1E293B; margin-top: 18px; border-bottom: 1.5px solid #94A3B8; padding-bottom: 2px;">John Doe</div>
+            <div style="font-size: ${baseFontSize * 0.85}px; color: #64748B;">Facility Manager</div>
+          </div>
+          <div>
+            <div style="font-size: ${baseFontSize * 0.8}px; color: #64748B; text-transform: uppercase;">Approved By:</div>
+            <div style="font-weight: 700; font-size: ${baseFontSize * 0.95}px; color: #1E293B; margin-top: 18px; border-bottom: 1.5px solid #94A3B8; padding-bottom: 2px;">Dr. Administrator</div>
+            <div style="font-size: ${baseFontSize * 0.85}px; color: #64748B;">Institutional Head</div>
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  canvas.style.padding = `${pad}px`;
+  canvas.innerHTML = sectionsHtml;
+}
+
+async function saveReportTemplateLayout() {
+  try {
+    const configStr = JSON.stringify(window.currentTemplateConfig);
+    localStorage.setItem("reportTemplateConfig", configStr);
+    
+    // Save to API system-settings if available
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (token) {
+        await fetch('http://localhost:5000/api/system-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ settings: { report_template_config: configStr } })
+        });
+      }
+    } catch(e) {}
+
+    if (typeof showToast === "function") {
+      showToast("Template Saved", "Custom report template layout and spacing applied successfully!");
+    } else {
+      alert("Template layout and spacing saved successfully!");
+    }
+    closeReportTemplateBuilderModal();
+  } catch(err) {
+    console.error(err);
+    if (typeof showToast === "function") {
+      showToast("Error", "Failed to save template layout.");
+    }
+  }
+}
+
+async function saveReportPdfHeaderSettings() {
+  const btn = document.getElementById("saveReportHeaderTemplateBtn");
+  const originalText = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>Saving...</span>`;
+  }
+
+  try {
+    const title = document.getElementById("reportHeaderTitleInput").value.trim();
+    const subtitle = document.getElementById("reportHeaderSubtitleInput").value.trim();
+    const address = document.getElementById("reportHeaderAddressInput").value.trim();
+
+    const logoInput = document.getElementById("reportHeaderLogoInput");
+    let logoBase64 = null;
+    if (logoInput && logoInput.files && logoInput.files[0]) {
+      logoBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(logoInput.files[0]);
+      });
+    }
+
+    const payload = {
+      report_header_title: title,
+      report_header_subtitle: subtitle,
+      report_header_address: address
+    };
+    if (logoBase64) {
+      payload.report_logo_base64 = logoBase64;
+    }
+
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const res = await fetch('http://localhost:5000/api/system-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      if (logoBase64) {
+        const imgEl = document.getElementById("reportHeaderLogoPreview");
+        const textEl = document.getElementById("reportHeaderNoLogoText");
+        if (imgEl) { imgEl.src = logoBase64; imgEl.style.display = "block"; }
+        if (textEl) { textEl.style.display = "none"; }
+      }
+      if (typeof showSettingsBanner === "function") {
+        showSettingsBanner("Report PDF Template header settings saved successfully!", false);
+      }
+      if (typeof showToast === "function") {
+        showToast("Settings Saved", "Report PDF Template header settings updated!");
+      } else {
+        alert("Report PDF Template header settings saved!");
+      }
+    } else {
+      const data = await res.json();
+      throw new Error(data.message || "Failed to save template header settings");
+    }
+  } catch(err) {
+    console.error(err);
+    if (typeof showSettingsBanner === "function") {
+      showSettingsBanner("Failed to save template settings: " + err.message, true);
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+}
  
 function loadUserIntoSidebar(u) {
   window.currentUserData = u; // ← stashed for the Edit Profile modal
   if (u.fullname) {
-    document.getElementById("userName").textContent = u.fullname;
+    const userNameEl = document.getElementById("userName");
+    const dropdownUserNameEl = document.getElementById("dropdownUserName");
+    if (userNameEl) userNameEl.textContent = u.fullname;
+    if (dropdownUserNameEl) dropdownUserNameEl.textContent = u.fullname;
     const initial = u.fullname.charAt(0).toUpperCase();
     const avatarEl = document.getElementById("userAvatar");
-    if (u.avatar) {
-      avatarEl.innerHTML = `<img src="${u.avatar}" alt="" onerror="this.parentElement.textContent = '${initial}';"/>`;
-    } else {
-      avatarEl.textContent = initial;
+    if (avatarEl) {
+      if (u.avatar) {
+        avatarEl.innerHTML = `<img src="${u.avatar}" alt="" onerror="this.parentElement.textContent = '${initial}';"/>`;
+      } else {
+        avatarEl.textContent = initial;
+      }
     }
   }
   if (u.role) {
-    document.getElementById("userRole").textContent = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
+    const roleText = roleLabels[u.role.toLowerCase()] || u.role.toUpperCase();
+    const userRoleEl = document.getElementById("userRole");
+    const dropdownUserRoleEl = document.getElementById("dropdownUserRole");
+    if (userRoleEl) userRoleEl.textContent = roleText;
+    if (dropdownUserRoleEl) dropdownUserRoleEl.textContent = roleText;
   }
   applyRoleGating(u.role);
 }
+
+window.toggleProfileDropdown = function(event) {
+  if (event) event.stopPropagation();
+  // Hide notifications dropdown if open
+  const notifDd = document.getElementById("notifDropdown");
+  if (notifDd) notifDd.style.display = "none";
+
+  const dropdown = document.getElementById("profileDropdown");
+  if (!dropdown) return;
+  const isHidden = window.getComputedStyle(dropdown).display === "none";
+  dropdown.style.display = isHidden ? "block" : "none";
+};
+
+document.addEventListener("click", function(e) {
+  const profileDdWrapper = document.getElementById("profileDropdownWrapper");
+  if (profileDdWrapper && !profileDdWrapper.contains(e.target)) {
+    const dropdown = document.getElementById("profileDropdown");
+    if (dropdown) dropdown.style.display = "none";
+  }
+});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS — Load from API and Save on Toggle
@@ -3588,7 +4702,7 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
         </div>
       </div>
 
-      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text-dark);margin-bottom:8px;">
+      <div style="font-family:var(--font-heading);font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--text-dark);margin-bottom:8px;">
         Waiting for ESP32…
       </div>
       <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px;">
@@ -3850,6 +4964,8 @@ function openDeleteConfirmModal(type, id, name) {
     device:   { title: 'Delete Device',           noun: 'device'   },
     readings: { title: 'Delete Sensor Readings',  noun: 'reading(s)' },
     alerts:   { title: 'Delete Alerts',           noun: 'alert(s)' },
+    sms:      { title: 'Delete SMS Log',          noun: 'SMS log' },
+    smss:     { title: 'Delete SMS Logs',         noun: 'SMS log(s)' },
   };
   const labels = labelMap[type] || { title: 'Delete Item', noun: 'item' };
 
@@ -3936,6 +5052,12 @@ document.addEventListener('click', (e) => {
   const delAlertBtn = e.target.closest('.delete-alert-btn');
   if (delAlertBtn) {
     openAlertDeleteModal(delAlertBtn.dataset.id, delAlertBtn.dataset.name);
+    return;
+  }
+  const delSmsBtn = e.target.closest('.delete-sms-btn');
+  if (delSmsBtn) {
+    openDeleteConfirmModal('sms', delSmsBtn.dataset.id, delSmsBtn.dataset.name || 'SMS Log');
+    return;
   }
 });
 
@@ -3957,7 +5079,9 @@ async function executeDelete() {
     readings: `http://localhost:5000/api/sensors`, // bulk endpoint — ids sent in body
     alerts:   `http://localhost:5000/api/alerts`, // bulk endpoint — ids sent in body
     audit:    `http://localhost:5000/api/audit-logs/${id}`,
-    audits:   `http://localhost:5000/api/audit-logs`
+    audits:   `http://localhost:5000/api/audit-logs`,
+    sms:      `http://localhost:5000/api/sms-logs/${id}`,
+    smss:     `http://localhost:5000/api/sms-logs`
   };
   let url = endpointMap[type];
   if (type === 'device') {
@@ -3977,7 +5101,7 @@ async function executeDelete() {
       headers: { 'Authorization': `Bearer ${token}` },
     };
     // Bulk deletes send the selected ids as a JSON body
-    if (type === 'readings' || type === 'alerts' || type === 'audits') {
+    if (type === 'readings' || type === 'alerts' || type === 'audits' || type === 'smss') {
       fetchOpts.headers['Content-Type'] = 'application/json';
       fetchOpts.body = JSON.stringify({ ids: id });
     }
@@ -3992,7 +5116,7 @@ async function executeDelete() {
       const deletedName = pendingDelete.name;
 
       closeDeleteConfirmModal();
-      showToast('Deleted', `${deletedName} ${type === 'readings' || type === 'alerts' || type === 'audits' ? 'have' : 'has'} been removed.`);
+      showToast('Deleted', `${deletedName} ${type === 'readings' || type === 'alerts' || type === 'audits' || type === 'smss' ? 'have' : 'has'} been removed.`);
 
       if (type === 'location' && window.viewLoaders && window.viewLoaders.locations) {
         window.viewLoaders.locations();
@@ -4021,6 +5145,16 @@ async function executeDelete() {
         }
         if (window.viewLoaders && window.viewLoaders['system-logs']) {
           window.viewLoaders['system-logs']();
+        }
+      }
+      if (type === 'sms' || type === 'smss') {
+        if (typeof clearSmsSelection === 'function') {
+          clearSmsSelection();
+        }
+        if (window.viewLoaders && window.viewLoaders.sms) {
+          window.viewLoaders.sms();
+        } else if (typeof loadSmsLogs === 'function') {
+          loadSmsLogs();
         }
       }
     } else {
@@ -4992,6 +6126,32 @@ async function executeUserDelete() {
     submitBtn.disabled = false;
   }
 }
+
+window.toggleTheme = function() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeToggleIcons(next);
+};
+
+function updateThemeToggleIcons(theme) {
+  const btns = document.querySelectorAll('.theme-toggle-btn');
+  btns.forEach(btn => {
+    if (theme === 'dark') {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+      btn.setAttribute('title', 'Switch to Light Mode');
+    } else {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+      btn.setAttribute('title', 'Switch to Dark Mode');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  updateThemeToggleIcons(current);
+});
 
 </script>
 </body>

@@ -27,6 +27,11 @@ const {
   deleteAuditLog,
   deleteAuditLogsBulk,
   getSmsLogs,
+  deleteSmsLog,
+  deleteSmsLogsBulk,
+  getThresholds,
+  updateThresholds,
+  resetThresholds,
   getSystemSettings,
   updateSystemSettings,
   getGoogleOauthSetting,
@@ -53,6 +58,7 @@ router.get  ("/devices/health",         verifyToken, getDevicesHealth);
 router.get  ("/maintenance",            verifyToken, getMaintenanceLogs);
 router.get  ("/sms-logs",               verifyToken, getSmsLogs);
 router.get  ("/reports/summary",        verifyToken, getReportsSummary);
+router.get  ("/thresholds",             verifyToken, getThresholds);
 
 // System settings routes
 router.get  ("/system-settings",              verifyToken, getSystemSettings);
@@ -81,6 +87,10 @@ router.patch("/devices/:id/status",     verifyToken, requireAdmin, updateDeviceS
 router.delete("/devices/:id",           verifyToken, requireAdmin, deleteDevice);
 router.post  ("/locations",             verifyToken, requireAdmin, createLocation);
 router.delete("/locations/:id",         verifyToken, requireAdmin, deleteLocation);
-router.delete("/maintenance/:id",         verifyToken, requireAdmin, deleteMaintenanceLog);
+router.delete("/maintenance/:id",       verifyToken, requireAdmin, deleteMaintenanceLog);
+router.delete("/sms-logs/:id",          verifyToken, requireAdmin, deleteSmsLog);
+router.delete("/sms-logs",              verifyToken, requireAdmin, deleteSmsLogsBulk);
+router.put   ("/thresholds",            verifyToken, requireAdmin, updateThresholds);
+router.post  ("/thresholds/reset",      verifyToken, requireAdmin, resetThresholds);
 
 module.exports = router;

@@ -60,6 +60,21 @@ async function initDB() {
   `;
   await pool.query(createAuditLogsTable);
 
+  const createSmsLogsTable = `
+    CREATE TABLE IF NOT EXISTS sms_logs (
+      id          INT          NOT NULL AUTO_INCREMENT,
+      device_id   VARCHAR(50)  NULL,
+      alert_id    INT          NULL,
+      recipient   VARCHAR(50)  NOT NULL,
+      message     TEXT         NOT NULL,
+      provider    VARCHAR(50)  DEFAULT 'Semaphore',
+      status      VARCHAR(20)  NOT NULL DEFAULT 'sent',
+      created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `;
+  await pool.query(createSmsLogsTable);
+
   const createSettingsTable = `
     CREATE TABLE IF NOT EXISTS system_settings (
       setting_key   VARCHAR(100) NOT NULL,
@@ -87,10 +102,50 @@ async function initDB() {
   `;
   await pool.query(createUserSettingsTable);
 
+  const createThresholdSettingsTable = `
+    CREATE TABLE IF NOT EXISTS threshold_settings (
+      id             INT          NOT NULL AUTO_INCREMENT,
+      parameter_name VARCHAR(50)  NOT NULL UNIQUE,
+      min_value      DECIMAL(10,2) NOT NULL,
+      max_value      DECIMAL(10,2) NOT NULL,
+      unit           VARCHAR(20)  NOT NULL,
+      description    VARCHAR(255) NULL,
+      created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `;
+  await pool.query(createThresholdSettingsTable);
+
+  try {
+    await pool.query("ALTER TABLE threshold_settings ADD COLUMN unit VARCHAR(20) NULL DEFAULT ''");
+  } catch (err) {
+    // Column unit already exists
+  }
+
   try {
     await pool.query("ALTER TABLE user_settings MODIFY COLUMN setting_value LONGTEXT NOT NULL");
   } catch (err) {
     console.warn("[AquaMonitor] Could not alter user_settings table schema:", err);
+  }
+
+  // Seed default thresholds if missing
+  const defaultThresholds = [
+    ["ph", 6.50, 8.50, "pH", "Acidity / Alkalinity (PNSDW 2017)"],
+    ["tds", 0.00, 500.00, "ppm", "Total Dissolved Solids (PNSDW 2017)"],
+    ["temperature", 0.00, 35.00, "°C", "Water Thermal Level (PNSDW 2017)"],
+    ["turbidity", 0.00, 5.00, "NTU", "Water Clarity / Cloudiness (PNSDW 2017)"],
+    ["ammonia", 0.00, 0.50, "mg/L", "NH3 Concentration (PNSDW 2017)"],
+    ["flow_rate", 0.00, 100.00, "L/min", "Water Volume Flow Rate"]
+  ];
+  for (const [param, minV, maxV, unit, desc] of defaultThresholds) {
+    const [existing] = await pool.query("SELECT parameter_name FROM threshold_settings WHERE parameter_name = ?", [param]);
+    if (existing.length === 0) {
+      await pool.query(
+        "INSERT INTO threshold_settings (parameter_name, min_value, max_value, unit, description) VALUES (?, ?, ?, ?, ?)",
+        [param, minV, maxV, unit, desc]
+      );
+    }
   }
 
   // Seed default settings individually if they are missing

@@ -4,11 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AquaMonitor — Sign In</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-heading: 'Outfit', 'Plus Jakarta Sans', sans-serif;
       --navy:      #0D2353;
       --navy-dark: #081535;
       --navy-mid:  #163574;
@@ -26,9 +38,33 @@
       --border:    #DDE3EE;
       --error:     #C0392B;
       --success:   #0F7050;
+      --bg-input:  #FFFFFF;
     }
 
-    html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--off-white); }
+    [data-theme="dark"] {
+      --navy:      #0F172A;
+      --navy-dark: #0B0F19;
+      --navy-mid:  #1E293B;
+      --off-white: #090D16;
+      --white:     #111827;
+      --text-dark: #F8FAFC;
+      --text-mid:  #94A3B8;
+      --text-light:#64748B;
+      --border:    #1E293B;
+      --bg-input:  #1E293B;
+      --water-pale:#162436;
+      --gold-pale: #2A2415;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-body);
+      letter-spacing: -0.01em;
+      line-height: 1.5;
+      background: var(--off-white);
+      color: var(--text-dark);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
 
     /* ───── LAYOUT ───── */
     .layout { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
@@ -55,9 +91,9 @@
       display: flex; align-items: center; justify-content: center;
     }
     .brand-icon svg { width: 26px; height: 26px; fill: var(--navy-dark); }
-    .brand-text .sys-name { font-weight: 600; font-size: 15px; color: var(--white); letter-spacing: 0.02em; line-height: 1; }
-    .brand-text .org-name { font-size: 11px; color: rgba(255,255,255,0.45); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px; }
-    .visual-headline { font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 700; color: var(--white); line-height: 1.2; margin-bottom: 20px; }
+    .brand-text .sys-name { font-weight: 700; font-size: 15px; color: #FFFFFF !important; letter-spacing: -0.01em; line-height: 1; }
+    .brand-text .org-name { font-size: 11px; color: rgba(255,255,255,0.65) !important; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px; }
+    .visual-headline { font-family: var(--font-heading); font-size: 42px; font-weight: 700; letter-spacing: -0.025em; color: var(--white); line-height: 1.2; margin-bottom: 20px; }
     .visual-headline em { font-style: normal; color: var(--gold-light); }
     .visual-sub { font-size: 15px; color: rgba(255,255,255,0.55); line-height: 1.7; max-width: 340px; }
     .stats-row { display: flex; gap: 28px; margin-top: 52px; }
@@ -115,7 +151,7 @@
 
     /* ───── FORM HEADER ───── */
     .form-header { margin-bottom: 36px; }
-    .form-header h1 { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text-dark); margin-bottom: 8px; }
+    .form-header h1 { font-family: var(--font-heading); font-size: 32px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); margin-bottom: 8px; }
     .form-header p { font-size: 14px; color: var(--text-mid); }
 
     /* ───── FORM ELEMENTS ───── */
@@ -392,6 +428,9 @@
 
   <!-- ─── FORM PANEL ─── -->
   <div class="form-panel">
+    <button class="auth-theme-toggle theme-toggle-btn" onclick="toggleTheme()" title="Toggle Theme" style="position: absolute; top: 24px; right: 24px; z-index: 10; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--off-white); color: var(--text-mid); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
 
     <!-- ── VIEW 1: LOGIN ── -->
     <div class="panel-view" id="loginView">
@@ -717,6 +756,32 @@
     resetFlowSteps();
     document.getElementById('fpEmail').focus();
   });
+
+window.toggleTheme = function() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeToggleIcons(next);
+};
+
+function updateThemeToggleIcons(theme) {
+  const btns = document.querySelectorAll('.theme-toggle-btn');
+  btns.forEach(btn => {
+    if (theme === 'dark') {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+      btn.setAttribute('title', 'Switch to Light Mode');
+    } else {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+      btn.setAttribute('title', 'Switch to Dark Mode');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  updateThemeToggleIcons(current);
+});
 </script>
 </body>
 </html>

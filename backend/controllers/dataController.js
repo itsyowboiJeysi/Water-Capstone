@@ -1171,18 +1171,352 @@ async function deleteMaintenanceLog(req, res) {
   }
 }
 
-// GET /api/sms-logs
+// GET /api/sms-logs (Paginated & Filterable)
 async function getSmsLogs(req, res) {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-    const [rows] = await pool.query(
-      `SELECT * FROM sms_logs ORDER BY created_at DESC LIMIT ?`,
-      [limit]
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 15, 200);
+    const offset = (page - 1) * limit;
+
+    const search = req.query.search || "";
+    const status = req.query.status || "";
+
+    const conditions = [];
+    const params = [];
+
+    if (status) {
+      conditions.push("LOWER(s.status) = ?");
+      params.push(status.toLowerCase());
+    }
+
+    if (search) {
+      conditions.push("(LOWER(s.message) LIKE ? OR LOWER(s.recipient) LIKE ? OR LOWER(s.device_id) LIKE ? OR LOWER(l.building_name) LIKE ?)");
+      const term = `%${search.toLowerCase()}%`;
+      params.push(term, term, term, term);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const [statRows] = await pool.query(
+      `SELECT 
+        COUNT(*) AS totalCount,
+        SUM(CASE WHEN LOWER(status) = 'sent' THEN 1 ELSE 0 END) AS sentCount,
+        SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END) AS failedCount,
+        SUM(CASE WHEN LOWER(status) = 'pending' THEN 1 ELSE 0 END) AS pendingCount
+       FROM sms_logs`
     );
-    res.json(rows);
+    const overallStats = {
+      total: statRows[0]?.totalCount || 0,
+      sent: Number(statRows[0]?.sentCount) || 0,
+      failed: Number(statRows[0]?.failedCount) || 0,
+      pending: Number(statRows[0]?.pendingCount) || 0
+    };
+
+    const [[countRow]] = await pool.query(
+      `SELECT COUNT(*) AS total 
+       FROM sms_logs s 
+       LEFT JOIN devices d ON s.device_id = d.device_id 
+       LEFT JOIN locations l ON d.location_id = l.location_id 
+       ${whereClause}`,
+      params
+    );
+    const total = countRow ? countRow.total : 0;
+
+    const dataParams = [...params, limit, offset];
+    const [rows] = await pool.query(
+      `SELECT s.*, d.device_name, l.building_name, l.area_name
+       FROM sms_logs s
+       LEFT JOIN devices d ON s.device_id = d.device_id
+       LEFT JOIN locations l ON d.location_id = l.location_id
+       ${whereClause}
+       ORDER BY s.created_at DESC
+       LIMIT ? OFFSET ?`,
+      dataParams
+    );
+
+    res.json({
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1
+      },
+      stats: overallStats
+    });
   } catch (err) {
     console.error("[AquaSense] getSmsLogs error:", err);
     res.status(500).json({ message: "Server error fetching SMS logs." });
+  }
+}
+
+// DELETE /api/sms-logs/:id (Admin only)
+async function deleteSmsLog(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete SMS logs." });
+    }
+
+    const { id } = req.params;
+    const [rows] = await pool.query("SELECT * FROM sms_logs WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "SMS log not found." });
+    }
+
+    const log = rows[0];
+    await pool.query("DELETE FROM sms_logs WHERE id = ?", [id]);
+    await logAudit(req, "DELETE_SMS_LOG", `Deleted SMS log ID: ${id} sent to ${log.recipient}`);
+
+    res.json({ message: "SMS log deleted successfully." });
+  } catch (err) {
+    console.error("[AquaSense] deleteSmsLog error:", err);
+    res.status(500).json({ message: "Server error deleting SMS log." });
+  }
+}
+
+// DELETE /api/sms-logs (Bulk Delete - Admin only)
+async function deleteSmsLogsBulk(req, res) {
+  try {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ message: "Only administrators can delete SMS logs." });
+    }
+
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Please provide SMS log IDs to delete." });
+    }
+
+    const cleanIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    if (cleanIds.length === 0) {
+      return res.status(400).json({ message: "Invalid SMS log IDs provided." });
+    }
+
+    const [result] = await pool.query("DELETE FROM sms_logs WHERE id IN (?)", [cleanIds]);
+    await logAudit(req, "BULK_DELETE_SMS_LOGS", `Deleted ${result.affectedRows} SMS log(s). IDs: ${cleanIds.join(", ")}`);
+
+    res.json({ message: `${result.affectedRows} SMS log(s) deleted successfully.` });
+  } catch (err) {
+    console.error("[AquaSense] deleteSmsLogsBulk error:", err);
+    res.status(500).json({ message: "Server error deleting SMS logs." });
+  }
+}
+
+async function ensureThresholdTableSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS threshold_settings (
+      id             INT          NOT NULL AUTO_INCREMENT,
+      parameter_name VARCHAR(50)  NOT NULL UNIQUE,
+      min_value      DECIMAL(10,2) NOT NULL,
+      max_value      DECIMAL(10,2) NOT NULL,
+      unit           VARCHAR(20)  NULL DEFAULT '',
+      description    VARCHAR(255) NULL,
+      created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  try {
+    await pool.query("ALTER TABLE threshold_settings ADD COLUMN unit VARCHAR(20) NULL DEFAULT ''");
+  } catch (e) {}
+
+  try {
+    await pool.query("ALTER TABLE threshold_settings ADD COLUMN description VARCHAR(255) NULL");
+  } catch (e) {}
+
+  try {
+    await pool.query("UPDATE threshold_settings SET parameter_name = LOWER(TRIM(parameter_name))");
+  } catch (e) {}
+}
+
+// GET /api/thresholds
+async function getThresholds(req, res) {
+  try {
+    await ensureThresholdTableSchema();
+
+    let [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
+
+    if (rows.length === 0) {
+      const defaultThresholds = [
+        ["ph", 6.50, 8.50, "pH", "Acidity / Alkalinity (PNSDW 2017)"],
+        ["tds", 0.00, 500.00, "ppm", "Total Dissolved Solids (PNSDW 2017)"],
+        ["temperature", 0.00, 35.00, "°C", "Water Thermal Level (PNSDW 2017)"],
+        ["turbidity", 0.00, 5.00, "NTU", "Water Clarity / Cloudiness (PNSDW 2017)"],
+        ["ammonia", 0.00, 0.50, "mg/L", "NH3 Concentration (PNSDW 2017)"],
+        ["flow_rate", 0.00, 100.00, "L/min", "Water Volume Flow Rate"]
+      ];
+      for (const [param, minV, maxV, unit, desc] of defaultThresholds) {
+        try {
+          await pool.query(
+            "INSERT IGNORE INTO threshold_settings (parameter_name, min_value, max_value, unit, description) VALUES (?, ?, ?, ?, ?)",
+            [param, minV, maxV, unit, desc]
+          );
+        } catch (e) {
+          await pool.query(
+            "INSERT IGNORE INTO threshold_settings (parameter_name, min_value, max_value) VALUES (?, ?, ?)",
+            [param, minV, maxV]
+          );
+        }
+      }
+      [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
+    }
+
+    res.json(rows);
+  } catch (err) {
+    console.error("[AquaSense] getThresholds error:", err);
+    res.status(500).json({ message: "Server error fetching threshold settings." });
+  }
+}
+
+// PUT /api/thresholds (Admin only)
+async function updateThresholds(req, res) {
+  try {
+    if ((req.user?.role || "").toLowerCase() !== "admin") {
+      return res.status(403).json({ message: "Only administrators can update threshold settings." });
+    }
+
+    await ensureThresholdTableSchema();
+
+    let thresholds = req.body?.thresholds;
+    if (!thresholds && Array.isArray(req.body)) {
+      thresholds = req.body;
+    }
+    if (!thresholds && req.body && typeof req.body === "object" && req.body.parameter_name) {
+      thresholds = [req.body];
+    }
+
+    if (!Array.isArray(thresholds) || thresholds.length === 0) {
+      return res.status(400).json({ message: "Invalid payload. Provide thresholds array." });
+    }
+
+    const units = { ph: "pH", tds: "ppm", temperature: "°C", turbidity: "NTU", ammonia: "mg/L", flow_rate: "L/min" };
+    const updatedParams = [];
+
+    for (const item of thresholds) {
+      const { parameter_name, min_value, max_value } = item;
+      if (!parameter_name || min_value === undefined || max_value === undefined) continue;
+
+      const minV = Number(min_value);
+      const maxV = Number(max_value);
+
+      if (isNaN(minV) || isNaN(maxV)) {
+        return res.status(400).json({ message: `Invalid numeric threshold for parameter: ${parameter_name}` });
+      }
+      if (minV > maxV) {
+        return res.status(400).json({ message: `Minimum threshold (${minV}) cannot be greater than Maximum (${maxV}) for ${parameter_name}` });
+      }
+
+      const pKey = String(parameter_name).toLowerCase().trim();
+      const unit = units[pKey] || "";
+
+      // Safe update matching lowercase or raw parameter_name
+      const [updRes] = await pool.query(
+        "UPDATE threshold_settings SET min_value = ?, max_value = ? WHERE LOWER(TRIM(parameter_name)) = ? OR parameter_name = ?",
+        [minV, maxV, pKey, parameter_name]
+      );
+
+      // If no row existed yet, insert safely
+      if (updRes.affectedRows === 0) {
+        try {
+          await pool.query(
+            "INSERT INTO threshold_settings (parameter_name, min_value, max_value, unit) VALUES (?, ?, ?, ?)",
+            [pKey, minV, maxV, unit]
+          );
+        } catch (e) {
+          await pool.query(
+            "INSERT INTO threshold_settings (parameter_name, min_value, max_value) VALUES (?, ?, ?)",
+            [pKey, minV, maxV]
+          );
+        }
+      }
+
+      updatedParams.push(`${pKey}: [${minV} - ${maxV}]`);
+    }
+
+    if (updatedParams.length > 0) {
+      try {
+        await logAudit(req, "UPDATE_THRESHOLDS", `Updated parameter thresholds: ${updatedParams.join(", ")}`);
+      } catch (e) {
+        console.warn("[AquaSense] logAudit warning in updateThresholds:", e.message);
+      }
+    }
+
+    const [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
+    res.json({ message: "Threshold settings updated successfully.", thresholds: rows });
+  } catch (err) {
+    console.error("[AquaSense] updateThresholds error:", err);
+    res.status(500).json({ message: err.message || "Server error updating threshold settings." });
+  }
+}
+
+// POST /api/thresholds/reset (Admin only)
+async function resetThresholds(req, res) {
+  try {
+    if ((req.user?.role || "").toLowerCase() !== "admin") {
+      return res.status(403).json({ message: "Only administrators can reset threshold settings." });
+    }
+
+    await ensureThresholdTableSchema();
+
+    const { standard } = req.body || {};
+    let defaults;
+    let stdName;
+
+    if (standard === "who") {
+      stdName = "WHO Guidelines for Drinking-water Quality";
+      defaults = [
+        ["ph", 6.50, 8.50, "pH"],
+        ["tds", 0.00, 600.00, "ppm"],
+        ["temperature", 0.00, 30.00, "°C"],
+        ["turbidity", 0.00, 1.00, "NTU"],
+        ["ammonia", 0.00, 1.50, "mg/L"],
+        ["flow_rate", 0.00, 100.00, "L/min"]
+      ];
+    } else {
+      stdName = "PNSDW 2017 Standards";
+      defaults = [
+        ["ph", 6.50, 8.50, "pH"],
+        ["tds", 0.00, 500.00, "ppm"],
+        ["temperature", 0.00, 35.00, "°C"],
+        ["turbidity", 0.00, 5.00, "NTU"],
+        ["ammonia", 0.00, 0.50, "mg/L"],
+        ["flow_rate", 0.00, 100.00, "L/min"]
+      ];
+    }
+
+    for (const [param, minV, maxV, unit] of defaults) {
+      const pKey = String(param).toLowerCase().trim();
+      const [updRes] = await pool.query(
+        "UPDATE threshold_settings SET min_value = ?, max_value = ? WHERE LOWER(TRIM(parameter_name)) = ? OR parameter_name = ?",
+        [minV, maxV, pKey, param]
+      );
+
+      if (updRes.affectedRows === 0) {
+        try {
+          await pool.query(
+            "INSERT INTO threshold_settings (parameter_name, min_value, max_value, unit) VALUES (?, ?, ?, ?)",
+            [param, minV, maxV, unit]
+          );
+        } catch (e) {
+          await pool.query(
+            "INSERT INTO threshold_settings (parameter_name, min_value, max_value) VALUES (?, ?, ?)",
+            [param, minV, maxV]
+          );
+        }
+      }
+    }
+
+    try {
+      await logAudit(req, "RESET_THRESHOLDS", `Reset water quality threshold parameters to ${stdName}`);
+    } catch (e) {
+      console.warn("[AquaSense] logAudit warning in resetThresholds:", e.message);
+    }
+
+    const [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
+    res.json({ message: `Thresholds reset to ${stdName} defaults successfully.`, thresholds: rows });
+  } catch (err) {
+    console.error("[AquaSense] resetThresholds error:", err);
+    res.status(500).json({ message: err.message || "Server error resetting threshold settings." });
   }
 }
 
@@ -1319,6 +1653,11 @@ module.exports = {
   deleteAuditLogsBulk,
   logExportAction,
   getSmsLogs,
+  deleteSmsLog,
+  deleteSmsLogsBulk,
+  getThresholds,
+  updateThresholds,
+  resetThresholds,
   getSystemSettings,
   updateSystemSettings,
   getGoogleOauthSetting,
