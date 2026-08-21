@@ -910,13 +910,32 @@
     }
     [data-theme="dark"] .btn-report-outline {
       background: var(--bg-card);
-      border-color: var(--border);
-      color: #F8FAFC;
+      border-color: var(--water-1);
+      color: #38BDF8;
     }
     [data-theme="dark"] .btn-report-outline:hover {
-      background: #1E293B;
+      background: rgba(56, 189, 248, 0.12);
       color: #38BDF8;
       border-color: #38BDF8;
+    }
+    [data-theme="dark"] .modal-btn-submit {
+      background: var(--water-1) !important;
+      color: #FFFFFF !important;
+      box-shadow: 0 4px 12px rgba(44,154,209,0.3);
+    }
+    [data-theme="dark"] .modal-btn-submit:hover:not(:disabled) {
+      background: #155A8A !important;
+      color: #FFFFFF !important;
+    }
+    [data-theme="dark"] .modal-btn-cancel {
+      background: transparent;
+      border-color: #334155;
+      color: #94A3B8;
+    }
+    [data-theme="dark"] .modal-btn-cancel:hover {
+      background: #1E293B;
+      color: #F8FAFC;
+      border-color: #475569;
     }
 
     /* Template Builder Drag-and-Drop & Customizer UI */
@@ -1160,7 +1179,7 @@
     /* Success toast */
     .toast {
       position: fixed; bottom: 28px; right: 28px; z-index: 2000;
-      background: var(--navy-dark); color: var(--white);
+      background: var(--navy-dark); color: #FFFFFF;
       border: 1px solid rgba(61,214,140,0.3);
       border-radius: 12px; padding: 14px 20px;
       display: flex; align-items: center; gap: 12px;
@@ -1171,7 +1190,7 @@
     @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .toast-icon { width: 32px; height: 32px; border-radius: 50%; background: rgba(61,214,140,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .toast-icon svg { width: 16px; height: 16px; stroke: #3DD68C; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .toast-msg { font-size: 13px; font-weight: 500; color: var(--white); }
+    .toast-msg { font-size: 13px; font-weight: 500; color: #FFFFFF; }
     .toast-sub { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 2px; }
 
     @media (max-width: 960px) {
@@ -2598,9 +2617,9 @@
 
       <!-- ════════════════════════ REPORT TEMPLATE BUILDER MODAL ════════════════════════ -->
       <div class="modal-backdrop" id="reportTemplateBuilderModal" style="display:none;" onclick="handleTemplateBuilderBackdrop(event)">
-        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="templateBuilderTitle" style="max-width:960px; width:95%;">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="templateBuilderTitle" style="max-width:1240px; width:95vw; max-height:92vh; display:flex; flex-direction:column;">
           
-          <div class="modal-header">
+          <div class="modal-header" style="flex-shrink:0;">
             <div class="modal-title-wrap">
               <div class="modal-icon-wrap" style="background: linear-gradient(135deg, var(--water-1), var(--water-2));">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -2615,10 +2634,42 @@
             </button>
           </div>
 
-          <div class="modal-body" style="display: grid; grid-template-columns: 360px 1fr; gap: 20px; padding: 20px;">
+          <div class="modal-body" style="display: grid; grid-template-columns: 380px 1fr; gap: 20px; padding: 20px; flex: 1; min-height: 0; overflow: hidden;">
             
             <!-- Left Controls Column -->
-            <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; max-height: 72vh; overflow-y: auto; padding-right: 4px;">
+              
+              <!-- Report Header Details -->
+              <div class="template-ctrl-card">
+                <div class="template-ctrl-title">Report Header & Letterhead</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                  <div>
+                    <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Title</label>
+                    <input type="text" id="reportHeaderTitleInput" style="width:100%; font-size:12px; padding:6px 10px; height:32px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. AquaSense Water Analytics" oninput="renderLivePdfTemplateCanvas()">
+                  </div>
+                  <div>
+                    <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Subtitle</label>
+                    <input type="text" id="reportHeaderSubtitleInput" style="width:100%; font-size:12px; padding:6px 10px; height:32px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Camarines Sur Polytechnic Colleges" oninput="renderLivePdfTemplateCanvas()">
+                  </div>
+                  <div>
+                    <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Address</label>
+                    <input type="text" id="reportHeaderAddressInput" style="width:100%; font-size:12px; padding:6px 10px; height:32px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Nabua, Camarines Sur, Philippines" oninput="renderLivePdfTemplateCanvas()">
+                  </div>
+                  <div>
+                    <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Logo (PNG/JPG)</label>
+                    <input type="file" id="reportHeaderLogoInput" accept="image/*" style="font-size:11.5px; color:var(--text-dark); background:var(--bg-input); border:1px solid var(--border); padding:4px 8px; border-radius:6px; width:100%; cursor:pointer;">
+                    <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                      <span style="font-size:11px; color:var(--text-light);">Current Logo:</span>
+                      <img id="reportHeaderLogoPreview" style="max-height:30px; max-width:90px; object-fit:contain; display:none; border:1px solid var(--border); padding:2px; border-radius:4px; background:var(--bg-card);">
+                      <span id="reportHeaderNoLogoText" style="font-size:11px; color:var(--text-light); font-style:italic;">No logo uploaded</span>
+                    </div>
+                  </div>
+                  <button type="button" onclick="saveReportTemplateLayout()" style="margin-top: 6px; width: 100%; height: 34px; border-radius: 6px; background: var(--water-1); color: #FFFFFF; font-weight: 600; font-size: 12.5px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 6px rgba(44,154,209,0.3);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    <span>Save Header & Template</span>
+                  </button>
+                </div>
+              </div>
               
               <!-- Drag and Drop Sections -->
               <div class="template-ctrl-card">
@@ -2648,6 +2699,24 @@
                     <input type="range" id="inputHeaderGap" min="10" max="40" value="20" style="width:100%; accent-color:var(--water-1);" oninput="updateTemplatePreviewFromControls()">
                   </div>
                   <div>
+                    <label class="template-label"><span>Paper Size</span></label>
+                    <select id="selectPaperSize" class="search-input" onchange="updateTemplatePreviewFromControls()" style="width:100%; height:32px; padding:4px 8px; font-size:12.5px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
+                      <option value="a4" selected>A4 (210 × 297 mm)</option>
+                      <option value="short">Short Bond Paper / Letter (8.5 × 11 in)</option>
+                      <option value="long">Long Bond Paper / Folio (8.5 × 13 in)</option>
+                      <option value="legal">Legal Paper (8.5 × 14 in)</option>
+                      <option value="a3">A3 Large Format (297 × 420 mm)</option>
+                      <option value="a5">A5 Compact (148 × 210 mm)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="template-label"><span>Page Orientation</span></label>
+                    <select id="selectOrientation" class="search-input" onchange="updateTemplatePreviewFromControls()" style="width:100%; height:32px; padding:4px 8px; font-size:12.5px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
+                      <option value="portrait" selected>Portrait (Vertical)</option>
+                      <option value="landscape">Landscape (Horizontal)</option>
+                    </select>
+                  </div>
+                  <div>
                     <label class="template-label"><span>Font Scale Density</span></label>
                     <select id="selectFontDensity" class="search-input" onchange="updateTemplatePreviewFromControls()" style="width:100%; height:32px; padding:4px 8px; font-size:12.5px; border-radius:6px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-dark);">
                       <option value="compact">Compact (Tighter Spacing)</option>
@@ -2671,13 +2740,13 @@
             </div>
 
             <!-- Right Live Preview Column -->
-            <div style="background: var(--bg-hover); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; height: 100%;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="background: var(--bg-hover); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
                 <div style="font-size: 12px; font-weight: 700; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.05em;">Live Document Preview</div>
-                <span style="font-size: 11px; color: var(--text-light); font-weight: 600;">Real-time A4 Layout</span>
+                <span id="previewPaperInfoBadge" style="font-size: 11px; color: var(--text-light); font-weight: 600;">Real-time A4 • Portrait Layout</span>
               </div>
-              <div style="flex: 1; overflow-y: auto; display: flex; justify-content: center; background: rgba(0,0,0,0.06); padding: 16px; border-radius: 8px; max-height: 520px;">
-                <div id="livePdfTemplateCanvas" style="width: 100%; max-width: 480px; background: #FFFFFF; color: #1E293B; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: all 0.2s ease; transform-origin: top center;">
+              <div style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; background: rgba(0,0,0,0.06); padding: 24px; border-radius: 8px; min-height: 0;">
+                <div id="livePdfTemplateCanvas" style="background: #FFFFFF; color: #1E293B; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.18); transition: all 0.25s ease; transform-origin: top center;">
                   <!-- Live dynamically rendered preview -->
                 </div>
               </div>
@@ -3353,43 +3422,6 @@
                 <div class="settings-row"><div><div class="settings-label">Maintenance Mode</div><div class="settings-sub">Pause alerts during maintenance</div></div><label class="toggle-switch"><input type="checkbox" id="maintModeToggle"/><span class="toggle-slider"></span></label></div>
                 <div class="settings-row"><div><div class="settings-label">Google OAuth Login</div><div class="settings-sub">Allow sign-in via Google account</div></div><label class="toggle-switch"><input type="checkbox" id="googleOauthToggle"/><span class="toggle-slider"></span></label></div>
               </div>
-
-              <div class="settings-section" style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
-                <div class="settings-title">Report PDF Template</div>
-                <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-                  <div>
-                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Title</label>
-                    <input type="text" id="reportHeaderTitleInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. AquaSense Water Analytics">
-                  </div>
-                  <div>
-                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Subtitle</label>
-                    <input type="text" id="reportHeaderSubtitleInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Camarines Sur Polytechnic Colleges">
-                  </div>
-                  <div>
-                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Address</label>
-                    <input type="text" id="reportHeaderAddressInput" style="width:100%; font-size:12.5px; padding:6px 10px; height:34px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. Nabua, Camarines Sur, Philippines">
-                  </div>
-                  <div>
-                    <label class="settings-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Logo (PNG/JPG)</label>
-                    <input type="file" id="reportHeaderLogoInput" accept="image/*" style="font-size:12px; color:var(--text-dark); background:var(--bg-input); border:1px solid var(--border); padding:6px 10px; border-radius:6px; width:100%; cursor:pointer;">
-                    <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
-                      <span style="font-size:11px; color:var(--text-light);">Current Logo:</span>
-                      <img id="reportHeaderLogoPreview" style="max-height:36px; max-width:100px; object-fit:contain; display:none; border:1px solid var(--border); padding:3px; border-radius:6px; background:var(--bg-card);">
-                      <span id="reportHeaderNoLogoText" style="font-size:11px; color:var(--text-light); font-style:italic;">No logo uploaded</span>
-                    </div>
-                  </div>
-                  <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button type="button" class="btn-report-outline" style="flex:1; min-width:240px; display:flex; align-items:center; justify-content:center; gap:8px; height:40px; border-radius:6px; font-weight:600; font-size:13px; cursor:pointer;" onclick="openReportTemplateBuilderModal()">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                      <span>🎨 Open Interactive Drag & Drop Builder</span>
-                    </button>
-                    <button type="button" id="saveReportHeaderTemplateBtn" onclick="saveReportPdfHeaderSettings()" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 24px; border-radius:6px; font-weight:600; font-size:13px; background:var(--water-1); color:#fff; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(44,154,209,0.3); transition:all 0.2s;">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                      <span>Save Template Header</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -3398,7 +3430,19 @@
       <div class="view" id="view-reports">
 
         <div class="panel-full" style="padding: 24px;">
-          <div class="panel-head" style="margin-bottom:20px; padding:0; border:none; background:transparent;">
+          <!-- Top Header Bar with Template Builder Button -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px;">
+            <div>
+              <div style="font-size: 18px; font-weight: 700; color: var(--text-dark);">Analytics Report Generator</div>
+              <div style="font-size: 12.5px; color: var(--text-light); margin-top: 2px;">Generate, preview, and export executive water analytics & telemetry PDF reports</div>
+            </div>
+            <button type="button" class="btn-report-outline" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--bg-card); border: 1px solid var(--water-1); color: var(--water-1);" onclick="openReportTemplateBuilderModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              <span>🎨 Configure PDF Template, Paper Size & Orientation</span>
+            </button>
+          </div>
+
+          <div class="panel-head" style="margin-bottom:16px; padding:0; border:none; background:transparent;">
             <div class="panel-title" style="font-size:15px; font-weight:700;">Report Parameters</div>
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
@@ -3650,15 +3694,12 @@ function logoutWithDeletedError() {
 }
 
 // Global fetch interceptor to catch any API call that indicates the user account is deleted
-// Only trigger for authenticated requests (those with Authorization headers) to avoid
-// false positives from public endpoints or the OAuth exchange flow.
 (function() {
   const originalFetch = window.fetch;
   window.fetch = async function(...args) {
     const res = await originalFetch(...args);
     if (res.status === 404) {
       try {
-        // Only intercept requests that sent an Authorization header (authenticated calls)
         const requestInit = args[1] || {};
         const headers = requestInit.headers || {};
         const hasAuth = (typeof headers === 'object' && (
@@ -3712,7 +3753,7 @@ try {
   }
 } catch(e) {}
 
-function openReportTemplateBuilderModal() {
+async function openReportTemplateBuilderModal() {
   const modal = document.getElementById("reportTemplateBuilderModal");
   if (modal) modal.style.display = "flex";
 
@@ -3721,6 +3762,34 @@ function openReportTemplateBuilderModal() {
   document.getElementById("inputPagePadding").value = window.currentTemplateConfig.pagePadding || 30;
   document.getElementById("inputHeaderGap").value = window.currentTemplateConfig.headerGap || 20;
   document.getElementById("selectFontDensity").value = window.currentTemplateConfig.fontDensity || "standard";
+  if (document.getElementById("selectPaperSize")) {
+    document.getElementById("selectPaperSize").value = window.currentTemplateConfig.paperSize || "a4";
+  }
+  if (document.getElementById("selectOrientation")) {
+    document.getElementById("selectOrientation").value = window.currentTemplateConfig.orientation || "portrait";
+  }
+
+  // Fetch and populate header settings
+  try {
+    const settings = await apiGet("/api/system-settings") || {};
+    if (settings) {
+      if (document.getElementById("reportHeaderTitleInput") && settings.report_header_title) {
+        document.getElementById("reportHeaderTitleInput").value = settings.report_header_title;
+      }
+      if (document.getElementById("reportHeaderSubtitleInput") && settings.report_header_subtitle) {
+        document.getElementById("reportHeaderSubtitleInput").value = settings.report_header_subtitle;
+      }
+      if (document.getElementById("reportHeaderAddressInput") && settings.report_header_address) {
+        document.getElementById("reportHeaderAddressInput").value = settings.report_header_address;
+      }
+      if (settings.report_logo_base64) {
+        const logoImg = document.getElementById("reportHeaderLogoPreview");
+        const logoText = document.getElementById("reportHeaderNoLogoText");
+        if (logoImg) { logoImg.src = settings.report_logo_base64; logoImg.style.display = "inline-block"; }
+        if (logoText) logoText.style.display = "none";
+      }
+    }
+  } catch(e) {}
   
   setTemplateAccentColor(window.currentTemplateConfig.accentColor || "#1A6FA8", false);
 
@@ -3817,7 +3886,9 @@ function updateTemplatePreviewFromControls() {
   const sectionGap = parseInt(document.getElementById("inputSectionGap").value, 10) || 24;
   const pagePadding = parseInt(document.getElementById("inputPagePadding").value, 10) || 30;
   const headerGap = parseInt(document.getElementById("inputHeaderGap").value, 10) || 20;
-  const fontDensity = document.getElementById("selectFontDensity").value || "standard";
+  const fontDensity = document.getElementById("selectFontDensity")?.value || "standard";
+  const paperSize = document.getElementById("selectPaperSize")?.value || "a4";
+  const orientation = document.getElementById("selectOrientation")?.value || "portrait";
 
   document.getElementById("valSectionGap").textContent = `${sectionGap}px`;
   document.getElementById("valPagePadding").textContent = `${pagePadding}px`;
@@ -3827,6 +3898,8 @@ function updateTemplatePreviewFromControls() {
   window.currentTemplateConfig.pagePadding = pagePadding;
   window.currentTemplateConfig.headerGap = headerGap;
   window.currentTemplateConfig.fontDensity = fontDensity;
+  window.currentTemplateConfig.paperSize = paperSize;
+  window.currentTemplateConfig.orientation = orientation;
 
   renderLivePdfTemplateCanvas();
 }
@@ -3835,7 +3908,7 @@ function renderLivePdfTemplateCanvas() {
   const canvas = document.getElementById("livePdfTemplateCanvas");
   if (!canvas) return;
 
-  const cfg = window.currentTemplateConfig;
+  const cfg = window.currentTemplateConfig || {};
   const accent = cfg.accentColor || "#1A6FA8";
   const gap = cfg.sectionGap || 24;
   const pad = cfg.pagePadding || 30;
@@ -3844,13 +3917,43 @@ function renderLivePdfTemplateCanvas() {
   const fontScale = cfg.fontDensity === "compact" ? 0.9 : cfg.fontDensity === "roomy" ? 1.1 : 1.0;
   const baseFontSize = 12 * fontScale;
 
+  const isLandscape = (cfg.orientation || "portrait") === "landscape";
+
+  const paperLabels = {
+    a4: "A4 (210 × 297 mm)",
+    short: "Short Bond Paper (8.5 × 11 in)",
+    long: "Long Bond Paper (8.5 × 13 in)",
+    legal: "Legal Paper (8.5 × 14 in)",
+    a3: "A3 Large Format (297 × 420 mm)",
+    a5: "A5 Compact (148 × 210 mm)"
+  };
+  const paperStr = paperLabels[cfg.paperSize || "a4"] || "A4";
+  const orientStr = isLandscape ? "Landscape" : "Portrait";
+  const badgeEl = document.getElementById("previewPaperInfoBadge");
+  if (badgeEl) badgeEl.textContent = `Real-time ${paperStr} • ${orientStr}`;
+
   const titleVal = document.getElementById("reportHeaderTitleInput")?.value.trim() || "AquaSense Water Analytics";
   const subVal = document.getElementById("reportHeaderSubtitleInput")?.value.trim() || "Camarines Sur Polytechnic Colleges";
   const addrVal = document.getElementById("reportHeaderAddressInput")?.value.trim() || "Nabua, Camarines Sur, Philippines";
 
+  const realData = window.lastGeneratedReportData || {};
+  const q = realData.waterQuality || {};
+  const c = realData.consumption || {};
+
+  const phVal = q.avg_ph !== undefined && q.avg_ph !== null ? Number(q.avg_ph).toFixed(2) : "7.35";
+  const turbVal = q.avg_turbidity !== undefined && q.avg_turbidity !== null ? Number(q.avg_turbidity).toFixed(2) + " NTU" : "1.20 NTU";
+  const tdsVal = q.avg_tds !== undefined && q.avg_tds !== null ? Number(q.avg_tds).toFixed(0) + " ppm" : "142 ppm";
+  const nh3Val = q.avg_ammonia !== undefined && q.avg_ammonia !== null ? Number(q.avg_ammonia).toFixed(3) + " mg/L" : "0.020 mg/L";
+  const tempVal = q.avg_temperature !== undefined && q.avg_temperature !== null ? Number(q.avg_temperature).toFixed(2) + " °C" : "25.40 °C";
+
+  const consumedVal = c.total_consumed !== undefined && c.total_consumed !== null ? Number(c.total_consumed).toLocaleString() + " L" : "45,200 L";
+  const flowVal = c.avg_flow_rate !== undefined && c.avg_flow_rate !== null ? Number(c.avg_flow_rate).toFixed(2) + " L/min" : "18.50 L/min";
+
   let sectionsHtml = "";
 
-  cfg.sections.forEach(sec => {
+  const activeStdName = realData.active_standard_name || (window.currentActiveThresholdStandard === "who" ? "WHO Guidelines" : "PNSDW 2017 Standards");
+
+  (cfg.sections || []).forEach(sec => {
     if (!sec.enabled) return;
 
     if (sec.id === "header") {
@@ -3865,26 +3968,34 @@ function renderLivePdfTemplateCanvas() {
         </div>
       `;
     } else if (sec.id === "summary") {
+      const summaryCols = isLandscape ? "grid-template-columns: repeat(4, 1fr);" : "grid-template-columns: 1fr 1fr;";
       sectionsHtml += `
-        <div style="margin-bottom: ${gap}px; font-size: ${baseFontSize}px; color: #475569; line-height: 1.5;">
-          This document contains consolidated water quality and telemetry analytics from <strong>2026-08-01</strong> to <strong>2026-08-15</strong>.
+        <div style="display: grid; ${summaryCols} gap: 10px; background: #F8FAFC; padding: 12px; border-radius: 6px; margin-bottom: ${gap}px; font-size: ${baseFontSize * 0.85}px;">
+          <div><span style="color:#64748B; text-transform:uppercase; font-size:10px; font-weight:700;">Generated For</span><div style="font-weight:700; color:#1E293B;">FACILITY MANAGER</div></div>
+          <div><span style="color:#64748B; text-transform:uppercase; font-size:10px; font-weight:700;">Period</span><div style="font-weight:700; color:#1E293B;">2026-08-01 to 2026-08-15</div></div>
+          ${isLandscape ? `
+          <div><span style="color:#64748B; text-transform:uppercase; font-size:10px; font-weight:700;">Location</span><div style="font-weight:700; color:#1E293B;">All Campus Buildings</div></div>
+          <div><span style="color:#64748B; text-transform:uppercase; font-size:10px; font-weight:700;">Orientation</span><div style="font-weight:700; color:#1E293B;">Landscape</div></div>` : ''}
         </div>
       `;
     } else if (sec.id === "waterQuality") {
       sectionsHtml += `
         <div style="margin-bottom: ${gap}px;">
-          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics (HSU)</div>
-          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.9}px;">
+          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics (${activeStdName})</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.85}px;">
             <thead>
               <tr style="background: #F8FAFC;">
-                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: left;">Parameter</th>
-                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: right;">Average</th>
-                <th style="border: 1px solid #E2E8F0; padding: 6px 8px; text-align: right;">Breaches</th>
+                <th style="border: 1px solid #E2E8F0; padding: 5px 6px; text-align: left;">Parameter</th>
+                <th style="border: 1px solid #E2E8F0; padding: 5px 6px; text-align: right;">Average Value</th>
+                <th style="border: 1px solid #E2E8F0; padding: 5px 6px; text-align: right;">Threshold Breaches</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">pH Level</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">7.35</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right;">0</td></tr>
-              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Turbidity</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">1.20 NTU</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right;">0</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">pH Level</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${phVal}</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right;">${q.ph_violations || 0}</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">Turbidity</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${turbVal}</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right;">${q.turbidity_violations || 0}</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">TDS</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${tdsVal}</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right;">0</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">Ammonia</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${nh3Val}</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right;">${q.ammonia_violations || 0}</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">Temperature</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${tempVal}</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right;">${q.temperature_violations || 0}</td></tr>
             </tbody>
           </table>
         </div>
@@ -3892,25 +4003,26 @@ function renderLivePdfTemplateCanvas() {
     } else if (sec.id === "consumption") {
       sectionsHtml += `
         <div style="margin-bottom: ${gap}px;">
-          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption and Operations Summary (GSU)</div>
-          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.9}px;">
+          <div style="font-size: ${baseFontSize * 0.95}px; font-weight: 700; color: ${accent}; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">II. Consumption & Operations Summary (GSU)</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: ${baseFontSize * 0.85}px;">
             <tbody>
-              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Total Water Consumption</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">45,200 L</td></tr>
-              <tr><td style="border: 1px solid #E2E8F0; padding: 5px 8px;">Average Campus Flow Rate</td><td style="border: 1px solid #E2E8F0; padding: 5px 8px; text-align: right; font-weight: 600;">18.50 L/min</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">Total Water Consumption</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${consumedVal}</td></tr>
+              <tr><td style="border: 1px solid #E2E8F0; padding: 4px 6px;">Average Campus Flow Rate</td><td style="border: 1px solid #E2E8F0; padding: 4px 6px; text-align: right; font-weight: 600;">${flowVal}</td></tr>
             </tbody>
           </table>
         </div>
       `;
     } else if (sec.id === "remarks") {
       sectionsHtml += `
-        <div style="margin-bottom: ${gap}px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: ${baseFontSize * 0.9}px;">
+        <div style="margin-bottom: ${gap}px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: ${baseFontSize * 0.85}px;">
           <div style="font-weight: 700; color: #1E293B; margin-bottom: 2px;">Remarks & Observations:</div>
-          <div style="color: #64748B;">All monitored campus parameters are operating within PNSDW 2017 standards.</div>
+          <div style="color: #64748B;">All monitored campus parameters are operating within ${activeStdName}.</div>
         </div>
       `;
     } else if (sec.id === "signatures") {
+      const sigCols = isLandscape ? "grid-template-columns: 180px 180px;" : "grid-template-columns: 1fr 1fr;";
       sectionsHtml += `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 10px;">
+        <div style="display: grid; ${sigCols} gap: 40px; padding-top: 10px;">
           <div>
             <div style="font-size: ${baseFontSize * 0.8}px; color: #64748B; text-transform: uppercase;">Prepared By:</div>
             <div style="font-weight: 700; font-size: ${baseFontSize * 0.95}px; color: #1E293B; margin-top: 18px; border-bottom: 1.5px solid #94A3B8; padding-bottom: 2px;">John Doe</div>
@@ -3926,7 +4038,35 @@ function renderLivePdfTemplateCanvas() {
     }
   });
 
+  const paperSpecs = {
+    short: { w: 215.9, h: 279.4 }, // Short Bond Paper (8.5 x 11 in)
+    long:  { w: 215.9, h: 330.2 }, // Long Bond Paper / Folio (8.5 x 13 in)
+    a4:    { w: 210.0, h: 297.0 }, // A4 Standard (210 x 297 mm)
+    legal: { w: 215.9, h: 355.6 }, // Legal Paper (8.5 x 14 in)
+    a3:    { w: 297.0, h: 420.0 }, // A3 Large Format
+    a5:    { w: 148.0, h: 210.0 }  // A5 Compact
+  };
+
+  const spec = paperSpecs[cfg.paperSize || "a4"] || paperSpecs.a4;
+  const sheetWidthMm = isLandscape ? spec.h : spec.w;
+  const sheetHeightMm = isLandscape ? spec.w : spec.h;
+  const aspectRatio = sheetWidthMm / sheetHeightMm;
+
+  if (isLandscape) {
+    canvas.style.width = "720px";
+    canvas.style.maxWidth = "100%";
+    const calcHeight = Math.round(720 / aspectRatio);
+    canvas.style.minHeight = `${Math.max(calcHeight, 540)}px`;
+  } else {
+    canvas.style.width = "480px";
+    canvas.style.maxWidth = "100%";
+    const calcHeight = Math.round(480 / aspectRatio);
+    canvas.style.minHeight = `${Math.max(calcHeight, 680)}px`;
+  }
+  canvas.style.height = "auto";
+  canvas.style.aspectRatio = ""; // Remove fixed aspect-ratio clamp so inner content never spills out
   canvas.style.padding = `${pad}px`;
+  canvas.style.boxSizing = "border-box";
   canvas.innerHTML = sectionsHtml;
 }
 
@@ -3934,45 +4074,10 @@ async function saveReportTemplateLayout() {
   try {
     const configStr = JSON.stringify(window.currentTemplateConfig);
     localStorage.setItem("reportTemplateConfig", configStr);
-    
-    // Save to API system-settings if available
-    try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      if (token) {
-        await fetch('http://localhost:5000/api/system-settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ settings: { report_template_config: configStr } })
-        });
-      }
-    } catch(e) {}
 
-    if (typeof showToast === "function") {
-      showToast("Template Saved", "Custom report template layout and spacing applied successfully!");
-    } else {
-      alert("Template layout and spacing saved successfully!");
-    }
-    closeReportTemplateBuilderModal();
-  } catch(err) {
-    console.error(err);
-    if (typeof showToast === "function") {
-      showToast("Error", "Failed to save template layout.");
-    }
-  }
-}
-
-async function saveReportPdfHeaderSettings() {
-  const btn = document.getElementById("saveReportHeaderTemplateBtn");
-  const originalText = btn ? btn.innerHTML : "";
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<span>Saving...</span>`;
-  }
-
-  try {
-    const title = document.getElementById("reportHeaderTitleInput").value.trim();
-    const subtitle = document.getElementById("reportHeaderSubtitleInput").value.trim();
-    const address = document.getElementById("reportHeaderAddressInput").value.trim();
+    const title = document.getElementById("reportHeaderTitleInput")?.value.trim() || "";
+    const subtitle = document.getElementById("reportHeaderSubtitleInput")?.value.trim() || "";
+    const address = document.getElementById("reportHeaderAddressInput")?.value.trim() || "";
 
     const logoInput = document.getElementById("reportHeaderLogoInput");
     let logoBase64 = null;
@@ -3985,50 +4090,38 @@ async function saveReportPdfHeaderSettings() {
       });
     }
 
-    const payload = {
+    const payloadSettings = {
+      report_template_config: configStr,
       report_header_title: title,
       report_header_subtitle: subtitle,
       report_header_address: address
     };
     if (logoBase64) {
-      payload.report_logo_base64 = logoBase64;
+      payloadSettings.report_logo_base64 = logoBase64;
     }
+    
+    // Save to API system-settings if available
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (token) {
+        await fetch('http://localhost:5000/api/system-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ settings: payloadSettings })
+        });
+      }
+    } catch(e) {}
 
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    const res = await fetch('http://localhost:5000/api/system-settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      if (logoBase64) {
-        const imgEl = document.getElementById("reportHeaderLogoPreview");
-        const textEl = document.getElementById("reportHeaderNoLogoText");
-        if (imgEl) { imgEl.src = logoBase64; imgEl.style.display = "block"; }
-        if (textEl) { textEl.style.display = "none"; }
-      }
-      if (typeof showSettingsBanner === "function") {
-        showSettingsBanner("Report PDF Template header settings saved successfully!", false);
-      }
-      if (typeof showToast === "function") {
-        showToast("Settings Saved", "Report PDF Template header settings updated!");
-      } else {
-        alert("Report PDF Template header settings saved!");
-      }
+    if (typeof showToast === "function") {
+      showToast("Template Saved", "Custom report template layout, paper setup & letterhead saved successfully!");
     } else {
-      const data = await res.json();
-      throw new Error(data.message || "Failed to save template header settings");
+      alert("Template layout and header saved successfully!");
     }
+    closeReportTemplateBuilderModal();
   } catch(err) {
     console.error(err);
-    if (typeof showSettingsBanner === "function") {
-      showSettingsBanner("Failed to save template settings: " + err.message, true);
-    }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
+    if (typeof showToast === "function") {
+      showToast("Error", "Failed to save template layout.");
     }
   }
 }

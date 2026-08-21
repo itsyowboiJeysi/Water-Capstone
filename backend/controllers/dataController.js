@@ -760,10 +760,23 @@ async function getReportsSummary(req, res) {
       ${maintWhere}
     `, maintParams);
 
+    // Fetch active threshold standard setting
+    let activeStandard = "pnsdw";
+    let activeStandardName = "PNSDW 2017 Standards";
+    try {
+      const [stdRows] = await pool.query("SELECT setting_value FROM system_settings WHERE setting_key = 'active_threshold_standard'");
+      if (stdRows && stdRows[0] && stdRows[0].setting_value) {
+        activeStandard = stdRows[0].setting_value.toLowerCase().trim();
+        activeStandardName = activeStandard === "who" ? "WHO Guidelines" : "PNSDW 2017 Standards";
+      }
+    } catch(e) {}
+
     res.json({
       waterQuality: qualityRows[0] || {},
       consumption: consumptionRows[0] || {},
-      maintenance: maintRows[0] || {}
+      maintenance: maintRows[0] || {},
+      active_threshold_standard: activeStandard,
+      active_standard_name: activeStandardName
     });
   } catch (err) {
     console.error("[AquaSense] getReportsSummary error:", err);
@@ -1459,6 +1472,7 @@ async function resetThresholds(req, res) {
     await ensureThresholdTableSchema();
 
     const { standard } = req.body || {};
+    const activeStdKey = standard === "who" ? "who" : "pnsdw";
     let defaults;
     let stdName;
 
@@ -1483,6 +1497,13 @@ async function resetThresholds(req, res) {
         ["flow_rate", 0.00, 100.00, "L/min"]
       ];
     }
+
+    try {
+      await pool.query(
+        "INSERT INTO system_settings (setting_key, setting_value) VALUES ('active_threshold_standard', ?) ON DUPLICATE KEY UPDATE setting_value = ?",
+        [activeStdKey, activeStdKey]
+      );
+    } catch(e) {}
 
     for (const [param, minV, maxV, unit] of defaults) {
       const pKey = String(param).toLowerCase().trim();

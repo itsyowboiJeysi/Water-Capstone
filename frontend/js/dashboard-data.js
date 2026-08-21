@@ -3830,22 +3830,35 @@ async function loadReportsView() {
 }
 
 async function fetchReportPreview() {
-  const startDate = document.getElementById("reportStartDate").value;
-  const endDate = document.getElementById("reportEndDate").value;
-  const buildingId = document.getElementById("reportLocationFilter").value;
+  let startDate = document.getElementById("reportStartDate")?.value;
+  let endDate = document.getElementById("reportEndDate")?.value;
+  const buildingId = document.getElementById("reportLocationFilter")?.value;
 
   if (!startDate || !endDate) {
-    showToast("Invalid Dates", "Please select both start and end dates.");
-    return;
+    const today = new Date();
+    const past = new Date();
+    past.setDate(today.getDate() - 30);
+
+    endDate = today.toISOString().split("T")[0];
+    startDate = past.toISOString().split("T")[0];
+
+    if (document.getElementById("reportStartDate")) document.getElementById("reportStartDate").value = startDate;
+    if (document.getElementById("reportEndDate")) document.getElementById("reportEndDate").value = endDate;
   }
 
   const placeholder = document.getElementById("reportPreviewPlaceholder");
   const content = document.getElementById("reportPreviewContent");
   const previewContainer = document.getElementById("reportPreviewContainer");
 
-  if (placeholder) placeholder.textContent = "Generating preview data...";
+  if (placeholder) {
+    placeholder.style.display = "block";
+    placeholder.textContent = "Generating preview data...";
+  }
   if (content) content.innerHTML = "";
-  if (previewContainer) previewContainer.style.display = "block";
+  if (previewContainer) {
+    previewContainer.style.display = "block";
+    previewContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 
   try {
     const params = new URLSearchParams();
@@ -3941,11 +3954,19 @@ async function fetchReportPreview() {
 }
 
 async function exportReportPDF() {
-  const startDate = document.getElementById("reportStartDate").value;
-  const endDate = document.getElementById("reportEndDate").value;
+  let startDate = document.getElementById("reportStartDate")?.value;
+  let endDate = document.getElementById("reportEndDate")?.value;
+
   if (!startDate || !endDate) {
-    showToast("Invalid Dates", "Please select dates first.");
-    return;
+    const today = new Date();
+    const past = new Date();
+    past.setDate(today.getDate() - 30);
+
+    endDate = today.toISOString().split("T")[0];
+    startDate = past.toISOString().split("T")[0];
+
+    if (document.getElementById("reportStartDate")) document.getElementById("reportStartDate").value = startDate;
+    if (document.getElementById("reportEndDate")) document.getElementById("reportEndDate").value = endDate;
   }
 
   if (!window.lastGeneratedReportData) {
@@ -4012,16 +4033,25 @@ async function exportReportPDF() {
   const pad = tplCfg.pagePadding || 30;
   const headerGap = tplCfg.headerGap || 20;
 
+  const activeStdName = data.active_standard_name || (window.currentActiveThresholdStandard === "who" ? "WHO Guidelines" : "PNSDW 2017 Standards");
+
   const fontScale = tplCfg.fontDensity === "compact" ? 0.9 : tplCfg.fontDensity === "roomy" ? 1.1 : 1.0;
   const baseFontSize = 12 * fontScale;
+
+  const paperSize = tplCfg.paperSize || "a4";
+  const orientation = tplCfg.orientation || "portrait";
+  const isLandscape = orientation === "landscape";
 
   const formatRadio = document.querySelector('input[name="reportFormat"]:checked');
   const reportFormat = formatRadio ? formatRadio.value : "average";
   const locFilter = document.getElementById("reportLocationFilter").value;
 
   const printableElement = document.getElementById("printableReportTemplate");
+  printableElement.style.width = isLandscape ? "960px" : "680px";
   printableElement.style.padding = `${pad}px`;
   printableElement.style.fontFamily = "'Inter', sans-serif";
+  printableElement.style.background = "#FFFFFF";
+  printableElement.style.color = "#1E293B";
 
   let pdfHtml = "";
 
@@ -4030,11 +4060,9 @@ async function exportReportPDF() {
 
     if (sec.id === "header") {
       pdfHtml += `
-        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 20px; align-items: center; border-bottom: 2.5px solid ${accent}; padding-bottom: ${headerGap}px; margin-bottom: ${gap}px;">
-          <div>
-            ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" style="width: 75px; height: 75px; object-fit: contain;" />` : `<div style="width: 75px; height: 75px; border-radius: 8px; background: ${accent}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;">CSPC</div>`}
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid ${accent}; padding-bottom: ${headerGap}px; margin-bottom: ${gap}px;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            ${logoBase64 ? `<img src="${logoBase64}" style="max-height: 55px; max-width: 140px; object-fit: contain;">` : `<div style="width: 50px; height: 50px; border-radius: 8px; background: ${accent}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">CSPC</div>`}
             <div>
               <h3 style="font-size: ${baseFontSize * 0.9}px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748B; margin: 0 0 4px 0; font-weight: 700;">${subtitleText}</h3>
               <h1 style="font-size: ${baseFontSize * 1.8}px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">${titleText}</h1>
@@ -4048,8 +4076,9 @@ async function exportReportPDF() {
         </div>
       `;
     } else if (sec.id === "summary") {
+      const summaryCols = isLandscape ? "grid-template-columns: repeat(4, 1fr);" : "grid-template-columns: 1fr 1fr;";
       pdfHtml += `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: ${gap}px;">
+        <div style="display: grid; ${summaryCols} gap: 16px; background: #F8FAFC; padding: 16px; border-radius: 8px; margin-bottom: ${gap}px;">
           <div>
             <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Generated For</span>
             <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">${currentUser.role ? currentUser.role.toUpperCase() : "SYSTEM OPERATOR"}</div>
@@ -4058,6 +4087,15 @@ async function exportReportPDF() {
             <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Reporting Period</span>
             <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">${startDate} to ${endDate}</div>
           </div>
+          ${isLandscape ? `
+          <div>
+            <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Facility Filter</span>
+            <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">All Campus Locations</div>
+          </div>
+          <div>
+            <span style="font-size: ${baseFontSize * 0.8}px; text-transform: uppercase; color: #64748B; font-weight: 700;">Report Type</span>
+            <div style="font-size: ${baseFontSize * 1.15}px; font-weight: 700; color: #334155; margin-top:2px;">${reportFormat === 'detailed' ? 'Detailed Timeline' : 'Executive Summary'}</div>
+          </div>` : ''}
         </div>
         <p style="font-size: ${baseFontSize * 1.05}px; color: #475569; line-height: 1.5; margin-bottom: ${gap}px;">
           This document contains consolidated water quality analytics and operation metrics monitored by the AquaSense system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
@@ -4067,7 +4105,7 @@ async function exportReportPDF() {
       const q = data.waterQuality || {};
       pdfHtml += `
         <div style="margin-bottom: ${gap}px;">
-          <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics</h3>
+          <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 12px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">I. Water Quality Monitoring Metrics (${activeStdName})</h3>
           <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: ${baseFontSize}px;">
             <thead>
               <tr style="background: #F8FAFC;">
@@ -4105,7 +4143,7 @@ async function exportReportPDF() {
             </tbody>
           </table>
           <div style="font-size: ${baseFontSize * 0.85}px; color: #64748B; margin-top: 8px; font-style: italic;">
-            * Total recorded samples analyzed during this period: <strong>${q.total_readings || 0}</strong>. Standards referenced from the Philippine National Standards for Drinking Water (PNSDW 2017).
+            * Total recorded samples analyzed during this period: <strong>${q.total_readings || 0}</strong>. Standards referenced from the ${activeStdName}.
           </div>
         </div>
       `;
@@ -4147,8 +4185,11 @@ async function exportReportPDF() {
         </div>
       `;
     } else if (sec.id === "signatures") {
+      const sigLayout = isLandscape
+        ? `display: grid; grid-template-columns: 260px 260px; gap: 80px; margin-top: ${gap * 1.5}px; page-break-inside: avoid;`
+        : `display: flex; justify-content: space-between; margin-top: ${gap * 1.5}px; page-break-inside: avoid;`;
       pdfHtml += `
-        <div style="margin-top: ${gap * 1.5}px; display: flex; justify-content: space-between; page-break-inside: avoid;">
+        <div style="${sigLayout}">
           <div>
             <p style="font-size: ${baseFontSize}px; margin-bottom: 40px; color: #64748B;">Prepared by:</p>
             <div style="border-top: 1px solid #94A3B8; width: 220px; padding-top: 6px; font-weight: 700; font-size: ${baseFontSize}px; color: #334155;">${inputAuthorName || currentUser.fullname || "System Operator"}</div>
@@ -4178,11 +4219,11 @@ async function exportReportPDF() {
         <h3 style="font-size: ${baseFontSize * 1.1}px; font-weight: 700; color: ${accent}; margin-bottom: 16px; text-transform: uppercase; border-bottom: 1.5px solid #E2E8F0; padding-bottom: 4px;">Detailed Timeline Charts</h3>
         <div style="display: flex; flex-direction: column; gap: 30px;">
       `;
-      chartsHtml += drawDetailedSvgChartString(readings, "ph_level", 0, 14, "pH Level Over Time", "");
-      chartsHtml += drawDetailedSvgChartString(readings, "tds", 0, 1000, "TDS Over Time", " ppm");
-      chartsHtml += drawDetailedSvgChartString(readings, "turbidity", 0, 20, "Turbidity Over Time", " NTU");
-      chartsHtml += drawDetailedSvgChartString(readings, "ammonia", 0, 5, "Ammonia Over Time", " mg/L");
-      chartsHtml += drawDetailedSvgChartString(readings, "temperature", 15, 40, "Temperature Over Time", " °C");
+      chartsHtml += drawDetailedSvgChartString(readings, "ph_level", 0, 14, "pH Level Over Time", "", isLandscape);
+      chartsHtml += drawDetailedSvgChartString(readings, "tds", 0, 1000, "TDS Over Time", " ppm", isLandscape);
+      chartsHtml += drawDetailedSvgChartString(readings, "turbidity", 0, 20, "Turbidity Over Time", " NTU", isLandscape);
+      chartsHtml += drawDetailedSvgChartString(readings, "ammonia", 0, 5, "Ammonia Over Time", " mg/L", isLandscape);
+      chartsHtml += drawDetailedSvgChartString(readings, "temperature", 15, 40, "Temperature Over Time", " °C", isLandscape);
       chartsHtml += `</div></div>`;
       
       pdfHtml += chartsHtml;
@@ -4199,13 +4240,26 @@ async function exportReportPDF() {
   const tplWrapper = document.getElementById("printableReportTemplate");
   const outerWrapper = tplWrapper.parentElement;
   outerWrapper.style.display = "block";
+
+  let pdfFormat = "a4";
+  if (paperSize === "short" || paperSize === "letter") {
+    pdfFormat = "letter";
+  } else if (paperSize === "long" || paperSize === "folio") {
+    pdfFormat = [215.9, 330.2]; // 8.5 x 13 in (Standard Philippine Long Bond Paper)
+  } else if (paperSize === "legal") {
+    pdfFormat = "legal";
+  } else if (paperSize === "a3") {
+    pdfFormat = "a3";
+  } else if (paperSize === "a5") {
+    pdfFormat = "a5";
+  }
   
   const opt = {
     margin:       15,
     filename:     `AquaSense_${role.toUpperCase()}_Report_${startDate}_to_${endDate}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
     html2canvas:  { scale: 2, useCORS: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    jsPDF:        { unit: 'mm', format: pdfFormat, orientation: orientation }
   };
 
   try {
@@ -4221,7 +4275,7 @@ async function exportReportPDF() {
   }
 }
 
-function drawDetailedSvgChartString(data, key, yMin, yMax, title, unit) {
+function drawDetailedSvgChartString(data, key, yMin, yMax, title, unit, isLandscape = false) {
   if (!data || data.length === 0) {
     return `<div style="padding: 15px; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 20px;">
       <h4 style="font-size: 13px; font-weight: 700; color: #1E3A8A; margin: 0 0 10px 0;">${title}</h4>
@@ -4229,7 +4283,7 @@ function drawDetailedSvgChartString(data, key, yMin, yMax, title, unit) {
     </div>`;
   }
 
-  const svgW = 680; 
+  const svgW = isLandscape ? 940 : 680; 
   const svgH = 120;
   const chartH = 80;
   const leftPad = 65;
@@ -4315,6 +4369,142 @@ function drawDetailedSvgChartString(data, key, yMin, yMax, title, unit) {
   `;
 }
 
+function generatePngLineChartForExcel(readings, paramKey, paramName, color, minThresh, maxThresh) {
+  if (!readings || readings.length < 2) {
+    return `<div style="padding:10px; color:#64748B; font-style:italic; text-align:center;">Insufficient telemetry points to draw line graph.</div>`;
+  }
+
+  const step = Math.max(1, Math.floor(readings.length / 60));
+  const points = [];
+  for (let i = 0; i < readings.length; i += step) {
+    const val = Number(readings[i][paramKey]);
+    if (!isNaN(val)) points.push({ x: readings[i].recorded_at, y: val });
+  }
+  if (points.length < 2) {
+    return `<div style="padding:10px; color:#64748B; font-style:italic; text-align:center;">Insufficient data points for chart.</div>`;
+  }
+
+  const width = 800;
+  const height = 240;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+
+  // Background
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, width, height);
+
+  const padL = 60;
+  const padR = 30;
+  const padT = 40;
+  const padB = 40;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  const yVals = points.map(p => p.y);
+  let minY = Math.min(...yVals);
+  let maxY = Math.max(...yVals);
+
+  if (minThresh !== undefined && minThresh !== null) minY = Math.min(minY, minThresh);
+  if (maxThresh !== undefined && maxThresh !== null) maxY = Math.max(maxY, maxThresh);
+
+  if (minY === maxY) { minY -= 1; maxY += 1; }
+  const yPadding = (maxY - minY) * 0.1 || 1;
+  minY -= yPadding;
+  maxY += yPadding;
+
+  // Plot Area Fill & Border
+  ctx.fillStyle = "#F8FAFC";
+  ctx.fillRect(padL, padT, plotW, plotH);
+  ctx.strokeStyle = "#E2E8F0";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(padL, padT, plotW, plotH);
+
+  // Threshold Lines
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#EF4444";
+  ctx.fillStyle = "#EF4444";
+  ctx.font = "bold 11px Arial";
+  ctx.textAlign = "right";
+
+  if (maxThresh !== undefined && maxThresh !== null && maxThresh >= minY && maxThresh <= maxY) {
+    const maxThreshY = padT + plotH - ((maxThresh - minY) / (maxY - minY)) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padL, maxThreshY);
+    ctx.lineTo(padL + plotW, maxThreshY);
+    ctx.stroke();
+    ctx.fillText(`Max (${maxThresh})`, padL + plotW - 6, maxThreshY - 5);
+  }
+
+  if (minThresh !== undefined && minThresh !== null && minThresh >= minY && minThresh <= maxY) {
+    const minThreshY = padT + plotH - ((minThresh - minY) / (maxY - minY)) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padL, minThreshY);
+    ctx.lineTo(padL + plotW, minThreshY);
+    ctx.stroke();
+    ctx.fillText(`Min (${minThresh})`, padL + plotW - 6, minThreshY + 14);
+  }
+
+  ctx.setLineDash([]);
+
+  // Plot Points
+  const coords = points.map((p, idx) => {
+    const cx = padL + (idx / (points.length - 1)) * plotW;
+    const cy = padT + plotH - ((p.y - minY) / (maxY - minY)) * plotH;
+    return { x: cx, y: cy };
+  });
+
+  // Gradient Area Fill
+  ctx.fillStyle = color + "22";
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + plotH);
+  coords.forEach(c => ctx.lineTo(c.x, c.y));
+  ctx.lineTo(padL + plotW, padT + plotH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Line Path
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  coords.forEach((c, idx) => {
+    if (idx === 0) ctx.moveTo(c.x, c.y);
+    else ctx.lineTo(c.x, c.y);
+  });
+  ctx.stroke();
+
+  // Title
+  ctx.fillStyle = "#1E293B";
+  ctx.font = "bold 15px Arial";
+  ctx.textAlign = "left";
+  ctx.fillText(`${paramName} Timeline Line Graph`, padL, 25);
+
+  // Y-Axis Labels
+  ctx.fillStyle = "#64748B";
+  ctx.font = "10px Arial";
+  ctx.textAlign = "right";
+  ctx.fillText(maxY.toFixed(1), padL - 8, padT + 12);
+  ctx.fillText(minY.toFixed(1), padL - 8, padT + plotH);
+
+  // Time Labels
+  ctx.fillStyle = "#94A3B8";
+  ctx.font = "10px Arial";
+  ctx.textAlign = "left";
+  const startStr = points[0].x ? new Date(points[0].x).toLocaleString('en-PH') : '';
+  const endStr = points[points.length - 1].x ? new Date(points[points.length - 1].x).toLocaleString('en-PH') : '';
+  ctx.fillText(`Start: ${startStr}`, padL, height - 12);
+  ctx.textAlign = "right";
+  ctx.fillText(`End: ${endStr}`, padL + plotW, height - 12);
+
+  const pngDataUrl = canvas.toDataURL("image/png");
+  return `<img src="${pngDataUrl}" width="${width}" height="${height}" alt="${paramName} Line Graph" style="display:block; margin: 10px auto; border: 1px solid #CBD5E1; border-radius: 8px;">`;
+}
+
 async function exportReportCSV() {
   const startDate = document.getElementById("reportStartDate").value;
   const endDate = document.getElementById("reportEndDate").value;
@@ -4339,60 +4529,64 @@ async function exportReportCSV() {
       <meta charset="utf-8">
       <style>
         table { border-collapse: collapse; font-family: 'Inter', Arial, sans-serif; width: 100%; margin-bottom: 20px; }
-        th { background-color: #1A6FA8; color: #ffffff; padding: 12px; border: 1px solid #E2E8F0; text-align: left; font-size: 14px; font-weight: bold; }
+        th { background-color: #1A6FA8; color: #ffffff; padding: 12px; border: 1px solid #E2E8F0; text-align: center; font-size: 14px; font-weight: bold; }
         td { padding: 10px; border: 1px solid #E2E8F0; color: #334155; font-size: 13px; }
-        .section-header { background-color: #F8FAFC; color: #1E3A8A; font-weight: bold; font-size: 16px; text-transform: uppercase; border-bottom: 2px solid #1A6FA8; padding: 15px; }
-        .title-row td { background-color: #ffffff; padding: 20px 0; border: none; }
-        .title { font-size: 24px; font-weight: bold; color: #1E3A8A; }
-        .subtitle { font-size: 14px; color: #64748B; margin-top: 5px; }
+        .section-header { background-color: #F8FAFC; color: #1E3A8A; font-weight: bold; font-size: 16px; text-transform: uppercase; border-bottom: 2px solid #1A6FA8; padding: 15px; text-align: center; }
+        .title-row td { background-color: #ffffff; padding: 20px 0; border: none; text-align: center; }
+        .title { font-size: 24px; font-weight: bold; color: #1E3A8A; text-align: center; }
+        .subtitle { font-size: 14px; color: #64748B; margin-top: 5px; text-align: center; }
       </style>
     </head>
     <body>
       <table>
         <tr class="title-row">
-          <td colspan="6">
-            <div class="title">AquaSense Water Analytics Report ${reportFormat === 'detailed' ? '(Detailed Timeline)' : ''}</div>
-            <div class="subtitle">Generated: ${new Date().toLocaleString('en-PH')}</div>
-            <div class="subtitle">Reporting Period: ${startDate} to ${endDate}</div>
+          <td colspan="6" style="text-align: center;">
+            <div class="title" style="text-align: center;">AquaSense Water Analytics Report ${reportFormat === 'detailed' ? '(Detailed Timeline Line Graphs)' : ''}</div>
+            <div class="subtitle" style="text-align: center;">Generated: ${new Date().toLocaleString('en-PH')}</div>
+            <div class="subtitle" style="text-align: center;">Reporting Period: ${startDate} to ${endDate}</div>
           </td>
         </tr>
   `;
 
   if (reportFormat === "detailed") {
     try {
-      showToast("Preparing Details", "Fetching timeline data...");
+      showToast("Preparing Details", "Fetching timeline line graphs...");
       let url = `/api/sensors?limit=10000&startDate=${startDate}&endDate=${endDate}`;
       if (locFilter) url += `&buildingId=${locFilter}`;
       
       const res = await apiGet(url);
       const readings = res.data || [];
       readings.reverse();
+
+      const phChartPng = generatePngLineChartForExcel(readings, "ph_level", "pH Level", "#1A6FA8", 6.5, 8.5);
+      const turbChartPng = generatePngLineChartForExcel(readings, "turbidity", "Turbidity (NTU)", "#0EA5E9", 0, 5.0);
+      const tdsChartPng = generatePngLineChartForExcel(readings, "tds", "Total Dissolved Solids (ppm)", "#8B5CF6", 0, 500);
+      const nh3ChartPng = generatePngLineChartForExcel(readings, "ammonia", "Ammonia (mg/L)", "#E11D48", 0, 0.5);
+      const tempChartPng = generatePngLineChartForExcel(readings, "temperature", "Temperature (°C)", "#F59E0B", 0, 35.0);
       
       htmlContent += `
-        <tr><td colspan="6" class="section-header">DETAILED SENSOR TIMELINE</td></tr>
-        <tr>
-          <th>Timestamp</th>
-          <th>pH Level</th>
-          <th>Turbidity (NTU)</th>
-          <th>TDS (ppm)</th>
-          <th>Ammonia (mg/L)</th>
-          <th>Temperature (°C)</th>
-        </tr>
+        <tr><td colspan="6" class="section-header" style="text-align: center;">TELEMETRY TIMELINE LINE GRAPHS</td></tr>
+        
+        <!-- 1. pH Level -->
+        <tr style="height: 25pt;"><td colspan="6" style="height: 25pt; padding: 12px 0 4px 0; background: #FAFAFA; text-align: center; font-weight: bold; color: #1E3A8A; font-size: 15px;">1. pH Level Timeline Chart</td></tr>
+        <tr style="height: 195pt;"><td colspan="6" style="height: 195pt; padding: 0; background: #FAFAFA; text-align: center; vertical-align: middle;">${phChartPng}</td></tr>
+        
+        <!-- 2. Turbidity -->
+        <tr style="height: 25pt;"><td colspan="6" style="height: 25pt; padding: 12px 0 4px 0; background: #FAFAFA; text-align: center; font-weight: bold; color: #1E3A8A; font-size: 15px;">2. Turbidity Timeline Chart</td></tr>
+        <tr style="height: 195pt;"><td colspan="6" style="height: 195pt; padding: 0; background: #FAFAFA; text-align: center; vertical-align: middle;">${turbChartPng}</td></tr>
+        
+        <!-- 3. TDS -->
+        <tr style="height: 25pt;"><td colspan="6" style="height: 25pt; padding: 12px 0 4px 0; background: #FAFAFA; text-align: center; font-weight: bold; color: #1E3A8A; font-size: 15px;">3. Total Dissolved Solids (TDS) Timeline Chart</td></tr>
+        <tr style="height: 195pt;"><td colspan="6" style="height: 195pt; padding: 0; background: #FAFAFA; text-align: center; vertical-align: middle;">${tdsChartPng}</td></tr>
+        
+        <!-- 4. Ammonia -->
+        <tr style="height: 25pt;"><td colspan="6" style="height: 25pt; padding: 12px 0 4px 0; background: #FAFAFA; text-align: center; font-weight: bold; color: #1E3A8A; font-size: 15px;">4. Ammonia Concentration Timeline Chart</td></tr>
+        <tr style="height: 195pt;"><td colspan="6" style="height: 195pt; padding: 0; background: #FAFAFA; text-align: center; vertical-align: middle;">${nh3ChartPng}</td></tr>
+        
+        <!-- 5. Temperature -->
+        <tr style="height: 25pt;"><td colspan="6" style="height: 25pt; padding: 12px 0 4px 0; background: #FAFAFA; text-align: center; font-weight: bold; color: #1E3A8A; font-size: 15px;">5. Water Temperature Timeline Chart</td></tr>
+        <tr style="height: 195pt;"><td colspan="6" style="height: 195pt; padding: 0; background: #FAFAFA; text-align: center; vertical-align: middle;">${tempChartPng}</td></tr>
       `;
-      
-      readings.forEach(r => {
-        const timeStr = r.recorded_at ? new Date(r.recorded_at).toLocaleString('en-PH') : "—";
-        htmlContent += `
-          <tr>
-            <td>${timeStr}</td>
-            <td>${r.ph_level !== null && r.ph_level !== undefined ? Number(r.ph_level).toFixed(2) : "—"}</td>
-            <td>${r.turbidity !== null && r.turbidity !== undefined ? Number(r.turbidity).toFixed(2) : "—"}</td>
-            <td>${r.tds !== null && r.tds !== undefined ? Number(r.tds).toFixed(0) : "—"}</td>
-            <td>${r.ammonia !== null && r.ammonia !== undefined ? Number(r.ammonia).toFixed(3) : "—"}</td>
-            <td>${r.temperature !== null && r.temperature !== undefined ? Number(r.temperature).toFixed(2) : "—"}</td>
-          </tr>
-        `;
-      });
       
     } catch(err) {
       console.error(err);
