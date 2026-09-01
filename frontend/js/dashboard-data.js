@@ -1775,6 +1775,8 @@ async function loadMaintenanceLogs() {
       return;
     }
 
+    const isAdmin = currentUserIsAdmin();
+
     el.innerHTML = `
       <table class="data-table">
         <thead>
@@ -1786,6 +1788,7 @@ async function loadMaintenanceLogs() {
             <th>Details</th>
             <th>Tags</th>
             <th>Repaired By</th>
+            ${isAdmin ? '<th>Actions</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -1795,6 +1798,12 @@ async function loadMaintenanceLogs() {
               ? log.tags.split(",").map(t => `<span class="device-badge" style="background:rgba(44,154,209,0.1);color:#1A6FA8;margin:2px;font-size:10px;">${escapeHtml(t.trim())}</span>`).join("")
               : "—";
             const locationText = log.building_name ? `${log.building_name} (${log.area_name || 'General'})` : "—";
+            const deleteCell = isAdmin ? `
+              <td>
+                <button class="btn-delete-row delete-maint-btn" data-id="${log.id}" data-name="${escapeHtml(log.title || 'Maintenance Log')}">
+                  Delete
+                </button>
+              </td>` : "";
 
             return `
               <tr class="maintenance-clickable-row" data-log-id="${log.id}" style="cursor: pointer;">
@@ -1805,6 +1814,7 @@ async function loadMaintenanceLogs() {
                 <td><span style="font-size:12px;color:var(--text-mid);">${escapeHtml(log.detail || '—')}</span></td>
                 <td><div style="display:flex;flex-wrap:wrap;gap:4px;">${tagsHtml}</div></td>
                 <td><span style="font-weight:600;">${escapeHtml(log.repaired_by || '—')}</span></td>
+                ${deleteCell}
               </tr>
             `;
           }).join("")}
@@ -2538,16 +2548,16 @@ async function loadThresholdsView(overrideStandardKey) {
           </div>
 
           <div style="display: flex; gap: 12px; margin-top: 14px; margin-bottom: 14px;">
-            <div style="flex:1; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
-              <div style="font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.5px;">System Min Limit</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">
-                ${t.min_value} <span style="font-size: 12px; font-weight: 500; color: var(--text-mid);">${displayUnit}</span>
+            <div class="threshold-limit-box" style="flex:1;">
+              <div class="threshold-limit-label">System Min Limit</div>
+              <div class="threshold-limit-val">
+                ${t.min_value} <span class="threshold-limit-unit">${displayUnit}</span>
               </div>
             </div>
-            <div style="flex:1; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;">
-              <div style="font-size: 11px; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.5px;">System Max Limit</div>
-              <div style="font-size: 18px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">
-                ${t.max_value} <span style="font-size: 12px; font-weight: 500; color: var(--text-mid);">${displayUnit}</span>
+            <div class="threshold-limit-box" style="flex:1;">
+              <div class="threshold-limit-label">System Max Limit</div>
+              <div class="threshold-limit-val">
+                ${t.max_value} <span class="threshold-limit-unit">${displayUnit}</span>
               </div>
             </div>
           </div>
@@ -2623,30 +2633,24 @@ async function switchSystemStandard(stdKey) {
   const subEl = document.getElementById("thresholdActiveSub");
 
   if (btnPnsdw && btnWho) {
+    btnPnsdw.style.background = "";
+    btnPnsdw.style.color = "";
+    btnPnsdw.style.border = "";
+    btnPnsdw.style.boxShadow = "";
+    btnPnsdw.style.fontWeight = "";
+
+    btnWho.style.background = "";
+    btnWho.style.color = "";
+    btnWho.style.border = "";
+    btnWho.style.boxShadow = "";
+    btnWho.style.fontWeight = "";
+
     if (isWho) {
-      btnWho.style.background = "var(--water-1)";
-      btnWho.style.color = "#fff";
-      btnWho.style.border = "none";
-      btnWho.style.boxShadow = "0 4px 12px rgba(44,154,209,0.3)";
-      btnWho.style.fontWeight = "600";
-
-      btnPnsdw.style.background = "var(--bg-card)";
-      btnPnsdw.style.color = "var(--text-dark)";
-      btnPnsdw.style.border = "1px solid var(--border)";
-      btnPnsdw.style.boxShadow = "none";
-      btnPnsdw.style.fontWeight = "500";
+      btnWho.classList.add("active");
+      btnPnsdw.classList.remove("active");
     } else {
-      btnPnsdw.style.background = "var(--water-1)";
-      btnPnsdw.style.color = "#fff";
-      btnPnsdw.style.border = "none";
-      btnPnsdw.style.boxShadow = "0 4px 12px rgba(44,154,209,0.3)";
-      btnPnsdw.style.fontWeight = "600";
-
-      btnWho.style.background = "var(--bg-card)";
-      btnWho.style.color = "var(--text-dark)";
-      btnWho.style.border = "1px solid var(--border)";
-      btnWho.style.boxShadow = "none";
-      btnWho.style.fontWeight = "500";
+      btnPnsdw.classList.add("active");
+      btnWho.classList.remove("active");
     }
   }
 
@@ -2870,16 +2874,14 @@ function switchPresetTab(presetType) {
   ["pnsdw", "who", "current"].forEach(t => {
     const tabBtn = document.getElementById(t === "pnsdw" ? "tabPnsdw" : t === "who" ? "tabWho" : "tabCurrent");
     if (tabBtn) {
+      tabBtn.style.background = "";
+      tabBtn.style.color = "";
+      tabBtn.style.border = "";
+      tabBtn.style.fontWeight = "";
       if (t === presetType) {
-        tabBtn.style.background = "var(--water-1)";
-        tabBtn.style.color = "#fff";
-        tabBtn.style.border = "none";
-        tabBtn.style.fontWeight = "600";
+        tabBtn.classList.add("active");
       } else {
-        tabBtn.style.background = "var(--bg)";
-        tabBtn.style.color = "var(--text-mid)";
-        tabBtn.style.border = "1px solid var(--border)";
-        tabBtn.style.fontWeight = "500";
+        tabBtn.classList.remove("active");
       }
     }
   });
@@ -2925,28 +2927,28 @@ function renderPresetModalFields() {
     const step = (p === "ammonia" ? "0.01" : p === "ph" || p === "turbidity" ? "0.1" : p === "temperature" ? "0.5" : "1");
 
     return `
-      <div style="display:grid; grid-template-columns: 140px 1fr 1fr 110px; gap:10px; align-items:center; background:var(--bg); border:1px solid var(--border); padding:10px 14px; border-radius:8px;">
+      <div class="preset-param-row">
         <div>
-          <div style="font-size:13px; font-weight:600; color:var(--text-dark);">${getParamNameLabel(p)}</div>
-          <div style="font-size:11px; color:var(--text-mid);">${data.unit}</div>
+          <div class="preset-param-name">${getParamNameLabel(p)}</div>
+          <div class="preset-param-unit">${data.unit}</div>
         </div>
 
         <div>
-          <span style="font-size:10.5px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:2px;">MIN</span>
-          <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
-            <input type="number" step="${step}" id="modal_min_${p}" value="${data.min}" oninput="updatePresetModalVal('${p}', 'min', this.value)" style="width:100%; border:none; padding:4px 8px; font-size:12.5px; font-weight:600; outline:none;" />
+          <span class="preset-input-label">MIN</span>
+          <div class="preset-input-wrap">
+            <input type="number" step="${step}" id="modal_min_${p}" value="${data.min}" oninput="updatePresetModalVal('${p}', 'min', this.value)" class="preset-input-field" />
           </div>
         </div>
 
         <div>
-          <span style="font-size:10.5px; font-weight:600; color:var(--text-mid); display:block; margin-bottom:2px;">MAX</span>
-          <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
-            <input type="number" step="${step}" id="modal_max_${p}" value="${data.max}" oninput="updatePresetModalVal('${p}', 'max', this.value)" style="width:100%; border:none; padding:4px 8px; font-size:12.5px; font-weight:600; outline:none;" />
+          <span class="preset-input-label">MAX</span>
+          <div class="preset-input-wrap">
+            <input type="number" step="${step}" id="modal_max_${p}" value="${data.max}" oninput="updatePresetModalVal('${p}', 'max', this.value)" class="preset-input-field" />
           </div>
         </div>
 
         <div style="text-align:right;">
-          <span style="font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:12px; background:rgba(61,214,140,0.12); color:#0F7050; white-space:nowrap;">${data.badge}</span>
+          <span class="preset-badge">${data.badge}</span>
         </div>
       </div>`;
   }).join("");

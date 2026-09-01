@@ -398,15 +398,43 @@ float calcWaterConsumed(float flowRate) {
 //  SEND SENSOR READINGS IN JSON FORMAT
 // ─────────────────────────────────────────────────────────────
 void sensorCycle() {
-  queryModbus(); // Update Modbus sensor values first
+  // 1. Read Flow Rate first to determine if water is moving
+  float flow = readFlowRate();
+  float cons = calcWaterConsumed(flow);
+
+  // 2. Query Modbus (We still need to do this to get Temperature)
+  queryModbus(); 
   
+  // 3. Read other sensors
   float ph   = readPH();
   float turb = readTurbidity();
   float temp = readTemperature();
   float tds  = readTDS(temp);
-  float nh3  = readAmmonia();
-  float flow = readFlowRate();
-  float cons = calcWaterConsumed(flow);
+  
+  // 4. Custom Ammonia Logic:
+  // "If flow rate is sensing something, don't sense ammonia"
+  // "If stagnant, sense it and get the lowest possible"
+  static float lowestAmmonia = 999.0f; 
+  float nh3 = 0.0f;
+
+  if (flow > 0.1f) {
+    // WATER IS FLOWING: Ignore ammonia.
+    nh3 = 0.0f; 
+    
+    // Reset our lowest tracker for the next time water stops
+    lowestAmmonia = 999.0f; 
+  } else {
+    // WATER IS STABLE/STAGNANT: Read ammonia
+    float rawNh3 = readAmmonia();
+    
+    // Find the lowest possible reading during this stagnant period
+    if (rawNh3 >= 0.0f && rawNh3 < lowestAmmonia) {
+      lowestAmmonia = rawNh3;
+    }
+    
+    // Report the lowest stable value we've found
+    nh3 = (lowestAmmonia == 999.0f) ? rawNh3 : lowestAmmonia;
+  }
 
   Serial.println("┌─ Current Sensor Values ──────────────────┐");
   Serial.printf( "│  pH Level : %.2f\n", ph);
