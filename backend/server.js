@@ -9,7 +9,6 @@ if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
 const express        = require("express");
 const cors           = require("cors");
 const session        = require("express-session");
-const passport       = require("./config/passport");
 const { initDB, pool } = require("./config/db");
 const authRoutes     = require("./routes/authRoutes");
 const googleRoutes   = require("./routes/google");
@@ -42,15 +41,12 @@ app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ limit: "5mb", extended: true }));
 app.use(generalLimiter);
 
-// Session required by Passport (even though we issue JWTs)
+// Express session
 app.use(session({
   secret:            process.env.JWT_SECRET || "agostech_secret",
   resave:            false,
   saveUninitialized: false,
 }));
-
-app.use(passport.initialize());
-app.use(passport.session());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/auth",  authRoutes);
