@@ -2,6 +2,10 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+  console.warn("[AgosTech Warning] NODE_TLS_REJECT_UNAUTHORIZED is set to 0 (TLS certificate verification disabled for local dev proxy/antivirus).");
+}
+
 const express        = require("express");
 const cors           = require("cors");
 const session        = require("express-session");
