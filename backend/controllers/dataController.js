@@ -1,4 +1,4 @@
-// dataController.js — AquaSense Monitoring Data (matches actual schema)
+// dataController.js — AgosTech Monitoring Data (matches actual schema)
 const { pool } = require("../config/db");
 const { classifyWaterQuality } = require("../utils/waterQualityClassifier");
 const { logAudit } = require("../utils/auditLogger");
@@ -56,7 +56,7 @@ async function getDashboardSummary(req, res) {
       dailyConsumption,
     });
   } catch (err) {
-    console.error("[AquaSense] getDashboardSummary error:", err);
+    console.error("[AgosTech] getDashboardSummary error:", err);
     res.status(500).json({ message: "Server error fetching dashboard summary." });
   }
 }
@@ -82,7 +82,7 @@ async function getLatestReadings(req, res) {
     }));
     res.json(enrichedRows);
   } catch (err) {
-    console.error("[AquaSense] getLatestReadings error:", err);
+    console.error("[AgosTech] getLatestReadings error:", err);
     res.status(500).json({ message: "Server error fetching latest readings." });
   }
 }
@@ -152,7 +152,7 @@ async function getSensorReadings(req, res) {
       },
     });
   } catch (err) {
-    console.error("[AquaSense] getSensorReadings error:", err);
+    console.error("[AgosTech] getSensorReadings error:", err);
     res.status(500).json({ message: "Server error fetching sensor readings." });
   }
 }
@@ -200,7 +200,7 @@ async function deleteSensorReadings(req, res) {
       deleted: result.affectedRows,
     });
   } catch (err) {
-    console.error("[AquaSense] deleteSensorReadings error:", err);
+    console.error("[AgosTech] deleteSensorReadings error:", err);
     res.status(500).json({ message: "Server error deleting sensor readings." });
   }
 }
@@ -260,7 +260,7 @@ async function getAlerts(req, res) {
 
     res.json(rows);
   } catch (err) {
-    console.error("[AquaSense] getAlerts error:", err);
+    console.error("[AgosTech] getAlerts error:", err);
     res.status(500).json({ message: "Server error fetching alerts." });
   }
 }
@@ -272,7 +272,7 @@ async function logExportAction(req, res) {
     await logAudit(req, action || "EXPORT_PDF", details || "Exported PDF report");
     res.json({ message: "Export logged successfully" });
   } catch (err) {
-    console.error("[AquaSense] logExportAction error:", err);
+    console.error("[AgosTech] logExportAction error:", err);
     res.status(500).json({ message: "Server error logging export." });
   }
 }
@@ -293,7 +293,7 @@ async function resolveAlert(req, res) {
     await logAudit(req, "RESOLVE_ALERT", `Resolved alert ID: ${id}`);
     res.json({ message: "Alert marked as resolved." });
   } catch (err) {
-    console.error("[AquaSense] resolveAlert error:", err);
+    console.error("[AgosTech] resolveAlert error:", err);
     res.status(500).json({ message: "Server error resolving alert." });
   }
 }
@@ -322,7 +322,7 @@ async function deleteAlert(req, res) {
     await logAudit(req, "DELETE_ALERT", `Deleted alert ID: ${id}`);
     res.json({ message: "Alert deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteAlert error:", err);
+    console.error("[AgosTech] deleteAlert error:", err);
 
     // sms_logs.alert_id references alerts — if that FK has no ON DELETE
     // CASCADE, MySQL will reject the delete with ER_ROW_IS_REFERENCED_2.
@@ -369,7 +369,7 @@ async function deleteAlerts(req, res) {
       deleted: result.affectedRows,
     });
   } catch (err) {
-    console.error("[AquaSense] deleteAlerts error:", err);
+    console.error("[AgosTech] deleteAlerts error:", err);
     if (err.code === "ER_ROW_IS_REFERENCED_2" || err.code === "ER_ROW_IS_REFERENCED") {
       return res.status(409).json({
         message: "Some selected alerts have related SMS log records and can't be deleted yet.",
@@ -385,18 +385,57 @@ async function deleteAlerts(req, res) {
 async function getDevices(req, res) {
   try {
     const [rows] = await pool.query(`
-      SELECT
-        d.*,
-        l.building_name, l.area_name,
-        (SELECT MAX(recorded_at) FROM sensor_readings sr WHERE sr.device_id = d.device_id) AS last_reading_at
+      SELECT d.*, l.building_name, l.area_name,
+             sr.ph_level, sr.turbidity, sr.tds, sr.temperature, sr.ammonia, sr.flow_rate, sr.recorded_at,
+             sr.recorded_at AS last_reading_at
       FROM devices d
       LEFT JOIN locations l ON d.location_id = l.location_id
+      LEFT JOIN (
+        SELECT * FROM sensor_readings
+        WHERE id IN (SELECT MAX(id) FROM sensor_readings GROUP BY device_id)
+      ) sr ON d.device_id = sr.device_id
       WHERE d.is_deleted = 0
       ORDER BY d.device_id ASC
     `);
-    res.json(rows);
+
+    const enriched = rows.map(device => {
+      let activeCount = 5;
+      if (device.recorded_at) {
+        activeCount = [
+          device.ph_level,
+          device.turbidity,
+          device.tds,
+          device.temperature,
+          device.ammonia
+        ].filter(v => v !== null).length;
+      } else {
+        activeCount = device.status === 'online' ? 5 : 0;
+      }
+
+      let uptime = 100.0;
+      if (device.status === 'offline') {
+        const lastTime = device.last_online || device.recorded_at;
+        if (lastTime) {
+          const offlineMs = Date.now() - new Date(lastTime).getTime();
+          const offlineHours = offlineMs / (1000 * 60 * 60);
+          uptime = Math.max(0, 100 - (offlineHours / 24) * 100);
+        } else {
+          uptime = 0;
+        }
+      } else {
+        uptime = (activeCount / 5) * 100;
+      }
+
+      return {
+        ...device,
+        active_sensors_count: activeCount,
+        uptime_percent: Number(uptime.toFixed(1))
+      };
+    });
+
+    res.json(enriched);
   } catch (err) {
-    console.error("[AquaSense] getDevices error:", err);
+    console.error("[AgosTech] getDevices error:", err);
     res.status(500).json({ message: "Server error fetching devices." });
   }
 }
@@ -476,7 +515,7 @@ async function createDevice(req, res) {
     });
 
   } catch (err) {
-    console.error("[AquaSense] createDevice error:", err);
+    console.error("[AgosTech] createDevice error:", err);
     return res.status(500).json({ message: "Server error registering device." });
   }
 }
@@ -497,7 +536,7 @@ async function getLocations(req, res) {
     `);
     res.json(rows);
   } catch (err) {
-    console.error("[AquaSense] getLocations error:", err);
+    console.error("[AgosTech] getLocations error:", err);
     res.status(500).json({ message: "Server error fetching locations." });
   }
 }
@@ -535,7 +574,7 @@ async function createLocation(req, res) {
       location: rows[0],
     });
   } catch (err) {
-    console.error("[AquaSense] createLocation error:", err);
+    console.error("[AgosTech] createLocation error:", err);
     return res.status(500).json({ message: "Server error adding location." });
   }
 }
@@ -556,7 +595,7 @@ async function deleteLocation(req, res) {
     await logAudit(req, "DELETE_LOCATION", `Deleted location ID: ${id}`);
     res.json({ message: "Location deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteLocation error:", err);
+    console.error("[AgosTech] deleteLocation error:", err);
     // FK constraint is ON DELETE SET NULL for devices, so this should
     // succeed even if devices are still attached — they'll just lose location_id
     res.status(500).json({ message: "Server error deleting location." });
@@ -678,7 +717,7 @@ async function getAnalyticsSummary(req, res) {
       dailyConsumption
     });
   } catch (err) {
-    console.error("[AquaSense] getAnalyticsSummary error:", err);
+    console.error("[AgosTech] getAnalyticsSummary error:", err);
     res.status(500).json({ message: "Server error fetching analytics summary." });
   }
 }
@@ -779,7 +818,7 @@ async function getReportsSummary(req, res) {
       active_standard_name: activeStandardName
     });
   } catch (err) {
-    console.error("[AquaSense] getReportsSummary error:", err);
+    console.error("[AgosTech] getReportsSummary error:", err);
     res.status(500).json({ message: "Server error generating reports summary." });
   }
 }
@@ -836,7 +875,7 @@ async function getDevicesHealth(req, res) {
 
     res.json(enriched);
   } catch (err) {
-    console.error("[AquaSense] getDevicesHealth error:", err);
+    console.error("[AgosTech] getDevicesHealth error:", err);
     res.status(500).json({ message: "Server error fetching device health." });
   }
 }
@@ -885,7 +924,7 @@ async function getMaintenanceLogs(req, res) {
 
     res.json(rows);
   } catch (err) {
-    console.error("[AquaSense] getMaintenanceLogs error:", err);
+    console.error("[AgosTech] getMaintenanceLogs error:", err);
     res.status(500).json({ message: "Server error fetching maintenance logs." });
   }
 }
@@ -924,7 +963,7 @@ async function createMaintenanceLog(req, res) {
       logId: result.insertId,
     });
   } catch (err) {
-    console.error("[AquaSense] createMaintenanceLog error:", err);
+    console.error("[AgosTech] createMaintenanceLog error:", err);
     res.status(500).json({ message: "Server error adding maintenance log." });
   }
 }
@@ -974,7 +1013,7 @@ async function exportSensorReadings(req, res) {
 
     res.json(enrichedRows);
   } catch (err) {
-    console.error("[AquaSense] exportSensorReadings error:", err);
+    console.error("[AgosTech] exportSensorReadings error:", err);
     res.status(500).json({ message: "Server error exporting sensor readings." });
   }
 }
@@ -1035,7 +1074,7 @@ async function getAuditLogs(req, res) {
       }
     });
   } catch (err) {
-    console.error("[AquaSense] getAuditLogs error:", err);
+    console.error("[AgosTech] getAuditLogs error:", err);
     res.status(500).json({ message: "Server error fetching audit logs." });
   }
 }
@@ -1056,7 +1095,7 @@ async function deleteAuditLog(req, res) {
 
     res.json({ message: "Audit log deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteAuditLog error:", err);
+    console.error("[AgosTech] deleteAuditLog error:", err);
     res.status(500).json({ message: "Server error deleting audit log." });
   }
 }
@@ -1092,7 +1131,7 @@ async function deleteAuditLogsBulk(req, res) {
       deleted: result.affectedRows,
     });
   } catch (err) {
-    console.error("[AquaSense] deleteAuditLogsBulk error:", err);
+    console.error("[AgosTech] deleteAuditLogsBulk error:", err);
     res.status(500).json({ message: "Server error deleting audit logs." });
   }
 }
@@ -1158,7 +1197,7 @@ async function getComplianceTrend(req, res) {
 
     res.json(dailyAverages);
   } catch (err) {
-    console.error("[AquaSense] getComplianceTrend error:", err);
+    console.error("[AgosTech] getComplianceTrend error:", err);
     res.status(500).json({ message: "Server error fetching compliance trends." });
   }
 }
@@ -1179,7 +1218,7 @@ async function deleteMaintenanceLog(req, res) {
 
     res.json({ message: "Maintenance log deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteMaintenanceLog error:", err);
+    console.error("[AgosTech] deleteMaintenanceLog error:", err);
     res.status(500).json({ message: "Server error deleting maintenance log." });
   }
 }
@@ -1258,7 +1297,7 @@ async function getSmsLogs(req, res) {
       stats: overallStats
     });
   } catch (err) {
-    console.error("[AquaSense] getSmsLogs error:", err);
+    console.error("[AgosTech] getSmsLogs error:", err);
     res.status(500).json({ message: "Server error fetching SMS logs." });
   }
 }
@@ -1282,7 +1321,7 @@ async function deleteSmsLog(req, res) {
 
     res.json({ message: "SMS log deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteSmsLog error:", err);
+    console.error("[AgosTech] deleteSmsLog error:", err);
     res.status(500).json({ message: "Server error deleting SMS log." });
   }
 }
@@ -1309,7 +1348,7 @@ async function deleteSmsLogsBulk(req, res) {
 
     res.json({ message: `${result.affectedRows} SMS log(s) deleted successfully.` });
   } catch (err) {
-    console.error("[AquaSense] deleteSmsLogsBulk error:", err);
+    console.error("[AgosTech] deleteSmsLogsBulk error:", err);
     res.status(500).json({ message: "Server error deleting SMS logs." });
   }
 }
@@ -1376,7 +1415,7 @@ async function getThresholds(req, res) {
 
     res.json(rows);
   } catch (err) {
-    console.error("[AquaSense] getThresholds error:", err);
+    console.error("[AgosTech] getThresholds error:", err);
     res.status(500).json({ message: "Server error fetching threshold settings." });
   }
 }
@@ -1450,14 +1489,14 @@ async function updateThresholds(req, res) {
       try {
         await logAudit(req, "UPDATE_THRESHOLDS", `Updated parameter thresholds: ${updatedParams.join(", ")}`);
       } catch (e) {
-        console.warn("[AquaSense] logAudit warning in updateThresholds:", e.message);
+        console.warn("[AgosTech] logAudit warning in updateThresholds:", e.message);
       }
     }
 
     const [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
     res.json({ message: "Threshold settings updated successfully.", thresholds: rows });
   } catch (err) {
-    console.error("[AquaSense] updateThresholds error:", err);
+    console.error("[AgosTech] updateThresholds error:", err);
     res.status(500).json({ message: err.message || "Server error updating threshold settings." });
   }
 }
@@ -1530,13 +1569,13 @@ async function resetThresholds(req, res) {
     try {
       await logAudit(req, "RESET_THRESHOLDS", `Reset water quality threshold parameters to ${stdName}`);
     } catch (e) {
-      console.warn("[AquaSense] logAudit warning in resetThresholds:", e.message);
+      console.warn("[AgosTech] logAudit warning in resetThresholds:", e.message);
     }
 
     const [rows] = await pool.query("SELECT * FROM threshold_settings ORDER BY parameter_name ASC");
     res.json({ message: `Thresholds reset to ${stdName} defaults successfully.`, thresholds: rows });
   } catch (err) {
-    console.error("[AquaSense] resetThresholds error:", err);
+    console.error("[AgosTech] resetThresholds error:", err);
     res.status(500).json({ message: err.message || "Server error resetting threshold settings." });
   }
 }
@@ -1563,7 +1602,7 @@ async function getSystemSettings(req, res) {
 
     res.json(settings);
   } catch (err) {
-    console.error("[AquaSense] getSystemSettings error:", err);
+    console.error("[AgosTech] getSystemSettings error:", err);
     res.status(500).json({ message: "Server error fetching system settings." });
   }
 }
@@ -1589,10 +1628,12 @@ async function updateSystemSettings(req, res) {
       "report_header_title",
       "report_header_subtitle",
       "report_header_address",
-      "report_logo_base64"
+      "report_logo_base64",
+      "esp_telemetry_interval_sec"
     ]);
 
-    const isAdmin = req.user?.role?.toLowerCase() === "admin";
+    const userRole = (req.user?.role || "").toLowerCase();
+    const isAdmin = userRole === "admin" || userRole === "gsu" || userRole === "hsu"; // Allow system management roles
 
     for (const [key, value] of Object.entries(payload)) {
       const valStr = String(value);
@@ -1608,19 +1649,64 @@ async function updateSystemSettings(req, res) {
           updatedKeys.push(key);
         }
       } else if (SYSTEM_SETTINGS_KEYS.has(key)) {
-        if (isAdmin) {
-          if (key === 'report_logo_base64' && valStr && !valStr.startsWith('data:image/')) {
-            return res.status(400).json({ message: "Invalid format: Logo must be an image file." });
+        if (!isAdmin) {
+          console.warn(`[AgosTech] User ${req.user?.email} (Role: ${req.user?.role}) denied permission to update system setting: ${key}`);
+          return res.status(403).json({ message: "Access denied. Admin privileges required to update system settings." });
+        }
+
+        if (key === 'report_logo_base64' && valStr && !valStr.startsWith('data:image/')) {
+          return res.status(400).json({ message: "Invalid format: Logo must be an image file." });
+        }
+
+        if (key === 'esp_telemetry_interval_sec') {
+          const intervalSec = parseInt(valStr);
+          if (isNaN(intervalSec) || intervalSec < 3 || intervalSec > 7200) {
+            return res.status(400).json({ message: "Invalid interval. Please enter a value between 3 seconds and 7200 seconds (2 hours)." });
           }
-          await pool.query(
-            `INSERT INTO system_settings (setting_key, setting_value) 
-             VALUES (?, ?) 
-             ON DUPLICATE KEY UPDATE setting_value = ?`,
-            [key, valStr, valStr]
-          );
-          updatedKeys.push(key);
-        } else {
-          console.warn(`[AquaMonitor] Non-admin user ${req.user?.email} attempted to update system-wide setting: ${key}`);
+        }
+
+        await pool.query(
+          `INSERT INTO system_settings (setting_key, setting_value) 
+           VALUES (?, ?) 
+           ON DUPLICATE KEY UPDATE setting_value = ?`,
+          [key, valStr, valStr]
+        );
+        updatedKeys.push(key);
+        console.log(`[AgosTech] Successfully saved system setting to MySQL: ${key} = ${valStr}`);
+
+        // If ESP Telemetry Interval changed, publish config via MQTT to all ESP32 devices
+        if (key === 'esp_telemetry_interval_sec') {
+          const intervalSec = parseInt(valStr);
+          const mqttClient = req.app.get("mqttClient");
+          if (mqttClient && mqttClient.connected) {
+            const configPacket = JSON.stringify({
+              action: "update_interval",
+              interval_sec: intervalSec,
+              interval_ms: intervalSec * 1000
+            });
+
+            // 1. Publish to global system-wide config topic
+            mqttClient.publish("esp32/agostech/config", configPacket, { retain: true, qos: 1 }, (mqttErr) => {
+              if (mqttErr) console.error("[MQTT] Error broadcasting ESP sending interval:", mqttErr.message);
+              else console.log(`[MQTT] Published new ESP telemetry interval (${intervalSec}s / ${intervalSec * 1000}ms) to global topic: esp32/agostech/config`);
+            });
+
+            // 2. Publish to all registered device specific config topics (e.g. esp32/agostech/data/config)
+            try {
+              const [devs] = await pool.query("SELECT mqtt_topic FROM devices WHERE is_deleted = 0");
+              for (const dev of devs) {
+                if (dev.mqtt_topic && dev.mqtt_topic.trim()) {
+                  const devTopic = dev.mqtt_topic.trim();
+                  const devConfigTopic = devTopic.endsWith("/config") ? devTopic : `${devTopic}/config`;
+                  mqttClient.publish(devConfigTopic, configPacket, { retain: true, qos: 1 });
+                }
+              }
+            } catch (devErr) {
+              console.error("[MQTT] Error broadcasting interval to per-device config topics:", devErr.message);
+            }
+          } else {
+            console.warn("[MQTT] Warning: MQTT client is disconnected. Setting saved to MySQL, but MQTT broadcast pending reconnect.");
+          }
         }
       }
     }
@@ -1631,7 +1717,7 @@ async function updateSystemSettings(req, res) {
 
     res.json({ message: "Settings updated successfully.", updatedKeys });
   } catch (err) {
-    console.error("[AquaSense] updateSystemSettings error:", err);
+    console.error("[AgosTech] updateSystemSettings error:", err);
     res.status(500).json({ message: "Server error updating system settings." });
   }
 }
@@ -1643,7 +1729,7 @@ async function getGoogleOauthSetting(req, res) {
     const enabled = row ? row.setting_value === "1" : true;
     res.json({ enabled });
   } catch (err) {
-    console.error("[AquaSense] getGoogleOauthSetting error:", err);
+    console.error("[AgosTech] getGoogleOauthSetting error:", err);
     res.json({ enabled: true });
   }
 }

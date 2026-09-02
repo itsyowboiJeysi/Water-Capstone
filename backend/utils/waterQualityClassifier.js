@@ -1,7 +1,7 @@
 // backend/utils/waterQualityClassifier.js
 // ═══════════════════════════════════════════════════════════════════════════════
 // WATER QUALITY CLASSIFICATION & SCORING SYSTEM
-// CSPC AquaSense — BSIT 4G 2026 — Gandaria
+// CSPC AgosTech — BSIT 4G 2026 — Gandaria
 // Based on: WHO Guidelines for Drinking-water Quality (2017)
 //           Philippine National Standards for Drinking Water / PNSDW (DOH 2017)
 // ═══════════════════════════════════════════════════════════════════════════════

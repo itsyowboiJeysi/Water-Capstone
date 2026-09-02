@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// register.js — AquaMonitor Registration
+// register.js — AgosTech Registration
 // Connects to: POST http://localhost:5000/api/auth/register
 // Expects body:    { fullname, email, phone_number, password, role }
 // Expects response: { message: "..." }           on success (201)
@@ -97,11 +97,15 @@ async function register() {
     // ── 5. Handle success ─────────────────────────────────────────────────────
     if (res.ok || res.status === 201) {
       setLoading(false);
-      setSuccess(data.message || "Account created successfully!");
+      setSuccess(data.message || "Account registered successfully!");
 
       setTimeout(() => {
-        window.location.href = "login.html";
-      }, 2000);
+        if (data.pending) {
+          window.location.href = "login.html?pending=true";
+        } else {
+          window.location.href = "login.html";
+        }
+      }, 2200);
 
     } else {
       // ── 6. Handle server-side failure ─────────────────────────────────────
@@ -120,7 +124,7 @@ async function register() {
 
   } catch (err) {
     // ── 7. Handle network error ───────────────────────────────────────────────
-    console.error("[AquaMonitor] Registration error:", err);
+    console.error("[AgosTech] Registration error:", err);
     errorText.textContent =
       "Unable to reach the server. Please check your connection and try again.";
     errorMsg.classList.add("show");

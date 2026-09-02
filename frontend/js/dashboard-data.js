@@ -1,4 +1,4 @@
-// dashboard-data.js — AquaSense live data binder  (PATCHED — Analytics + Alerts connected)
+// dashboard-data.js — AgosTech live data binder  (PATCHED — Analytics + Alerts connected)
 // Matches real schema: smart_water_monitoring.sql
 // sensor_readings has NO water_status column — status is computed from threshold_settings
 // alerts uses: level, status ('unresolved'/'resolved'), parameter, message
@@ -103,7 +103,7 @@ async function updateTopBarStatusPill() {
       text.textContent = `Offline · 0/${totalCount} Connected`;
     }
   } catch (err) {
-    console.warn("[AquaSense] Could not update system status pill:", err);
+    console.warn("[AgosTech] Could not update system status pill:", err);
   }
 }
 
@@ -348,7 +348,7 @@ async function populateDeviceDropdowns() {
         });
       }
     } catch (err) {
-      console.warn("[AquaSense] Failed to populate device dropdowns:", err);
+      console.warn("[AgosTech] Failed to populate device dropdowns:", err);
     }
   }
 }
@@ -377,7 +377,7 @@ window.loadDashboardFiltered = async function() {
     renderHsuDashboard(summary.latestReading);
     renderDashboardConsumptionChart(summary.dailyConsumption);
   } catch (err) {
-    console.error("[AquaSense] loadDashboardFiltered error:", err);
+    console.error("[AgosTech] loadDashboardFiltered error:", err);
   }
 };
 
@@ -416,7 +416,7 @@ async function refreshAlertBadgeCounts() {
     const unreadCount = rows.filter(a => !readAlerts.includes(a.id)).length;
     updateAlertBadges(rows.length, unreadCount);
   } catch (err) {
-    console.error("[AquaSense] refreshAlertBadgeCounts error:", err);
+    console.error("[AgosTech] refreshAlertBadgeCounts error:", err);
   }
 }
 
@@ -455,6 +455,8 @@ function renderDashboardStats(summary) {
     return;
   }
 
+  const isGsu = currentUserIsGsu();
+
   const phS   = paramStatus("ph",          r.ph_level);
   const turbS = paramStatus("turbidity",   r.turbidity);
   const tdsS  = paramStatus("tds",         r.tds);
@@ -462,7 +464,9 @@ function renderDashboardStats(summary) {
   const nh3S  = paramStatus("ammonia",     r.ammonia);
   const flowS = paramStatus("flow_rate",   r.flow_rate);
 
-  grid.innerHTML = `
+  let cards = [];
+
+  cards.push(`
     <div class="stat-card ${phS}">
       <div class="stat-header">
         <div class="stat-icon-wrap ${phS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/></svg></div>
@@ -472,7 +476,9 @@ function renderDashboardStats(summary) {
       <div class="stat-label">pH Level</div>
       <div class="stat-sub">Safe: ${rangeLabel("ph")} pH</div>
     </div>
+  `);
 
+  cards.push(`
     <div class="stat-card ${turbS}">
       <div class="stat-header">
         <div class="stat-icon-wrap ${turbS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
@@ -482,37 +488,47 @@ function renderDashboardStats(summary) {
       <div class="stat-label">Turbidity</div>
       <div class="stat-sub">Safe: ${rangeLabel("turbidity")} NTU</div>
     </div>
+  `);
 
-    <div class="stat-card ${tdsS}">
-      <div class="stat-header">
-        <div class="stat-icon-wrap ${tdsS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-        <span class="stat-badge ${tdsS}">${statusLabel(tdsS)}</span>
+  if (!isGsu) {
+    cards.push(`
+      <div class="stat-card ${tdsS}">
+        <div class="stat-header">
+          <div class="stat-icon-wrap ${tdsS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+          <span class="stat-badge ${tdsS}">${statusLabel(tdsS)}</span>
+        </div>
+        <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
+        <div class="stat-label">TDS</div>
+        <div class="stat-sub">Safe: ${rangeLabel("tds")} ppm</div>
       </div>
-      <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
-      <div class="stat-label">TDS</div>
-      <div class="stat-sub">Safe: ${rangeLabel("tds")} ppm</div>
-    </div>
+    `);
 
-    <div class="stat-card ${tempS}">
-      <div class="stat-header">
-        <div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div>
-        <span class="stat-badge ${tempS}">${statusLabel(tempS)}</span>
+    cards.push(`
+      <div class="stat-card ${tempS}">
+        <div class="stat-header">
+          <div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div>
+          <span class="stat-badge ${tempS}">${statusLabel(tempS)}</span>
+        </div>
+        <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
+        <div class="stat-label">Temperature</div>
+        <div class="stat-sub">Safe: ${rangeLabel("temperature")} °C</div>
       </div>
-      <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
-      <div class="stat-label">Temperature</div>
-      <div class="stat-sub">Safe: ${rangeLabel("temperature")} °C</div>
-    </div>
+    `);
 
-    <div class="stat-card ${nh3S}">
-      <div class="stat-header">
-        <div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div>
-        <span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span>
+    cards.push(`
+      <div class="stat-card ${nh3S}">
+        <div class="stat-header">
+          <div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div>
+          <span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span>
+        </div>
+        <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
+        <div class="stat-label">Ammonia</div>
+        <div class="stat-sub">Safe: ${rangeLabel("ammonia")} mg/L</div>
       </div>
-      <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
-      <div class="stat-label">Ammonia</div>
-      <div class="stat-sub">Safe: ${rangeLabel("ammonia")} mg/L</div>
-    </div>
+    `);
+  }
 
+  cards.push(`
     <div class="stat-card ${flowS}">
       <div class="stat-header">
         <div class="stat-icon-wrap ${flowS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
@@ -522,7 +538,9 @@ function renderDashboardStats(summary) {
       <div class="stat-label">Flow Rate</div>
       <div class="stat-sub">Safe: ${rangeLabel("flow_rate")} L/min</div>
     </div>
+  `);
 
+  cards.push(`
     <div class="stat-card info">
       <div class="stat-header">
         <div class="stat-icon-wrap info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
@@ -532,7 +550,9 @@ function renderDashboardStats(summary) {
       <div class="stat-label">Devices Online</div>
       <div class="stat-sub">${d.offline || 0} offline · ${d.maintenance || 0} maintenance</div>
     </div>
-  `;
+  `);
+
+  grid.innerHTML = cards.join("");
 }
 
 // ── Live sensor param tiles ──────────────────────────────────────────────────
@@ -545,7 +565,7 @@ function renderLiveParams(r, containerId) {
     return;
   }
 
-  const params = [
+  let params = [
     { key: "ph_level",    label: "pH Level",    unit: "pH",    thr: "ph",          dec: 2 },
     { key: "turbidity",   label: "Turbidity",   unit: "NTU",   thr: "turbidity",   dec: 2 },
     { key: "tds",         label: "TDS",         unit: "ppm",   thr: "tds",         dec: 0 },
@@ -553,6 +573,10 @@ function renderLiveParams(r, containerId) {
     { key: "ammonia",     label: "Ammonia",     unit: "mg/L",  thr: "ammonia",     dec: 2 },
     { key: "flow_rate",   label: "Flow Rate",   unit: "L/min", thr: "flow_rate",   dec: 1 },
   ];
+
+  if (currentUserIsGsu()) {
+    params = params.filter(p => ["ph_level", "turbidity", "flow_rate"].includes(p.key));
+  }
 
   el.innerHTML = params.map(p => {
     const val    = r[p.key];
@@ -673,7 +697,7 @@ async function loadRecentReadingsTable() {
       </tr>`;
     }).join("");
   } catch (err) {
-    console.error("[AquaSense] loadRecentReadingsTable error:", err);
+    console.error("[AgosTech] loadRecentReadingsTable error:", err);
     tbody.innerHTML = emptyRow(5, "Unable to load readings.");
   }
 }
@@ -722,13 +746,25 @@ async function loadBuildingsPreview() {
       </div>
       ${items}`;
   } catch (err) {
-    console.error("[AquaSense] loadBuildingsPreview error:", err);
+    console.error("[AgosTech] loadBuildingsPreview error:", err);
   }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // LIVE MONITORING VIEW
 // ═════════════════════════════════════════════════════════════════════════════
+window.activeLiveParam = window.activeLiveParam || "ph";
+
+window.switchLiveParamTab = function(paramKey) {
+  window.activeLiveParam = paramKey;
+  document.querySelectorAll("#liveParamTabs .live-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.param === paramKey);
+  });
+  if (window.lastLiveReadings) {
+    renderLiveTelemetryChart(window.lastLiveReadings, paramKey);
+  }
+};
+
 window.loadLiveMonitoringFiltered = async function() {
   const sel = document.getElementById("liveFilterDevice");
   const deviceId = sel ? sel.value : "";
@@ -748,11 +784,165 @@ window.loadLiveMonitoringFiltered = async function() {
     }
 
     renderLiveStats(targetReading);
-    renderLiveParams(targetReading, "live-params");
+
+    // Fetch recent sensor readings to render real-time line chart timeline
+    let url = "/api/sensors?limit=25";
+    if (deviceId) url += `&device_id=${encodeURIComponent(deviceId)}`;
+    
+    const res = await apiGet(url);
+    const readings = (res && res.data) ? res.data : [];
+    
+    // Order chronologically (oldest first, latest last on graph)
+    window.lastLiveReadings = readings.slice().reverse();
+    renderLiveTelemetryChart(window.lastLiveReadings, window.activeLiveParam || "ph");
   } catch (err) {
-    console.error("[AquaSense] loadLiveMonitoringFiltered error:", err);
+    console.error("[AgosTech] loadLiveMonitoringFiltered error:", err);
   }
 };
+
+function renderLiveTelemetryChart(readings, paramKey) {
+  const container = document.getElementById("liveTelemetryChartContainer");
+  const summaryEl = document.getElementById("liveTelemetrySummary");
+  if (!container || !summaryEl) return;
+
+  const paramConfig = {
+    ph:          { key: "ph_level",    label: "pH Level",    unit: "pH",    color: "#2C9AD1", dec: 2 },
+    turbidity:   { key: "turbidity",   label: "Turbidity",   unit: "NTU",   color: "#0EA5E9", dec: 2 },
+    flow_rate:   { key: "flow_rate",   label: "Flow Rate",   unit: "L/min", color: "#10B981", dec: 1 },
+    tds:         { key: "tds",         label: "TDS",         unit: "ppm",   color: "#8B5CF6", dec: 0 },
+    temperature: { key: "temperature", label: "Temperature", unit: "°C",    color: "#F59E0B", dec: 2 },
+    ammonia:     { key: "ammonia",     label: "Ammonia",     unit: "mg/L",  color: "#EF4444", dec: 2 }
+  };
+
+  const cfg = paramConfig[paramKey] || paramConfig.ph;
+  const thr = thresholdMap[paramKey] || { min: 0, max: 100 };
+
+  if (!readings || readings.length === 0) {
+    summaryEl.innerHTML = "";
+    container.innerHTML = emptyPanel("Waiting for real-time sensor telemetry stream...");
+    return;
+  }
+
+  const validVals = readings.map(r => Number(r[cfg.key])).filter(v => !isNaN(v) && v !== null);
+  const currentVal = validVals.length > 0 ? validVals[validVals.length - 1] : 0;
+  const minVal     = validVals.length > 0 ? Math.min(...validVals) : 0;
+  const maxVal     = validVals.length > 0 ? Math.max(...validVals) : 0;
+  const avgVal     = validVals.length > 0 ? (validVals.reduce((a, b) => a + b, 0) / validVals.length) : 0;
+  const status     = paramStatus(paramKey, currentVal);
+
+  summaryEl.style.display = "flex";
+  summaryEl.style.justifyContent = "center";
+  summaryEl.style.flexWrap = "wrap";
+  summaryEl.style.gap = "12px";
+  summaryEl.style.marginBottom = "16px";
+
+  summaryEl.innerHTML = `
+    <div style="flex: 1 1 140px; max-width: 220px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+      <div style="font-size: 10.5px; color: var(--text-light); font-weight: 700; text-transform: uppercase;">Current ${cfg.label}</div>
+      <div style="font-size: 20px; font-weight: 800; color: ${cfg.color}; margin-top: 2px;">${fmt(currentVal, cfg.dec)} <span style="font-size: 12px; font-weight:600; color:var(--text-mid);">${cfg.unit}</span></div>
+    </div>
+    <div style="flex: 1 1 140px; max-width: 220px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+      <div style="font-size: 10.5px; color: var(--text-light); font-weight: 700; text-transform: uppercase;">Observed Avg</div>
+      <div style="font-size: 20px; font-weight: 800; color: var(--text-dark); margin-top: 2px;">${fmt(avgVal, cfg.dec)} <span style="font-size: 12px; font-weight:600; color:var(--text-mid);">${cfg.unit}</span></div>
+    </div>
+    <div style="flex: 1 1 140px; max-width: 220px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+      <div style="font-size: 10.5px; color: var(--text-light); font-weight: 700; text-transform: uppercase;">Min / Max Logged</div>
+      <div style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 4px;">${fmt(minVal, cfg.dec)} – ${fmt(maxVal, cfg.dec)} <span style="font-size: 11px; font-weight:600; color:var(--text-mid);">${cfg.unit}</span></div>
+    </div>
+    <div style="flex: 1 1 140px; max-width: 220px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+      <div style="font-size: 10.5px; color: var(--text-light); font-weight: 700; text-transform: uppercase;">Safe Operating Zone</div>
+      <div style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 4px;">${thr.min} – ${thr.max} <span style="font-size: 11px; font-weight:600; color:var(--text-mid);">${cfg.unit}</span></div>
+    </div>
+    <div style="flex: 1 1 140px; max-width: 220px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+      <div style="font-size: 10.5px; color: var(--text-light); font-weight: 700; text-transform: uppercase;">Telemetry Status</div>
+      <div style="margin-top: 4px;"><span class="stat-badge ${status}">${statusLabel(status)}</span></div>
+    </div>
+  `;
+
+  const svgW = 800;
+  const svgH = 220;
+  const padL = 45;
+  const padR = 20;
+  const padT = 25;
+  const padB = 35;
+  const plotW = svgW - padL - padR;
+  const plotH = svgH - padT - padB;
+
+  let minY = Math.min(minVal, thr.min);
+  let maxY = Math.max(maxVal, thr.max);
+  if (minY === maxY) { minY -= 1; maxY += 1; }
+  const yPadding = (maxY - minY) * 0.15;
+  minY = Math.max(0, minY - yPadding);
+  maxY = maxY + yPadding;
+
+  const points = readings.map((r, i) => {
+    const v = Number(r[cfg.key]) || 0;
+    const x = padL + (i / Math.max(readings.length - 1, 1)) * plotW;
+    const y = padT + plotH - ((v - minY) / (maxY - minY)) * plotH;
+    return {
+      x, y, v,
+      time: r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${r.id}`
+    };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `M ${points[0].x.toFixed(1)},${(padT + plotH).toFixed(1)} ${points.map(p => `L ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} L ${points[points.length - 1].x.toFixed(1)},${(padT + plotH).toFixed(1)} Z`;
+
+  const safeMinY = padT + plotH - ((thr.min - minY) / (maxY - minY)) * plotH;
+  const safeMaxY = padT + plotH - ((thr.max - minY) / (maxY - minY)) * plotH;
+  const safeBandTop = Math.max(padT, Math.min(padT + plotH, safeMaxY));
+  const safeBandBottom = Math.max(padT, Math.min(padT + plotH, safeMinY));
+  const safeBandH = Math.max(0, safeBandBottom - safeBandTop);
+
+  const ySteps = 4;
+  let gridLinesHtml = "";
+  for (let i = 0; i <= ySteps; i++) {
+    const yVal = minY + (i / ySteps) * (maxY - minY);
+    const yPos = padT + plotH - (i / ySteps) * plotH;
+    gridLinesHtml += `
+      <line x1="${padL}" y1="${yPos}" x2="${svgW - padR}" y2="${yPos}" stroke="var(--border, #E2E8F0)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+      <text x="${padL - 8}" y="${yPos + 4}" font-size="10" fill="var(--text-light, #94A3B8)" text-anchor="end">${fmt(yVal, cfg.dec)}</text>
+    `;
+  }
+
+  const circlesHtml = points.map(p => `
+    <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${cfg.color}" stroke="var(--bg-card, #ffffff)" stroke-width="2">
+      <title>${cfg.label}: ${fmt(p.v, cfg.dec)} ${cfg.unit} (${p.time})</title>
+    </circle>
+  `).join("");
+
+  const firstTime = points[0].time;
+  const lastTime = points[points.length - 1].time;
+
+  const svgHtml = `
+    <svg viewBox="0 0 ${svgW} ${svgH}" style="width: 100%; height: auto; display: block; overflow: visible;">
+      <defs>
+        <linearGradient id="liveGradient_${cfg.key}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${cfg.color}" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="${cfg.color}" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="${padL}" y="${safeBandTop}" width="${plotW}" height="${safeBandH}" fill="#10B981" opacity="0.07" rx="3"/>
+
+      ${gridLinesHtml}
+
+      ${safeMinY >= padT && safeMinY <= padT + plotH ? `<line x1="${padL}" y1="${safeMinY}" x2="${svgW - padR}" y2="${safeMinY}" stroke="#10B981" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.7"/><text x="${svgW - padR}" y="${safeMinY - 4}" font-size="9" fill="#10B981" text-anchor="end" font-weight="600">Safe Min: ${thr.min}</text>` : ''}
+      ${safeMaxY >= padT && safeMaxY <= padT + plotH ? `<line x1="${padL}" y1="${safeMaxY}" x2="${svgW - padR}" y2="${safeMaxY}" stroke="#10B981" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.7"/><text x="${svgW - padR}" y="${safeMaxY - 4}" font-size="9" fill="#10B981" text-anchor="end" font-weight="600">Safe Max: ${thr.max}</text>` : ''}
+
+      <path d="${areaPath}" fill="url(#liveGradient_${cfg.key})"/>
+
+      <path d="${linePath}" fill="none" stroke="${cfg.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+      ${circlesHtml}
+
+      <text x="${padL}" y="${svgH - 8}" font-size="10" fill="var(--text-light, #94A3B8)" text-anchor="start">Start: ${firstTime}</text>
+      <text x="${svgW - padR}" y="${svgH - 8}" font-size="10" fill="var(--text-light, #94A3B8)" text-anchor="end">Latest: ${lastTime}</text>
+    </svg>
+  `;
+
+  container.innerHTML = svgHtml;
+}
 
 async function loadLiveMonitoring() {
   await populateDeviceDropdowns();
@@ -768,44 +958,68 @@ function renderLiveStats(r) {
     return;
   }
 
+  const isGsu = currentUserIsGsu();
+
   const phS   = paramStatus("ph",          r.ph_level);
   const turbS = paramStatus("turbidity",   r.turbidity);
   const tdsS  = paramStatus("tds",         r.tds);
   const tempS = paramStatus("temperature", r.temperature);
   const nh3S  = paramStatus("ammonia",     r.ammonia);
   const flowS = paramStatus("flow_rate",   r.flow_rate);
-  grid.innerHTML = `
+
+  let cards = [];
+
+  cards.push(`
     <div class="stat-card ${phS}">
       <div class="stat-header"><div class="stat-icon-wrap ${phS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="stat-badge ${phS}">${statusLabel(phS)}</span></div>
       <div class="stat-value">${fmt(r.ph_level)}<span class="stat-unit">pH</span></div>
       <div class="stat-label">pH Level</div><div class="stat-sub">${r.building_name || "—"} · ${timeAgo(r.recorded_at)}</div>
     </div>
+  `);
+
+  cards.push(`
     <div class="stat-card ${turbS}">
       <div class="stat-header"><div class="stat-icon-wrap ${turbS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div><span class="stat-badge ${turbS}">${statusLabel(turbS)}</span></div>
       <div class="stat-value">${fmt(r.turbidity)}<span class="stat-unit">NTU</span></div>
       <div class="stat-label">Turbidity</div><div class="stat-sub">Latest reading</div>
     </div>
-    <div class="stat-card ${tdsS}">
-      <div class="stat-header"><div class="stat-icon-wrap ${tdsS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge ${tdsS}">${statusLabel(tdsS)}</span></div>
-      <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
-      <div class="stat-label">TDS</div><div class="stat-sub">Latest reading</div>
-    </div>
-    <div class="stat-card ${tempS}">
-      <div class="stat-header"><div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><span class="stat-badge ${tempS}">${statusLabel(tempS)}</span></div>
-      <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
-      <div class="stat-label">Temperature</div><div class="stat-sub">${tempS === "safe" ? "Within safe range" : "Check threshold"}</div>
-    </div>
-    <div class="stat-card ${nh3S}">
-      <div class="stat-header"><div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div><span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span></div>
-      <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
-      <div class="stat-label">Ammonia</div><div class="stat-sub">Latest reading</div>
-    </div>
+  `);
+
+  if (!isGsu) {
+    cards.push(`
+      <div class="stat-card ${tdsS}">
+        <div class="stat-header"><div class="stat-icon-wrap ${tdsS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge ${tdsS}">${statusLabel(tdsS)}</span></div>
+        <div class="stat-value">${fmt(r.tds, 0)}<span class="stat-unit">ppm</span></div>
+        <div class="stat-label">TDS</div><div class="stat-sub">Latest reading</div>
+      </div>
+    `);
+
+    cards.push(`
+      <div class="stat-card ${tempS}">
+        <div class="stat-header"><div class="stat-icon-wrap ${tempS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><span class="stat-badge ${tempS}">${statusLabel(tempS)}</span></div>
+        <div class="stat-value">${fmt(r.temperature)}<span class="stat-unit">°C</span></div>
+        <div class="stat-label">Temperature</div><div class="stat-sub">${tempS === "safe" ? "Within safe range" : "Check threshold"}</div>
+      </div>
+    `);
+
+    cards.push(`
+      <div class="stat-card ${nh3S}">
+        <div class="stat-header"><div class="stat-icon-wrap ${nh3S}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div><span class="stat-badge ${nh3S}">${statusLabel(nh3S)}</span></div>
+        <div class="stat-value">${fmt(r.ammonia, 2)}<span class="stat-unit">mg/L</span></div>
+        <div class="stat-label">Ammonia</div><div class="stat-sub">Latest reading</div>
+      </div>
+    `);
+  }
+
+  cards.push(`
     <div class="stat-card ${flowS}">
       <div class="stat-header"><div class="stat-icon-wrap ${flowS}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><span class="stat-badge ${flowS}">${statusLabel(flowS)}</span></div>
       <div class="stat-value">${fmt(r.flow_rate)}<span class="stat-unit">L/min</span></div>
       <div class="stat-label">Flow Rate</div><div class="stat-sub">${flowS !== "safe" ? "Elevated — monitor closely" : "Normal"}</div>
     </div>
-  `;
+  `);
+
+  grid.innerHTML = cards.join("");
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -841,7 +1055,7 @@ async function loadSensorReadingsLog() {
       const summary = await apiGet("/api/dashboard/summary");
       if (summary) buildThresholdMap(summary.thresholds);
     } catch (err) {
-      console.warn("[AquaSense] Could not pre-load thresholds for readings view:", err);
+      console.warn("[AgosTech] Could not pre-load thresholds for readings view:", err);
     }
   }
 
@@ -884,7 +1098,12 @@ async function loadSensorReadingsLog() {
     if (prevBtn) prevBtn.disabled = (pagination.page <= 1);
     if (nextBtn) nextBtn.disabled = (pagination.page >= pagination.totalPages || pagination.totalPages === 0);
 
-    const colCount = isAdmin ? 11 : 10;
+    const isGsu = currentUserIsGsu();
+    const colCount = isAdmin ? 11 : (isGsu ? 7 : 10);
+
+    document.querySelectorAll("#view-readings .gsu-hide-param").forEach(el => {
+      el.style.display = isGsu ? "none" : "";
+    });
 
     if (rows.length === 0) {
       tbody.innerHTML = emptyRow(colCount, "No sensor readings match your filters.");
@@ -898,6 +1117,9 @@ async function loadSensorReadingsLog() {
       const checkboxCell = isAdmin
         ? `<td class="row-checkbox-cell"><input type="checkbox" class="reading-row-checkbox" value="${r.id}"/></td>`
         : "";
+      const tdsCell = isGsu ? "" : `<td>${fmt(r.tds, 0)} ppm</td>`;
+      const tempCell = isGsu ? "" : `<td>${fmt(r.temperature)}°C</td>`;
+      const nh3Cell = isGsu ? "" : `<td>${fmt(r.ammonia, 2)} mg/L</td>`;
 
       return `<tr class="reading-clickable-row" data-index="${index}" style="cursor: pointer;">
         ${checkboxCell}
@@ -905,9 +1127,9 @@ async function loadSensorReadingsLog() {
         <td><strong>${r.device_id}</strong> / ${r.building_name || "—"}</td>
         <td>${fmt(r.ph_level)}</td>
         <td>${fmt(r.turbidity)} NTU</td>
-        <td>${fmt(r.tds, 0)} ppm</td>
-        <td>${fmt(r.temperature)}°C</td>
-        <td>${fmt(r.ammonia, 2)} mg/L</td>
+        ${tdsCell}
+        ${tempCell}
+        ${nh3Cell}
         <td>${fmt(r.flow_rate)} L/m</td>
         <td><span class="r-status ${status}">${statusLabel(status, r)}</span></td>
         <td style="color:var(--text-light);font-size:11px">${timeAgo(r.recorded_at)}</td>
@@ -917,8 +1139,8 @@ async function loadSensorReadingsLog() {
     // Reset selection state (checkboxes are freshly rendered, none checked)
     if (typeof updateReadingsSelection === "function") updateReadingsSelection();
   } catch (err) {
-    console.error("[AquaSense] loadSensorReadingsLog error:", err);
-    tbody.innerHTML = emptyRow(isAdmin ? 11 : 10, "Unable to load sensor readings.");
+    console.error("[AgosTech] loadSensorReadingsLog error:", err);
+    tbody.innerHTML = emptyRow(isAdmin ? 11 : (currentUserIsGsu() ? 7 : 10), "Unable to load sensor readings.");
   }
 }
 
@@ -942,15 +1164,14 @@ window.exportReadingsToCsv = async function() {
       return;
     }
 
+    const isGsu = currentUserIsGsu();
     const headers = [
       "Reading ID",
       "Device Name",
       "Building",
       "pH Level",
       "Turbidity (NTU)",
-      "TDS (ppm)",
-      "Temperature (°C)",
-      "Ammonia (mg/L)",
+      ...(isGsu ? [] : ["TDS (ppm)", "Temperature (°C)", "Ammonia (mg/L)"]),
       "Flow Rate (L/min)",
       "Water Consumed (L)",
       "Safety Score",
@@ -968,9 +1189,7 @@ window.exportReadingsToCsv = async function() {
         `"${(r.building_name || '—').replace(/"/g, '""')}"`,
         r.ph_level ?? "",
         r.turbidity ?? "",
-        r.tds ?? "",
-        r.temperature ?? "",
-        r.ammonia ?? "",
+        ...(isGsu ? [] : [r.tds ?? "", r.temperature ?? "", r.ammonia ?? ""]),
         r.flow_rate ?? "",
         r.water_consumed ?? "",
         r.score ?? "",
@@ -986,7 +1205,7 @@ window.exportReadingsToCsv = async function() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `aquasense_readings_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `agostech_readings_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1042,6 +1261,8 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
 
     if (currentUserIsHsu()) {
       rows = rows.filter(a => a.parameter && ["ph", "turbidity", "ammonia"].includes(a.parameter.toLowerCase()));
+    } else if (currentUserIsGsu()) {
+      rows = rows.filter(a => a.parameter && ["ph", "ph_level", "turbidity", "flow_rate", "flow"].includes(a.parameter.toLowerCase()));
     }
 
     if (!isPreview) {
@@ -1120,7 +1341,7 @@ async function loadAlerts(status = "all", containerId = "alerts-full-list", isPr
       }
     }
   } catch (err) {
-    console.error("[AquaSense] loadAlerts error:", err);
+    console.error("[AgosTech] loadAlerts error:", err);
     el.innerHTML = emptyPanel("Unable to load alerts.");
   }
 }
@@ -1142,6 +1363,10 @@ async function loadAlertsView() {
       const isHsuAlert = a => a.parameter && ["ph", "turbidity", "ammonia"].includes(a.parameter.toLowerCase());
       allFiltered = allAlerts.filter(isHsuAlert);
       unresolvedFiltered = unresolvedFiltered.filter(isHsuAlert);
+    } else if (currentUserIsGsu()) {
+      const isGsuAlert = a => a.parameter && ["ph", "ph_level", "turbidity", "flow_rate", "flow"].includes(a.parameter.toLowerCase());
+      allFiltered = allAlerts.filter(isGsuAlert);
+      unresolvedFiltered = unresolvedFiltered.filter(isGsuAlert);
     }
 
     const total      = allFiltered.length;
@@ -1200,7 +1425,7 @@ async function loadAlertsView() {
     await loadAlerts("all", "alerts-full-list", false);
 
   } catch (err) {
-    console.error("[AquaSense] loadAlertsView error:", err);
+    console.error("[AgosTech] loadAlertsView error:", err);
   }
 }
 
@@ -1262,7 +1487,7 @@ async function loadAnalytics() {
     renderAnalyticsChart(data.dailyTotals, data.buildingDaily);
 
   } catch (err) {
-    console.error("[AquaSense] loadAnalytics error:", err);
+    console.error("[AgosTech] loadAnalytics error:", err);
     const statsEl = document.getElementById("analytics-stats");
     if (statsEl) statsEl.innerHTML = `<div class="stat-card navy" style="grid-column:1/-1;"><div class="stat-label" style="text-align:center;padding:20px;">Unable to load analytics data.</div></div>`;
   }
@@ -1376,7 +1601,7 @@ window.loadComplianceTrendData = async function() {
 
     renderComplianceCharts(data);
   } catch (err) {
-    console.error("[AquaSense] loadComplianceTrendData error:", err);
+    console.error("[AgosTech] loadComplianceTrendData error:", err);
   }
 };
 
@@ -1394,7 +1619,7 @@ async function loadComplianceTrend() {
         });
       }
     } catch (err) {
-      console.warn("[AquaSense] Error loading devices for compliance dropdown:", err);
+      console.warn("[AgosTech] Error loading devices for compliance dropdown:", err);
     }
   }
 
@@ -1470,7 +1695,7 @@ function renderComplianceCharts(data) {
   }
 }
 
-function drawComplianceChart(containerId, data, key, yMin, yMax, refLines, unit) {
+function drawComplianceChart(containerId, data, key, defaultYMin, defaultYMax, refLines, unit) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
@@ -1479,12 +1704,28 @@ function drawComplianceChart(containerId, data, key, yMin, yMax, refLines, unit)
     return;
   }
 
-  const svgW = 600;
-  const svgH = 160;
-  const chartH = 110;
-  const leftPad = 50;
-  const rightPad = 20;
-  const topPad = 20;
+  // 1. Calculate dynamic Y min & max bounds so data out of default bounds never shoots off screen
+  const validVals = data.map(d => d[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
+  const refVals = (refLines || []).map(r => r.val);
+  const allVals = [...validVals, ...refVals, defaultYMin, defaultYMax];
+
+  let rawMin = Math.min(...allVals);
+  let rawMax = Math.max(...allVals);
+
+  // Add 10% breathing space
+  let span = rawMax - rawMin;
+  if (span <= 0) span = 1;
+
+  let yMin = Math.floor((rawMin - span * 0.08) * 10) / 10;
+  let yMax = Math.ceil((rawMax + span * 0.12) * 10) / 10;
+  if (defaultYMin === 0 && yMin < 0) yMin = 0;
+
+  const svgW = 1000;
+  const svgH = 220;
+  const chartH = 150;
+  const leftPad = 65;
+  const rightPad = 40;
+  const topPad = 30;
   const slotW = (svgW - leftPad - rightPad) / Math.max(data.length - 1, 1);
 
   // Y-axis labels
@@ -1499,29 +1740,29 @@ function drawComplianceChart(containerId, data, key, yMin, yMax, refLines, unit)
   let gridLines = yLabels.map(val => {
     const y = topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH;
     return `
-      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="var(--border, #DDE3EE)" stroke-width="1.2" stroke-dasharray="4,4"/>
-      <text x="${leftPad - 8}" y="${y + 4}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="end">${val.toFixed(1)}${unit}</text>
+      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="rgba(226, 232, 240, 0.4)" stroke-width="1" stroke-dasharray="4,4" class="compliance-grid-line"/>
+      <text x="${leftPad - 10}" y="${y + 4}" font-size="10.5" class="compliance-axis-text" text-anchor="end">${val.toFixed(1)}${unit}</text>
     `;
   }).join("");
 
   // Draw reference standard threshold lines
   let refLinesHtml = (refLines || []).map(line => {
     const y = topPad + chartH - ((line.val - yMin) / (yMax - yMin)) * chartH;
-    if (y < topPad || y > topPad + chartH) return "";
+    if (y < topPad - 10 || y > topPad + chartH + 10) return "";
     return `
-      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="${line.color || '#EF4444'}" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.85"/>
-      <text x="${svgW - rightPad - 4}" y="${y - 4}" font-size="9" fill="${line.color || '#EF4444'}" font-weight="700" text-anchor="end">${line.label}</text>
+      <line x1="${leftPad}" y1="${y}" x2="${svgW - rightPad}" y2="${y}" stroke="${line.color || '#EF4444'}" stroke-width="1.8" stroke-dasharray="6,4" opacity="0.9"/>
+      <text x="${svgW - rightPad - 6}" y="${y - 5}" font-size="10" fill="${line.color || '#EF4444'}" font-weight="700" text-anchor="end">${line.label}</text>
     `;
   }).join("");
 
   // Base X axis line
-  const baseLine = `<line x1="${leftPad}" y1="${topPad + chartH}" x2="${svgW - rightPad}" y2="${topPad + chartH}" stroke="var(--border, #DDE3EE)" stroke-width="1.5" stroke-linecap="round"/>`;
+  const baseLine = `<line x1="${leftPad}" y1="${topPad + chartH}" x2="${svgW - rightPad}" y2="${topPad + chartH}" stroke="rgba(226, 232, 240, 0.5)" stroke-width="1.5" stroke-linecap="round" class="compliance-grid-line"/>`;
 
   // Compute coordinates for data
   const coords = data.map((d, i) => {
     const x = leftPad + i * slotW;
     const rawVal = d[key];
-    const val = rawVal !== null && rawVal !== undefined ? rawVal : null;
+    const val = rawVal !== null && rawVal !== undefined && !isNaN(rawVal) ? Number(rawVal) : null;
     const y = val !== null ? (topPad + chartH - ((val - yMin) / (yMax - yMin)) * chartH) : null;
     const dayName = d.day_name ? d.day_name.slice(0, 3) : `D${i + 1}`;
     return { x, y, val, dayName };
@@ -1537,30 +1778,30 @@ function drawComplianceChart(containerId, data, key, yMin, yMax, refLines, unit)
     
     pathHtml = `
       <path d="${areaPath}" fill="url(#complianceGrad_${containerId})" />
-      <polyline fill="none" stroke="var(--water-2, #2C9AD1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
+      <polyline fill="none" stroke="#38BDF8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${polyPoints}" />
     `;
 
     dotsHtml = coords.map(c => {
       if (c.y === null) return `
-        <text x="${c.x}" y="${topPad + chartH - 20}" font-size="9.5" fill="var(--text-light)" text-anchor="middle" font-style="italic">No data</text>
-        <text x="${c.x}" y="${svgH - 12}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="middle">${c.dayName}</text>
+        <text x="${c.x}" y="${topPad + chartH - 12}" font-size="10" class="compliance-axis-text" text-anchor="middle" font-style="italic" opacity="0.6">No data</text>
+        <text x="${c.x}" y="${svgH - 10}" font-size="10.5" class="compliance-axis-text" font-weight="600" text-anchor="middle">${c.dayName}</text>
       `;
       return `
-        <circle cx="${c.x}" cy="${c.y}" r="4" fill="#FFFFFF" stroke="var(--water-2, #2C9AD1)" stroke-width="2" />
-        <text x="${c.x}" y="${c.y - 8}" font-size="9" fill="var(--text-dark, #0D1B3E)" font-weight="600" text-anchor="middle">${c.val.toFixed(2)}</text>
-        <text x="${c.x}" y="${svgH - 12}" font-size="9.5" fill="var(--text-light, #8292B0)" text-anchor="middle">${c.dayName}</text>
+        <circle cx="${c.x}" cy="${c.y}" r="4.5" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2" />
+        <text x="${c.x}" y="${c.y - 9}" font-size="10" class="compliance-val-text" text-anchor="middle">${c.val.toFixed(2)}</text>
+        <text x="${c.x}" y="${svgH - 10}" font-size="10.5" class="compliance-axis-text" font-weight="600" text-anchor="middle">${c.dayName}</text>
       `;
     }).join("");
   } else {
-    pathHtml = `<text x="${svgW / 2}" y="${svgH / 2}" font-size="13" fill="var(--text-light)" text-anchor="middle">No readings recorded in the last 7 days</text>`;
+    pathHtml = `<text x="${svgW / 2}" y="${svgH / 2}" font-size="13" class="compliance-axis-text" text-anchor="middle">No readings recorded in the last 7 days</text>`;
   }
 
   container.innerHTML = `
-    <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%; height:${svgH}px; overflow:visible;">
+    <svg viewBox="0 0 ${svgW} ${svgH}" preserveAspectRatio="none" style="width:100%; height:${svgH}px; overflow:visible;">
       <defs>
         <linearGradient id="complianceGrad_${containerId}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#2C9AD1" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="#1A6FA8" stop-opacity="0.0"/>
+          <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.38"/>
+          <stop offset="100%" stop-color="#0284C7" stop-opacity="0.0"/>
         </linearGradient>
       </defs>
       ${gridLines}
@@ -1583,9 +1824,26 @@ async function loadDevices() {
   const actionHeader = document.getElementById("devDeleteHeader");
   if (actionHeader) actionHeader.style.display = isAdmin ? "" : "none";
 
+  const addDevBtn = document.getElementById("addDeviceBtn");
+  if (addDevBtn) addDevBtn.style.display = isAdmin ? "inline-flex" : "none";
+
   try {
     const rows = await apiGet("/api/devices");
-    if (!rows) return;
+    if (!rows || !Array.isArray(rows)) {
+      if (statsEl) {
+        statsEl.innerHTML = `
+          <div class="stat-card safe"><div class="stat-header"><div class="stat-icon-wrap safe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><span class="stat-badge safe">Online</span></div><div class="stat-value">0</div><div class="stat-label">Online Devices</div></div>
+          <div class="stat-card danger"><div class="stat-header"><div class="stat-icon-wrap danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><span class="stat-badge danger">Offline</span></div><div class="stat-value">0</div><div class="stat-label">Offline Devices</div></div>
+          <div class="stat-card navy"><div class="stat-header"><div class="stat-icon-wrap navy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/></svg></div><span class="stat-badge navy">Total</span></div><div class="stat-value">0</div><div class="stat-label">Total Devices</div></div>
+          <div class="stat-card warn"><div class="stat-header"><div class="stat-icon-wrap warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="stat-badge warn">Pending</span></div><div class="stat-value">0</div><div class="stat-label">In Maintenance</div></div>
+        `;
+      }
+      if (tbody) tbody.innerHTML = emptyRow(isAdmin ? 6 : 5, "Unable to load devices. Please check server connection.");
+      return;
+    }
+
+    window.lastLoadedDevices = rows;
+    window.lastLoadedDevicesHealth = rows;
 
     if (statsEl) {
       const online      = rows.filter(d => d.status === "online").length;
@@ -1608,9 +1866,22 @@ async function loadDevices() {
     }
 
     tbody.innerHTML = rows.map(d => {
-      const lastSeen = d.last_reading_at
-        ? timeAgo(d.last_reading_at)
-        : (d.last_online ? timeAgo(d.last_online) : "—");
+      const rawDate = d.last_reading_at || d.last_online;
+      let lastSeenStr = '<span style="color:var(--text-light);">Never</span>';
+      if (rawDate) {
+        const dateObj = new Date(rawDate);
+        if (!isNaN(dateObj.getTime())) {
+          const ago = timeAgo(rawDate);
+          const fullDate = dateObj.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          });
+          lastSeenStr = `<span style="font-weight:600;" title="${fullDate}">${ago}</span> <span class="last-seen-subtext" style="font-size:11.5px; color:#94A3B8;">(${fullDate})</span>`;
+        }
+      }
 
       const statusClass = d.status === "online" ? "online"
         : d.status === "maintenance" ? "maintenance"
@@ -1623,18 +1894,18 @@ async function loadDevices() {
           </button>
         </td>` : "";
 
-      return `<tr>
+      return `<tr class="device-clickable-row" data-device-id="${d.device_id}" style="cursor: pointer;" title="Click to view detailed device health & telemetry status">
         <td><strong>${d.device_id}</strong></td>
-        <td>${d.device_name || "—"}</td>
-        <td>${d.building_name || "—"}</td>
-        <td>${lastSeen}</td>
+        <td>${escapeHtml(d.device_name || "—")}</td>
+        <td>${escapeHtml(d.building_name || "—")}</td>
+        <td>${lastSeenStr}</td>
         <td><span class="device-badge ${statusClass}"><span class="device-badge-dot"></span>${d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span></td>
         ${deleteCell}
       </tr>`;
     }).join("");
   } catch (err) {
-    console.error("[AquaSense] loadDevices error:", err);
-    if (tbody) tbody.innerHTML = emptyRow(5, "Unable to load devices.");
+    console.error("[AgosTech] loadDevices error:", err);
+    if (tbody) tbody.innerHTML = emptyRow(isAdmin ? 6 : 5, "Unable to load devices.");
   }
 }
 
@@ -1680,7 +1951,7 @@ async function loadLocations(containerId = "locations-tbody") {
       </tr>`;
     }).join("");
   } catch (err) {
-    console.error("[AquaSense] loadLocations error:", err);
+    console.error("[AgosTech] loadLocations error:", err);
   }
 }
 
@@ -1822,7 +2093,7 @@ async function loadMaintenanceLogs() {
       </table>
     `;
   } catch (err) {
-    console.error("[AquaSense] loadMaintenanceLogs error:", err);
+    console.error("[AgosTech] loadMaintenanceLogs error:", err);
     el.innerHTML = emptyPanel("Failed to load maintenance logs.");
   }
 }
@@ -2032,7 +2303,7 @@ async function loadFlowAnomalies() {
     }).join("");
 
   } catch (err) {
-    console.error("[AquaSense] loadFlowAnomalies error:", err);
+    console.error("[AgosTech] loadFlowAnomalies error:", err);
     el.innerHTML = emptyPanel("Error loading flow rate anomaly data.");
   }
 }
@@ -2104,7 +2375,7 @@ async function loadDevicesHealthTracker() {
     }).join("");
 
   } catch (err) {
-    console.error("[AquaSense] loadDevicesHealthTracker error:", err);
+    console.error("[AgosTech] loadDevicesHealthTracker error:", err);
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);">Error loading health tracker data.</td></tr>`;
   }
 }
@@ -2274,7 +2545,7 @@ async function loadSmsLogs(page = 1) {
     updateSmsPaginationUI(startCount, endCount, pagination.total, pagination.page, pagination.totalPages);
 
   } catch (err) {
-    console.error("[AquaSense] loadSmsLogs error:", err);
+    console.error("[AgosTech] loadSmsLogs error:", err);
     if (listEl) listEl.innerHTML = emptyPanel("Unable to load SMS logs.");
     if (statsEl) statsEl.innerHTML = "";
   }
@@ -2575,7 +2846,7 @@ async function loadThresholdsView(overrideStandardKey) {
     }).join("");
 
   } catch (err) {
-    console.error("[AquaSense] loadThresholdsView error:", err);
+    console.error("[AgosTech] loadThresholdsView error:", err);
     if (gridEl) gridEl.innerHTML = emptyPanel("Failed to load threshold settings.");
   }
 }
@@ -2673,7 +2944,7 @@ async function switchSystemStandard(stdKey) {
         showToast("Standard Active", res.message || `Switched active water threshold standard to ${isWho ? "WHO Guidelines" : "PNSDW 2017"}!`);
       }
     } catch (e) {
-      console.warn("[AquaSense] switchSystemStandard reset notice:", e.message);
+      console.warn("[AgosTech] switchSystemStandard reset notice:", e.message);
     }
   }
 
@@ -2747,7 +3018,7 @@ async function saveThresholdSettings() {
       await loadThresholdsView();
     }
   } catch (err) {
-    console.error("[AquaSense] saveThresholdSettings error:", err);
+    console.error("[AgosTech] saveThresholdSettings error:", err);
     showToast("Error", err.message || "Failed to save threshold settings", "error");
   } finally {
     if (saveBtn) {
@@ -2783,7 +3054,7 @@ async function resetThresholdsToDefaults(standard = "pnsdw") {
       await loadThresholdsView();
     }
   } catch (err) {
-    console.error("[AquaSense] resetThresholdsToDefaults error:", err);
+    console.error("[AgosTech] resetThresholdsToDefaults error:", err);
     showToast("Error", err.message || "Failed to reset thresholds.", "error");
   }
 }
@@ -3027,7 +3298,7 @@ async function confirmApplyPreset() {
       await loadThresholdsView();
     }
   } catch (err) {
-    console.error("[AquaSense] confirmApplyPreset error:", err);
+    console.error("[AgosTech] confirmApplyPreset error:", err);
     if (errEl && errText) {
       errText.textContent = err.message || "Failed to apply threshold settings.";
       errEl.style.display = "flex";
@@ -3129,6 +3400,68 @@ async function loadSettingsView() {
       }
     }
 
+    // ── ESP32 Telemetry Sending Interval Controls (3s to 2 hours) ───────────────
+    const intervalSelect = document.getElementById("espTelemetryIntervalSelect");
+    const intervalCustomInput = document.getElementById("espTelemetryIntervalCustomInput");
+    const intervalSaveBtn = document.getElementById("espTelemetryIntervalSaveBtn");
+
+    if (intervalSelect && intervalSaveBtn) {
+      const savedIntervalSec = String(settings.esp_telemetry_interval_sec || "5");
+      const optionExists = Array.from(intervalSelect.options).some(opt => opt.value === savedIntervalSec);
+
+      if (optionExists) {
+        intervalSelect.value = savedIntervalSec;
+        if (intervalCustomInput) intervalCustomInput.style.display = "none";
+      } else {
+        intervalSelect.value = "custom";
+        if (intervalCustomInput) {
+          intervalCustomInput.style.display = "inline-block";
+          intervalCustomInput.value = savedIntervalSec;
+        }
+      }
+
+      intervalSelect.disabled = !isAdmin;
+      intervalSaveBtn.disabled = !isAdmin;
+      if (intervalCustomInput) intervalCustomInput.disabled = !isAdmin;
+
+      intervalSelect.onchange = () => {
+        if (intervalSelect.value === "custom") {
+          if (intervalCustomInput) {
+            intervalCustomInput.style.display = "inline-block";
+            intervalCustomInput.focus();
+          }
+        } else {
+          if (intervalCustomInput) intervalCustomInput.style.display = "none";
+        }
+      };
+
+      intervalSaveBtn.onclick = async () => {
+        let secVal = 5;
+        if (intervalSelect.value === "custom") {
+          secVal = parseInt(intervalCustomInput ? intervalCustomInput.value : "5");
+        } else {
+          secVal = parseInt(intervalSelect.value);
+        }
+
+        if (isNaN(secVal) || secVal < 3 || secVal > 7200) {
+          showToast("Validation Error", "Sending interval must be between 3 seconds and 7200 seconds (2 hours).", "error");
+          return;
+        }
+
+        try {
+          intervalSaveBtn.disabled = true;
+          intervalSaveBtn.textContent = "Saving...";
+          await apiPut("/api/system-settings", { esp_telemetry_interval_sec: String(secVal) });
+          showToast("ESP32 Config Updated", `✓ Broadcasted new ESP telemetry sending frequency: ${secVal} seconds (${(secVal / 60).toFixed(1)} mins) to all ESP32 devices via MQTT.`);
+        } catch (err) {
+          showToast("Error", err.message || "Failed to update ESP sending interval", "error");
+        } finally {
+          intervalSaveBtn.disabled = false;
+          intervalSaveBtn.textContent = "Apply";
+        }
+      };
+    }
+
     // Bind custom report template settings
     const reportTextInputs = {
       report_header_title: "reportHeaderTitleInput",
@@ -3210,7 +3543,7 @@ async function loadSettingsView() {
       };
     }
   } catch (err) {
-    console.error("[AquaSense] loadSettingsView error:", err);
+    console.error("[AgosTech] loadSettingsView error:", err);
   }
 }
 
@@ -3312,6 +3645,31 @@ document.addEventListener("DOMContentLoaded", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // USER MANAGEMENT VIEW (ADMIN ONLY)
 // ─────────────────────────────────────────────────────────────────────────────
+window.approveUserAccount = async function(event, userId, fullname) {
+  if (event) event.stopPropagation();
+  try {
+    showToast("Approving...", `Activating account for ${fullname}...`);
+    await apiPut(`/api/auth/users/${userId}`, { status: "active" });
+    showToast("Account Approved", `✓ Approved account for ${fullname}. Email notification sent.`);
+    await loadUsers();
+  } catch (err) {
+    showToast("Error", err.message || "Failed to approve user account.", "error");
+  }
+};
+
+window.denyUserAccount = async function(event, userId, fullname) {
+  if (event) event.stopPropagation();
+  if (!confirm(`Are you sure you want to deny registration for ${fullname}? An email notification will be sent.`)) return;
+  try {
+    showToast("Denying...", `Processing denial for ${fullname}...`);
+    await apiDelete(`/api/auth/users/${userId}`);
+    showToast("Registration Denied", `✕ Registration request for ${fullname} has been denied.`);
+    await loadUsers();
+  } catch (err) {
+    showToast("Error", err.message || "Failed to deny registration.", "error");
+  }
+};
+
 async function loadUsers() {
   const tbody = document.getElementById("users-tbody");
   if (!tbody) return;
@@ -3321,14 +3679,24 @@ async function loadUsers() {
     if (!users) return;
 
     if (users.length === 0) {
-      tbody.innerHTML = emptyRow(6, "No users registered yet.");
+      tbody.innerHTML = emptyRow(7, "No users registered yet.");
       return;
     }
 
     tbody.innerHTML = users.map(u => {
       const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : "?";
-      const statusClass = (u.status || "active").toLowerCase() === "active" ? "safe" : "offline";
-      const statusLabelText = (u.status || "active").toLowerCase() === "active" ? "Active" : "Inactive";
+      const statusLower = (u.status || "active").toLowerCase();
+      let statusClass = "safe";
+      let statusLabelText = "Active";
+
+      if (statusLower === "pending") {
+        statusClass = "warn";
+        statusLabelText = `<span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite;"></span>Pending</span>`;
+      } else if (statusLower === "inactive") {
+        statusClass = "offline";
+        statusLabelText = "Inactive";
+      }
+
       const roleLabelText = u.role ? u.role.toUpperCase() : "—";
       const createdDate = u.created_at 
         ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) 
@@ -3337,6 +3705,16 @@ async function loadUsers() {
       let avatarContent = initial;
       if (u.avatar) {
         avatarContent = `<img src="${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.textContent = '${initial}';"/>`;
+      }
+
+      let actionsHtml = `<span style="font-size:12px;color:var(--text-light);">Edit</span>`;
+      if (statusLower === "pending") {
+        actionsHtml = `
+          <div style="display:flex;gap:6px;" onclick="event.stopPropagation()">
+            <button type="button" class="btn-approve-user" onclick="approveUserAccount(event, ${u.user_id}, '${escapeHtml(u.fullname)}')">✓ Approve</button>
+            <button type="button" class="btn-deny-user" onclick="denyUserAccount(event, ${u.user_id}, '${escapeHtml(u.fullname)}')">✕ Deny</button>
+          </div>
+        `;
       }
 
       return `
@@ -3352,6 +3730,7 @@ async function loadUsers() {
           <td><span class="role-badge ${u.role ? u.role.toLowerCase() : ""}">${roleLabelText}</span></td>
           <td><span class="r-status ${statusClass}">${statusLabelText}</span></td>
           <td style="color:var(--text-light);font-size:12px">${createdDate}</td>
+          <td>${actionsHtml}</td>
         </tr>`;
     }).join("");
 
@@ -3368,8 +3747,8 @@ async function loadUsers() {
     });
 
   } catch (err) {
-    console.error("[AquaSense] loadUsers error:", err);
-    tbody.innerHTML = emptyRow(6, "Unable to load system users.");
+    console.error("[AgosTech] loadUsers error:", err);
+    tbody.innerHTML = emptyRow(7, "Unable to load system users.");
   }
 }
 
@@ -3425,7 +3804,7 @@ async function markAllAlertsAsRead() {
       refreshAlertBadgeCounts();
     }
   } catch (err) {
-    console.error("[AquaSense] markAllAlertsAsRead error:", err);
+    console.error("[AgosTech] markAllAlertsAsRead error:", err);
   }
 }
 
@@ -3463,7 +3842,7 @@ async function loadDropdownAlerts() {
         </div>`;
     }).join("");
   } catch (err) {
-    console.error("[AquaSense] loadDropdownAlerts error:", err);
+    console.error("[AgosTech] loadDropdownAlerts error:", err);
     body.innerHTML = `<div style="padding:16px;text-align:center;font-size:12px;color:var(--error)">Failed to load.</div>`;
   }
 }
@@ -3525,7 +3904,7 @@ async function loadAuditLogs() {
 
     renderFilteredAuditLogs();
   } catch (err) {
-    console.error("[AquaSense] loadAuditLogs error:", err);
+    console.error("[AgosTech] loadAuditLogs error:", err);
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--error)">Failed to load audit logs. Only administrators have access.</td></tr>`;
   }
 }
@@ -3815,7 +4194,7 @@ async function loadReportsView() {
         });
       }
     } catch (err) {
-      console.warn("[AquaSense] Error loading locations for report filter:", err);
+      console.warn("[AgosTech] Error loading locations for report filter:", err);
     }
   }
 
@@ -4025,7 +4404,7 @@ async function exportReportPDF() {
   const inputAckRole = document.getElementById("reportAckRole").value.trim();
   const inputRemarks = document.getElementById("reportRemarks").value.trim();
 
-  const titleText = settings.report_header_title || "AquaSense Water Analytics";
+  const titleText = settings.report_header_title || "AgosTech Water Analytics";
   const subtitleText = settings.report_header_subtitle || "Camarines Sur Polytechnic Colleges";
   const addressText = settings.report_header_address || "Nabua, Camarines Sur, Philippines";
   const logoBase64 = settings.report_logo_base64 || "";
@@ -4100,7 +4479,7 @@ async function exportReportPDF() {
           </div>` : ''}
         </div>
         <p style="font-size: ${baseFontSize * 1.05}px; color: #475569; line-height: 1.5; margin-bottom: ${gap}px;">
-          This document contains consolidated water quality analytics and operation metrics monitored by the AquaSense system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
+          This document contains consolidated water quality analytics and operation metrics monitored by the AgosTech system during the reporting period from <strong>${startDate}</strong> to <strong>${endDate}</strong>.
         </p>
       `;
     } else if (sec.id === "waterQuality" && (role === "hsu" || role === "admin")) {
@@ -4258,7 +4637,7 @@ async function exportReportPDF() {
   
   const opt = {
     margin:       15,
-    filename:     `AquaSense_${role.toUpperCase()}_Report_${startDate}_to_${endDate}.pdf`,
+    filename:     `AgosTech_${role.toUpperCase()}_Report_${startDate}_to_${endDate}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
     html2canvas:  { scale: 2, useCORS: true },
     jsPDF:        { unit: 'mm', format: pdfFormat, orientation: orientation }
@@ -4543,7 +4922,7 @@ async function exportReportCSV() {
       <table>
         <tr class="title-row">
           <td colspan="6" style="text-align: center;">
-            <div class="title" style="text-align: center;">AquaSense Water Analytics Report ${reportFormat === 'detailed' ? '(Detailed Timeline Line Graphs)' : ''}</div>
+            <div class="title" style="text-align: center;">AgosTech Water Analytics Report ${reportFormat === 'detailed' ? '(Detailed Timeline Line Graphs)' : ''}</div>
             <div class="subtitle" style="text-align: center;">Generated: ${new Date().toLocaleString('en-PH')}</div>
             <div class="subtitle" style="text-align: center;">Reporting Period: ${startDate} to ${endDate}</div>
           </td>
@@ -4641,7 +5020,7 @@ async function exportReportCSV() {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `AquaSense_Report_${startDate}_to_${endDate}.xls`);
+  link.setAttribute("download", `AgosTech_Report_${startDate}_to_${endDate}.xls`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -4691,7 +5070,7 @@ async function generateReadingReport() {
               Camarines Sur Polytechnic Colleges
             </h3>
             <h1 style="font-size: 22px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">
-              AquaSense Water Analytics
+              AgosTech Water Analytics
             </h1>
             <p style="font-size: 11px; color: #64748B; margin: 4px 0 0 0;">
               Nabua, Camarines Sur, Philippines

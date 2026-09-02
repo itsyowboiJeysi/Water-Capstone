@@ -1,4 +1,4 @@
-// server.js — AquaMonitor Express Server
+// server.js — AgosTech Express Server
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 5000;
 // ── Device offline detection ──────────────────────────────────────────────
 // If a device hasn't sent an MQTT reading within this window, we consider
 // it offline. Tune via env var if your devices report less frequently.
-const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES) || 3;
+const OFFLINE_THRESHOLD_MINUTES = parseInt(process.env.OFFLINE_THRESHOLD_MINUTES) || 30;
 const HEALTH_CHECK_INTERVAL_MS  = 60 * 1000; // check every 60s
 
 // ── Trust proxy (needed for accurate IPs behind a proxy/load balancer) ───────
@@ -40,7 +40,7 @@ app.use(generalLimiter);
 
 // Session required by Passport (even though we issue JWTs)
 app.use(session({
-  secret:            process.env.JWT_SECRET || "aquamonitor_secret",
+  secret:            process.env.JWT_SECRET || "agostech_secret",
   resave:            false,
   saveUninitialized: false,
 }));
@@ -55,7 +55,7 @@ app.use("/api",       dataRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", app: "AquaMonitor", time: new Date().toISOString() });
+  res.json({ status: "ok", app: "AgosTech", time: new Date().toISOString() });
 });
 
 // ── Settings & SMS Helpers ───────────────────────────────────────────────────
@@ -135,12 +135,12 @@ function initMqtt() {
   const mqttClient = mqtt.connect("mqtt://broker.hivemq.com:1883");
 
   mqttClient.on("connect", async () => {
-    // Subscribe to all AquaSense device topics (wildcard backup)
-    mqttClient.subscribe("esp32/aquasense/#", (err) => {
+    // Subscribe to all AgosTech device topics (wildcard backup)
+    mqttClient.subscribe("esp32/agostech/#", (err) => {
       if (err) {
         console.error("[MQTT] Subscribe error:", err.message);
       } else {
-        console.log("[MQTT] Subscriber ready — listening on esp32/aquasense/#");
+        console.log("[MQTT] Subscriber ready — listening on esp32/agostech/#");
       }
     });
 
@@ -176,6 +176,11 @@ function initMqtt() {
     // Wrap everything in try/catch — a bad payload or DB error must NEVER
     // crash the process; it just logs a warning and moves on.
     try {
+      // ── Ignore config / control topics ──────────────────────────────────
+      if (topic.endsWith("/config") || topic === "esp32/agostech/config") {
+        return;
+      }
+
       // ── 1. Parse payload ──────────────────────────────────────────────────
       let d;
       try {
@@ -187,7 +192,7 @@ function initMqtt() {
 
       // ── 1.5 Verify HMAC-SHA256 Data Integrity Signature ───────────────────
       const rawPayload = `${d.device_id}|${d.ph_level}|${d.turbidity}|${d.tds}|${d.temperature}|${d.ammonia}|${d.flow_rate}|${d.water_consumed}`;
-      const secretKey = process.env.ESP32_HMAC_SECRET || "AquaSense_IoT_Secret_2026";
+      const secretKey = process.env.ESP32_HMAC_SECRET || "AgosTech_IoT_Secret_2026";
       const calculatedHash = crypto.createHmac('sha256', secretKey).update(rawPayload).digest('hex');
 
       if (!d.signature || d.signature !== calculatedHash) {
@@ -442,18 +447,32 @@ async function evaluateThresholds(deviceId, reading) {
 
 // ── Device health checker ─────────────────────────────────────────────────
 // Runs on a timer (HEALTH_CHECK_INTERVAL_MS). Any device still marked
-// 'online' that hasn't reported in OFFLINE_THRESHOLD_MINUTES gets flipped
-// to 'offline' and raises a connectivity alert — but only once, so it
-// won't spam a new alert every tick while the device stays down.
+// 'online' that hasn't reported within the dynamic offline threshold gets flipped
+// to 'offline' and raises a connectivity alert.
 async function checkDeviceHealth() {
   try {
     const settings = await getSettingsMap();
+
+    // Dynamically calculate offline threshold in minutes:
+    // 1. Check user-configured system_setting or env var (default: 30 minutes)
+    // 2. Automatically scale threshold for long telemetry intervals (e.g. 10m+ -> interval * 2.5 + 5m)
+    let thresholdMin = parseInt(settings.offline_threshold_minutes) || parseInt(process.env.OFFLINE_THRESHOLD_MINUTES) || 30;
+
+    if (settings.esp_telemetry_interval_sec) {
+      const intervalSec = parseInt(settings.esp_telemetry_interval_sec, 10);
+      if (!isNaN(intervalSec) && intervalSec > 0) {
+        const intervalMin = Math.ceil(intervalSec / 60);
+        const calculatedThreshold = Math.max(15, Math.ceil(intervalMin * 2.5) + 5);
+        thresholdMin = Math.max(thresholdMin, calculatedThreshold);
+      }
+    }
+
     const [staleDevices] = await pool.query(
       `SELECT device_id, device_name
        FROM devices
        WHERE status = 'online'
          AND (last_online < (NOW() - INTERVAL ? MINUTE) OR last_online IS NULL)`,
-      [OFFLINE_THRESHOLD_MINUTES]
+      [thresholdMin]
     );
 
     for (const dev of staleDevices) {
@@ -472,16 +491,16 @@ async function checkDeviceHealth() {
 
       if (!existing) {
         if (settings.device_offline_alerts === "1" && settings.maintenance_mode !== "1") {
-          const message = `${dev.device_name} stopped sending data ${OFFLINE_THRESHOLD_MINUTES}+ minutes ago and has been marked offline.`;
+          const message = `${dev.device_name} stopped sending data ${thresholdMin}+ minutes ago and has been marked offline.`;
           await pool.query(
             `INSERT INTO alerts (device_id, parameter, value, level, status, message)
              VALUES (?, 'connectivity', NULL, 'medium', 'unresolved', ?)`,
             [dev.device_id, message]
           );
           await triggerSmsAlert(dev.device_id, message, "medium");
-          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert raised.`);
+          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline (${thresholdMin}m threshold). Alert raised.`);
         } else {
-          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline. Alert skipped due to system settings.`);
+          console.log(`[Health Check] ${dev.device_name} (ID ${dev.device_id}) → offline (${thresholdMin}m threshold). Alert skipped due to system settings.`);
         }
       }
     }
@@ -496,22 +515,22 @@ async function checkDeviceHealth() {
     await initDB();
 
     app.listen(PORT, () => {
-      console.log(`[AquaMonitor] Server running at http://localhost:${PORT}`);
-      console.log(`[AquaMonitor] Google OAuth → http://localhost:${PORT}/api/auth/google`);
+      console.log(`[AgosTech] Server running at http://localhost:${PORT}`);
+      console.log(`[AgosTech] Google OAuth → http://localhost:${PORT}/api/auth/google`);
     });
 
     // Start MQTT after DB is confirmed ready
     const mqttClient = initMqtt();
     app.set("mqttClient", mqttClient);
-    console.log("[AquaMonitor] MQTT subscriber initializing…");
+    console.log("[AgosTech] MQTT subscriber initializing…");
 
     // Start periodic offline-device health checks
     setInterval(checkDeviceHealth, HEALTH_CHECK_INTERVAL_MS);
     checkDeviceHealth(); // run once immediately on boot
-    console.log(`[AquaMonitor] Device health checker running — offline threshold: ${OFFLINE_THRESHOLD_MINUTES} min`);
+    console.log(`[AgosTech] Device health checker running — offline threshold: ${OFFLINE_THRESHOLD_MINUTES} min`);
 
   } catch (err) {
-    console.error("[AquaMonitor] Failed to initialize:", err.message);
+    console.error("[AgosTech] Failed to initialize:", err.message);
     process.exit(1);
   }
 })();

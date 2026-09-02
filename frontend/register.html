@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AquaMonitor — Create Account</title>
+  <title>AgosTech — Create Account</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
   <script>
     (function() {
@@ -512,6 +512,28 @@
     }
     .btn-primary:active { transform: scale(0.97) !important; }
 
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, #1A6FA8, #2C9AD1) !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      box-shadow: 0 4px 16px rgba(44, 154, 209, 0.4) !important;
+    }
+    [data-theme="dark"] .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #2C9AD1, #38BDF8) !important;
+      box-shadow: 0 6px 22px rgba(56, 189, 248, 0.55) !important;
+      transform: translateY(-2px) !important;
+    }
+    [data-theme="dark"] .btn-google {
+      background: rgba(30, 41, 59, 0.85) !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+      color: #F8FAFC !important;
+    }
+    [data-theme="dark"] .btn-google:hover {
+      background: rgba(45, 59, 82, 0.95) !important;
+      border-color: rgba(44, 154, 209, 0.5) !important;
+      color: #FFFFFF !important;
+    }
+
     /* Ambient Background Blobs */
     .bg-glow-blob-1, .bg-glow-blob-2 {
       position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
@@ -620,7 +642,7 @@
           </svg>
         </div>
         <div class="brand-text">
-          <div class="sys-name">AquaSense</div>
+          <div class="sys-name">AgosTech</div>
           <div class="org-name">CSPC · CCS · BSIT 4G 2026 · GANDARIA</div>
         </div>
       </div>
@@ -778,7 +800,7 @@
       <div class="terms-row">
         <input type="checkbox" id="terms" required/>
         <label for="terms">
-          I agree to the <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a> of the AquaMonitor system
+          I agree to the <a href="#">Terms of Use</a> and <a href="#">Privacy Policy</a> of the AgosTech system
         </label>
       </div>
 

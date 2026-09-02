@@ -1,4 +1,4 @@
-// js/locations-loader.js — AquaSense
+// js/locations-loader.js — AgosTech
 // Fetches and renders the Locations table on the dashboard.
 // Defines window.viewLoaders.locations() — called when the Locations
 // nav item is clicked, and again after a new location is added.
@@ -51,7 +51,7 @@ window.viewLoaders.locations = async function loadLocationsView() {
     }).join('');
 
   } catch (err) {
-    console.error('[AquaSense] loadLocationsView error:', err);
+    console.error('[AgosTech] loadLocationsView error:', err);
     tbody.innerHTML = `
       <tr><td colspan="4" style="text-align:center; padding:24px; color:#c0392b;">
         Couldn't load locations. Please refresh and try again.

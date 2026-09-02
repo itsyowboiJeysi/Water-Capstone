@@ -26,6 +26,7 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <LittleFS.h>
 #include <mbedtls/md.h>
 #include <ModbusMaster.h>
 
@@ -73,7 +74,7 @@ const int mqttPort     = 1883;
 #define PORTAL_SSID     "AgosTech-Setup"
 #define PORTAL_PASSWORD "agostech123"
 
-#define PUBLISH_INTERVAL_MS   5000    // Send reading every 5 seconds
+unsigned long publishIntervalMs = 5000;    // Send reading every 5 seconds (Updated by MQTT)
 #define MQTT_RECONNECT_MS     5000    // Retry MQTT every 5 seconds
 
 // ─────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ unsigned long lastMqttRetry = 0;
 Preferences  prefs;
 WiFiClient   wifiClient;
 PubSubClient mqttClient(wifiClient);
+WiFiManager  wm;
 
 // ─────────────────────────────────────────────────────────────
 //  LED HELPERS
@@ -140,10 +142,8 @@ void clearConfig() {
 static String headerHtmlStorage;
 
 void startProvisioning() {
-  Serial.println("\n[WiFi] Starting setup portal...");
+  Serial.println("\n[WiFi] Initializing Wi-Fi & Non-Blocking Setup Portal...");
   ledBlink(3, 200);
-
-  WiFiManager wm;
 
   // If topic is empty, generate an automatic fallback topic based on deviceId
   if (strlen(mqttTopic) == 0) {
@@ -195,24 +195,23 @@ void startProvisioning() {
   wm.addParameter(&htmlFooter);
 
   wm.setSaveConfigCallback([]() { shouldSaveConfig = true; });
-  wm.setConfigPortalTimeout(300); // 5 minute portal timeout
-  wm.setParamsPage(true);         // Force custom parameters (Device ID & MQTT Topic) onto the /wifi page!
-
-  wm.setAPCallback([](WiFiManager*) {
-    Serial.println("┌─ Setup Portal Active ────────────────────┐");
-    Serial.printf( "│  Connect SSID: %s\n", PORTAL_SSID);
-    Serial.printf( "│  Password    : %s\n", PORTAL_PASSWORD);
-    Serial.println("│  Then browse : http://192.168.4.1        │");
-    Serial.println("└──────────────────────────────────────────┘");
-  });
+  wm.setConfigPortalBlocking(false); // Non-blocking: Allows sensors to log offline while AP portal is active!
+  wm.setConnectTimeout(6);
+  wm.setConnectRetries(2);
+  wm.setParamsPage(true);            // Force custom parameters (Device ID & MQTT Topic) onto the /wifi page!
 
   bool connected = wm.autoConnect(PORTAL_SSID, PORTAL_PASSWORD);
 
-  if (!connected) {
-    Serial.println("[WiFi] Portal timeout. Restarting...");
-    ledBlink(10, 60);
-    delay(1000);
-    ESP.restart();
+  if (!connected && WiFi.status() != WL_CONNECTED) {
+    Serial.println("┌─ Multitasking Mode Active ──────────────┐");
+    Serial.println("│  1. Logging sensors offline to LittleFS │");
+    Serial.println("│  2. Setup Portal Active in background   │");
+    Serial.printf( "│     SSID: %s (192.168.4.1)      │\n", PORTAL_SSID);
+    Serial.println("└──────────────────────────────────────────┘");
+    wm.startWebPortal(); // Keep hotspot active in background!
+  } else {
+    Serial.printf("[WiFi] ✓ Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    ledBlink(5, 80);
   }
 
   // Copy configured values
@@ -224,15 +223,49 @@ void startProvisioning() {
     shouldSaveConfig = false;
   }
 
-  // Fallback: If topic is empty, create a default one
+  // Fallback: If topic is empty, create a default one based on deviceId
   if (strlen(mqttTopic) == 0) {
     snprintf(mqttTopic, sizeof(mqttTopic), "esp32/agostech/%s", deviceId);
-    saveConfig(); // Save the new default topic to memory
-    Serial.printf("[WiFi] No MQTT topic provided. Defaulting to: %s\n", mqttTopic);
+    saveConfig();
+    Serial.printf("[WiFi] Defaulting MQTT topic to: %s\n", mqttTopic);
   }
+}
 
-  Serial.printf("[WiFi] ✓ Connected! IP: %s\n", WiFi.localIP().toString().c_str());
-  ledBlink(5, 80);
+// ─────────────────────────────────────────────────────────────
+//  INTERNAL FLASH STORE & FORWARD (LittleFS)
+// ─────────────────────────────────────────────────────────────
+void saveOfflineTelemetry(const char* payload) {
+  File file = LittleFS.open("/offline_telemetry.txt", FILE_APPEND);
+  if (file) {
+    file.println(payload);
+    file.close();
+    Serial.println("│  Offline Flash Storage: Saved reading to internal LittleFS memory.");
+  } else {
+    Serial.println("│  Offline Flash Storage: ✗ Failed writing to Flash memory.");
+  }
+}
+
+void flushOfflineTelemetry() {
+  if (!LittleFS.exists("/offline_telemetry.txt")) return;
+
+  File file = LittleFS.open("/offline_telemetry.txt", FILE_READ);
+  if (!file) return;
+
+  Serial.println("[Offline Sync] Reconnected! Uploading buffered readings from LittleFS to server...");
+  int count = 0;
+  while (file.available()) {
+    String line = file.readStringUntil('\n');
+    line.trim();
+    if (line.length() > 0 && mqttClient.connected()) {
+      mqttClient.publish(mqttTopic, line.c_str());
+      mqttClient.loop();
+      delay(100); // 100ms pause to prevent MQTT socket saturation
+      count++;
+    }
+  }
+  file.close();
+  LittleFS.remove("/offline_telemetry.txt");
+  Serial.printf("[Offline Sync] ✓ Successfully uploaded %d offline reading(s). Internal Flash cleared!\n", count);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -257,12 +290,66 @@ bool connectMQTT() {
   if (mqttClient.connect(clientId.c_str())) {
     Serial.println("[MQTT] ✓ Connected successfully!");
     ledBlink(3, 60);
+    
+    // Subscribe to system-wide configuration updates
+    mqttClient.subscribe("esp32/agostech/config");
+
+    // Also subscribe to device specific config topic (e.g. esp32/agostech/data/config)
+    String devConfigTopic = String(mqttTopic) + "/config";
+    mqttClient.subscribe(devConfigTopic.c_str());
+
+    Serial.printf("[MQTT] Subscribed to config topics: esp32/agostech/config & %s\n", devConfigTopic.c_str());
+    
+    // Automatically flush any stored offline readings from LittleFS
+    flushOfflineTelemetry();
+
     return true;
   }
 
   Serial.printf("[MQTT] ✗ Failed (state = %d). Retrying in %d seconds.\n",
                 mqttClient.state(), MQTT_RECONNECT_MS / 1000);
   return false;
+}
+
+// Handle incoming MQTT messages
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String topicStr = String(topic);
+  String message = "";
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+
+  if (topicStr == "esp32/agostech/config" || topicStr.endsWith("/config")) {
+    Serial.printf("[MQTT Config] Received message on topic '%s': %s\n", topicStr.c_str(), message.c_str());
+    
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, message);
+    
+    if (!error) {
+      int newSec = 0;
+      if (doc.containsKey("interval_sec")) {
+        newSec = doc["interval_sec"];
+      } else if (doc.containsKey("interval_ms")) {
+        newSec = (int)doc["interval_ms"] / 1000;
+      }
+
+      if (newSec >= 3) {
+        publishIntervalMs = (unsigned long)newSec * 1000;
+
+        // Persist to Flash NVS
+        saveConfig();
+
+        Serial.println("┌─ Dynamic Interval Updated ───────────────┐");
+        Serial.printf( "│  New Interval : %d Seconds (%lu ms)\n", newSec, publishIntervalMs);
+        Serial.println("│  Saved to NVS : Yes (Persists on reboot) │");
+        Serial.println("└──────────────────────────────────────────┘");
+
+        ledBlink(4, 50); // Flash LED to confirm OTA update
+      }
+    } else {
+      Serial.printf("[MQTT Config] Failed to parse JSON: %s\n", error.c_str());
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -405,7 +492,7 @@ float readFlowRate() {
 }
 
 float calcWaterConsumed(float flowRate) {
-  return flowRate * (PUBLISH_INTERVAL_MS / 60000.0f);
+  return flowRate * (publishIntervalMs / 60000.0f);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -459,7 +546,7 @@ void sensorCycle() {
   Serial.printf( "│  Flow Rate: %.2f L/min\n", flow);
   Serial.printf( "│  Consumed : %.4f L\n", cons);
 
-  if (mqttClient.connected() && strlen(mqttTopic) > 0) {
+  if (strlen(mqttTopic) > 0) {
     // Format values exactly as backend expects to prevent hashing mismatches
     char phStr[16], turbStr[16], tdsStr[16], tempStr[16], nh3Str[16], flowStr[16], consStr[16];
     snprintf(phStr, sizeof(phStr), "%.2f", round(ph * 100) / 100.0);
@@ -508,14 +595,20 @@ void sensorCycle() {
     char payload[512];
     serializeJson(doc, payload);
 
-    if (mqttClient.publish(mqttTopic, payload)) {
-      Serial.printf("│  MQTT Sent: → %s\n", mqttTopic);
-      ledBlink(2, 40);
+    if (WiFi.status() == WL_CONNECTED && mqttClient.connected()) {
+      if (mqttClient.publish(mqttTopic, payload)) {
+        Serial.printf("│  MQTT Sent: → %s\n", mqttTopic);
+        ledBlink(2, 40);
+      } else {
+        Serial.println("│  MQTT Sent: ✗ Publish failed. Buffering reading to LittleFS Flash memory...");
+        saveOfflineTelemetry(payload);
+      }
     } else {
-      Serial.println("│  MQTT Sent: ✗ Failed to send");
+      Serial.println("│  Network/Broker Offline: Buffering reading to internal LittleFS Flash memory...");
+      saveOfflineTelemetry(payload);
     }
   } else {
-    Serial.println("│  MQTT Sent: ✗ Not connected to broker");
+    Serial.println("│  Error: Invalid device configuration or empty MQTT topic.");
   }
   Serial.println("└──────────────────────────────────────────┘");
 }
@@ -534,6 +627,21 @@ void setup() {
   Serial.println("╚══════════════════════════════════════════╝");
 
   pinMode(PIN_STATUS_LED, OUTPUT);
+  pinMode(PIN_RESET_BTN, INPUT_PULLUP);
+
+  // If BOOT button is pressed during boot, wipe saved Wi-Fi & NVS config and launch setup portal
+  if (digitalRead(PIN_RESET_BTN) == LOW) {
+    Serial.println("[BOOT] Reset button held! Wiping saved Wi-Fi and broadcasting AgosTech-Setup hotspot...");
+    clearConfig();
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_AP_STA);
+    delay(500);
+    WiFiManager wmPortal;
+    wmPortal.setConfigPortalTimeout(300); // 5 minute portal timeout for phone setup
+    wmPortal.startConfigPortal(PORTAL_SSID, PORTAL_PASSWORD);
+    ESP.restart();
+  }
+
   pinMode(PIN_TDS_SENSOR, INPUT);
   pinMode(PIN_PH_SENSOR, INPUT);
   pinMode(PIN_TURB_SENSOR, INPUT);
@@ -557,6 +665,17 @@ void setup() {
 
   lastFlowTime = millis();
 
+  // Initialize LittleFS Internal Flash Storage
+  if (!LittleFS.begin(true)) {
+    Serial.println("[LittleFS] ✗ Flash storage mount failed.");
+  } else {
+    Serial.println("[LittleFS] ✓ Internal Flash storage mounted successfully.");
+  }
+
+  // Configure background Wi-Fi auto-reconnect
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+
   loadConfig();
   startProvisioning();
   connectMQTT();
@@ -568,40 +687,25 @@ void setup() {
 //  MAIN EXECUTION LOOP
 // ─────────────────────────────────────────────────────────────
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[WiFi] Connection lost. Attempting to reconnect for 5 seconds...");
-    ledOff();
-    WiFi.reconnect();
-    
-    unsigned long startWait = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startWait < 5000) {
-      delay(100);
-    }
-    
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("[WiFi] AP not responding for 5 seconds. Wiping saved AP and restarting...");
-      clearConfig(); // Deletes saved Wi-Fi and NVS settings
-      ESP.restart();
-    }
-    
-    Serial.println("[WiFi] Reconnected successfully.");
-    return;
-  }
+  // Service background Wi-Fi setup portal requests asynchronously without blocking sensors
+  wm.process();
 
   unsigned long now = millis();
 
-  // Handle MQTT connection retries
-  if (!mqttClient.connected()) {
-    if (now - lastMqttRetry >= MQTT_RECONNECT_MS) {
-      lastMqttRetry = now;
-      connectMQTT();
+  // 1. Maintain MQTT connection when Wi-Fi is connected
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!mqttClient.connected()) {
+      if (now - lastMqttRetry >= MQTT_RECONNECT_MS) {
+        lastMqttRetry = now;
+        connectMQTT();
+      }
+    } else {
+      mqttClient.loop();
     }
-  } else {
-    mqttClient.loop();
   }
 
-  // Publish sensor data cycle
-  if (now - lastPost >= PUBLISH_INTERVAL_MS) {
+  // 2. Execute sensor reading & logging cycle continuously on schedule
+  if (now - lastPost >= publishIntervalMs) {
     lastPost = now;
     sensorCycle();
   }

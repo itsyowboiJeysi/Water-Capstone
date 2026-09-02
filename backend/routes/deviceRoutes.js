@@ -1,4 +1,4 @@
-// routes/deviceRoutes.js — AquaMonitor Devices
+// routes/deviceRoutes.js — AgosTech Devices
 const express = require("express");
 const router  = express.Router();
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AquaSense — Dashboard</title>
+  <title>AgosTech — Dashboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
   <script>
     (function() {
@@ -395,6 +395,79 @@
     .stat-unit  { font-size: 13px; font-weight: 400; color: var(--text-light); margin-left: 3px; }
     .stat-label { font-size: 12.5px; color: var(--text-mid); margin-top: 5px; font-weight: 500; }
     .stat-sub   { font-size: 11px; color: var(--text-light); margin-top: 6px; }
+
+    .live-tab-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-mid);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .live-tab-btn:hover {
+      background: var(--bg-hover, rgba(44, 154, 209, 0.08));
+      color: var(--water-1);
+    }
+    .live-tab-btn.active {
+      background: var(--water-1, #1A6FA8);
+      color: #ffffff;
+      border-color: var(--water-1, #1A6FA8);
+      box-shadow: 0 2px 6px rgba(26, 111, 168, 0.25);
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    #live-stats {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: stretch !important;
+      gap: 18px !important;
+      flex-wrap: wrap !important;
+      margin-bottom: 22px !important;
+    }
+    #live-stats .stat-card {
+      flex: 1 1 240px !important;
+      max-width: 380px !important;
+    }
+
+    .btn-approve-user {
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #10B981;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-approve-user:hover {
+      background: #10B981;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    .btn-deny-user {
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #EF4444;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-deny-user:hover {
+      background: #EF4444;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
 
     /* Responsive Grids */
     .dash-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; margin-bottom: 24px; }
@@ -1378,17 +1451,58 @@
       .params-grid { grid-template-columns: repeat(2,1fr); }
     }
 
-    /* ═══ ADD DEVICE BUTTON ═══ */
+    /* ═══ ADD DEVICE & LOCATION BUTTONS ═══ */
     .btn-add-device {
       display: inline-flex; align-items: center; gap: 7px;
-      background: var(--navy); color: var(--white);
-      border: none; border-radius: 9px;
-      padding: 8px 16px; font-family: 'DM Sans', sans-serif;
-      font-size: 13px; font-weight: 600; cursor: pointer;
-      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      background: var(--water-1) !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      border-radius: 9px; padding: 8px 16px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 14px rgba(44, 154, 209, 0.3) !important;
     }
-    .btn-add-device:hover { background: var(--navy-mid); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(13,35,83,0.2); }
-    .btn-add-device svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+    .btn-add-device:hover {
+      background: #155A8A !important;
+      color: #FFFFFF !important;
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 18px rgba(44, 154, 209, 0.45) !important;
+    }
+    .btn-add-device svg {
+      width: 14px; height: 14px; stroke: #FFFFFF !important; fill: none; stroke-width: 2.2; stroke-linecap: round;
+    }
+
+    [data-theme="dark"] .btn-add-device {
+      background: var(--water-1) !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.22) !important;
+      box-shadow: 0 4px 14px rgba(44, 154, 209, 0.35) !important;
+    }
+    [data-theme="dark"] .btn-add-device:hover {
+      background: #38BDF8 !important;
+      color: #0F172A !important;
+      border-color: #38BDF8 !important;
+    }
+    [data-theme="dark"] .btn-add-device:hover svg {
+      stroke: #0F172A !important;
+    }
+
+    /* ═══ NAVY STAT CARDS, BADGES, AND ICONS IN DARK MODE ═══ */
+    [data-theme="dark"] .stat-card.navy {
+      background: rgba(30, 41, 59, 0.65) !important;
+      border-color: rgba(56, 189, 248, 0.25) !important;
+    }
+    [data-theme="dark"] .stat-icon-wrap.navy {
+      background: rgba(56, 189, 248, 0.18) !important;
+      color: #38BDF8 !important;
+    }
+    [data-theme="dark"] .stat-icon-wrap.navy svg {
+      stroke: #38BDF8 !important;
+    }
+    [data-theme="dark"] .stat-badge.navy {
+      background: rgba(56, 189, 248, 0.18) !important;
+      color: #38BDF8 !important;
+    }
 
     /* ═══ ROW DELETE BUTTON ═══ */
     .btn-delete-row {
@@ -1399,6 +1513,17 @@
       transition: background 0.2s, border-color 0.2s;
     }
     .btn-delete-row:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.5); }
+
+    [data-theme="dark"] .btn-delete-row {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border: 1.5px solid rgba(239, 68, 68, 0.4) !important;
+      color: #F87171 !important;
+    }
+    [data-theme="dark"] .btn-delete-row:hover {
+      background: rgba(239, 68, 68, 0.3) !important;
+      border-color: rgba(239, 68, 68, 0.65) !important;
+      color: #FFFFFF !important;
+    }
 
     /* ═══ BULK DELETE (SELECTED) BUTTON ═══ */
     .btn-bulk-delete {
@@ -1411,6 +1536,46 @@
     }
     .btn-bulk-delete:hover { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.6); transform: translateY(-1px); }
     .btn-bulk-delete svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    [data-theme="dark"] .data-table tbody td {
+      color: #F8FAFC !important;
+    }
+    [data-theme="dark"] .data-table tbody td span[style*="color:var(--text-light)"],
+    [data-theme="dark"] .last-seen-subtext {
+      color: #CBD5E1 !important;
+      opacity: 0.95 !important;
+    }
+
+    .device-clickable-row {
+      cursor: pointer;
+      transition: background 0.18s ease;
+    }
+    .device-clickable-row:hover {
+      background: rgba(44, 154, 209, 0.08) !important;
+    }
+    [data-theme="dark"] .device-clickable-row:hover {
+      background: rgba(56, 189, 248, 0.12) !important;
+    }
+
+    /* ═══ COMPLIANCE TREND CHART STYLING ═══ */
+    .compliance-axis-text {
+      fill: #64748B;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .compliance-val-text {
+      fill: #0F172A;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+    }
+    [data-theme="dark"] .compliance-axis-text {
+      fill: #94A3B8 !important;
+    }
+    [data-theme="dark"] .compliance-val-text {
+      fill: #F8FAFC !important;
+    }
+    [data-theme="dark"] .compliance-grid-line {
+      stroke: rgba(255, 255, 255, 0.08) !important;
+    }
 
     /* ═══ ALERT ITEM — DELETE ICON BUTTON ═══ */
     .alert-delete-btn {
@@ -1530,7 +1695,7 @@
       border: 1px solid rgba(255, 255, 255, 0.14) !important;
     }
     [data-theme="dark"] .modal-header {
-      background: rgba(17, 24, 39, 0.6) !important;
+      background: #111827 !important;
       border-bottom-color: rgba(255, 255, 255, 0.1) !important;
     }
     [data-theme="dark"] .modal-title {
@@ -1727,7 +1892,7 @@
     .modal-error {
       display: flex; align-items: center; gap: 8px;
       background: #FEF2F2; border: 1px solid #FECACA;
-      border-radius: 9px; padding: 10px 16px; margin: 16px 28px 0;
+      border-radius: 9px; padding: 10px 16px; margin: 0 0 16px 0;
       font-size: 13px; color: var(--error);
     }
     .modal-error svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
@@ -1740,7 +1905,7 @@
     .modal-success {
       display: flex; align-items: center; gap: 8px;
       background: #F0FBF5; border: 1px solid #A7DFC0;
-      border-radius: 9px; padding: 10px 16px; margin: 16px 28px 0;
+      border-radius: 9px; padding: 10px 16px; margin: 0 0 16px 0;
       font-size: 13px; color: var(--success);
     }
     .modal-success svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
@@ -1982,7 +2147,7 @@
         <svg viewBox="0 0 24 24"><path d="M12 2 C12 2 4 9 4 14 A8 8 0 0 0 20 14 C20 9 12 2 12 2 Z"/><path d="M9 16 Q12 20 15 16" stroke="#0D1B3E" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
       </div>
       <div class="brand-text">
-        <div class="sys-name">AquaSense</div>
+        <div class="sys-name">AgosTech</div>
         <div class="org-name">CSPC · CCS · GANDARIA 2026</div>
       </div>
     </div>
@@ -2033,10 +2198,6 @@
       <a class="nav-item" data-view="flow-anomalies">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         Flow Rate Anomalies
-      </a>
-      <a class="nav-item" data-view="health-tracker">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
-        Device Health Tracker
       </a>
       <a class="nav-item" data-view="maintenance">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -2295,11 +2456,33 @@
         </div>
         <div class="stats-grid" id="live-stats">
         </div>
-        <div class="panel-full">
-          <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>All Sensor Parameters — Current Readings</div><div style="font-size:12px;color:var(--text-light)">Auto-refreshes every 30s</div></div>
-          <div class="panel-body">
-            <div class="params-grid" id="live-params" style="grid-template-columns:repeat(3,1fr);">
-             
+        <div class="panel-full" id="liveTelemetryPanel">
+          <div class="panel-head" style="flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+            <div class="panel-title" style="display: flex; align-items: center; gap: 8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; color: var(--water-1);"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span>Real-Time Telemetry & Sensor Trends</span>
+              <span class="live-pulse-badge" style="display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.12); color: #10B981; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px;">
+                <span style="width: 7px; height: 7px; background: #10B981; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite;"></span>
+                LIVE TELEMETRY
+              </span>
+            </div>
+            
+            <div id="liveParamTabs" style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="live-tab-btn active" data-param="ph" onclick="switchLiveParamTab('ph')">pH Level</button>
+              <button class="live-tab-btn" data-param="turbidity" onclick="switchLiveParamTab('turbidity')">Turbidity</button>
+              <button class="live-tab-btn" data-param="flow_rate" onclick="switchLiveParamTab('flow_rate')">Flow Rate</button>
+              <button class="live-tab-btn gsu-hide-param" data-param="tds" onclick="switchLiveParamTab('tds')">TDS</button>
+              <button class="live-tab-btn gsu-hide-param" data-param="temperature" onclick="switchLiveParamTab('temperature')">Temperature</button>
+              <button class="live-tab-btn gsu-hide-param" data-param="ammonia" onclick="switchLiveParamTab('ammonia')">Ammonia</button>
+            </div>
+          </div>
+          <div class="panel-body" style="padding: 20px;">
+            <!-- Summary stats per parameter -->
+            <div id="liveTelemetrySummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            </div>
+
+            <!-- SVG Real-Time Line Graph Container -->
+            <div id="liveTelemetryChartContainer" style="width: 100%; min-height: 220px; position: relative;">
             </div>
           </div>
         </div>
@@ -2363,7 +2546,7 @@
                 <th class="row-checkbox-cell" id="readingsCheckHeader" style="display:none;">
                   <input type="checkbox" class="select-all-checkbox" id="readingsSelectAll" onchange="toggleSelectAllReadings(this)" title="Select all on this page"/>
                 </th>
-                <th>Reading ID</th><th>Device</th><th>pH</th><th>Turbidity</th><th>TDS</th><th>Temp</th><th>Ammonia</th><th>Flow</th><th>Status</th><th>Time</th>
+                <th>Reading ID</th><th>Device</th><th>pH</th><th>Turbidity</th><th class="gsu-hide-param">TDS</th><th class="gsu-hide-param">Temp</th><th class="gsu-hide-param">Ammonia</th><th>Flow</th><th>Status</th><th>Time</th>
               </tr>
             </thead>
             <tbody id="readings-tbody">
@@ -2555,6 +2738,31 @@
         </div>
       </div>
 
+      <!-- ════════════════════════ VIEW: DEVICES ════════════════════════ -->
+      <div class="view" id="view-devices">
+
+           <div class="stats-grid" id="devices-stats">
+
+        </div>
+        <div class="panel-full">
+          <div class="panel-head">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Device Registry
+            </div>
+            <!-- Only visible to admin — injected by JS -->
+            <button class="btn-add-device" id="addDeviceBtn" style="display:none;" onclick="openAddDeviceModal()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Device
+            </button>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Device ID</th><th>Device Name</th><th>Location</th><th>Last Seen</th><th>Status</th><th id="devDeleteHeader" style="display:none;">Action</th></tr></thead>
+            <tbody id="devices-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       
 
       <!-- /modal-backdrop -->
@@ -2733,7 +2941,7 @@
         <div class="panel-full">
           <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>System Users</div></div>
           <table class="data-table">
-            <thead><tr><th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th></tr></thead>
+            <thead><tr><th>User</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
             <tbody id="users-tbody">
               <!-- Populated dynamically by dashboard-data.js -->
             </tbody>
@@ -2807,7 +3015,38 @@
             <div class="panel-head"><div class="panel-title"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>System Settings <span style="font-size:10px;font-weight:700;background:rgba(212,160,23,0.15);color:#9A6E00;padding:2px 7px;border-radius:10px;margin-left:8px;letter-spacing:0.05em;">ADMIN ONLY</span></div></div>
             <div class="panel-body">
               <div class="settings-section">
-                <div class="settings-title">Data Collection</div>
+                <div class="settings-title">Data Collection & ESP32 Configuration</div>
+                
+                <div class="settings-row" style="flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+                  <div>
+                    <div class="settings-label" style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text-dark);">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--water-1);"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      ESP32 Telemetry Sending Interval
+                    </div>
+                    <div class="settings-sub" style="font-size:12px;color:var(--text-mid);margin-top:2px;">Configure OTA telemetry sending frequency for ESP32 devices (3s up to 2 hours)</div>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <select id="espTelemetryIntervalSelect" class="filter-select" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dark);font-size:12.5px;font-weight:600;cursor:pointer;">
+                      <option value="3">3 Seconds</option>
+                      <option value="5" selected>5 Seconds (Default)</option>
+                      <option value="10">10 Seconds</option>
+                      <option value="15">15 Seconds</option>
+                      <option value="30">30 Seconds</option>
+                      <option value="60">1 Minute (60s)</option>
+                      <option value="120">2 Minutes (120s)</option>
+                      <option value="300">5 Minutes (300s)</option>
+                      <option value="600">10 Minutes (600s)</option>
+                      <option value="900">15 Minutes (900s)</option>
+                      <option value="1800">30 Minutes (1800s)</option>
+                      <option value="3600">1 Hour (3600s)</option>
+                      <option value="7200">2 Hours (7200s)</option>
+                      <option value="custom">Custom Seconds...</option>
+                    </select>
+                    <input type="number" id="espTelemetryIntervalCustomInput" min="3" max="7200" placeholder="Sec (3-7200)" style="display:none;width:110px;height:32px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-dark);font-size:12.5px;" />
+                    <button type="button" id="espTelemetryIntervalSaveBtn" style="padding:6px 14px;border-radius:6px;background:var(--water-1);color:#fff;border:none;font-weight:600;font-size:12px;cursor:pointer;box-shadow:0 2px 6px rgba(44,154,209,0.3);">Apply</button>
+                  </div>
+                </div>
+
                 <div class="settings-row"><div><div class="settings-label">Auto-Refresh Dashboard</div><div class="settings-sub">Refresh sensor data every 30 seconds</div></div><label class="toggle-switch"><input type="checkbox" id="autoRefreshToggle"/><span class="toggle-slider"></span></label></div>
                 <div class="settings-row"><div><div class="settings-label">Data Logging</div><div class="settings-sub">Store all readings in database</div></div><label class="toggle-switch"><input type="checkbox" id="dataLoggingToggle"/><span class="toggle-slider"></span></label></div>
                 <div class="settings-row"><div><div class="settings-label">Maintenance Mode</div><div class="settings-sub">Pause alerts during maintenance</div></div><label class="toggle-switch"><input type="checkbox" id="maintModeToggle"/><span class="toggle-slider"></span></label></div>
@@ -2829,7 +3068,7 @@
             </div>
             <button type="button" class="btn-report-outline" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--bg-card); border: 1px solid var(--water-1); color: var(--water-1);" onclick="openReportTemplateBuilderModal()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-              <span>🎨 Configure PDF Template, Paper Size & Orientation</span>
+              <span>Configure PDF Template, Paper Size & Orientation</span>
             </button>
           </div>
 
@@ -2955,7 +3194,7 @@
                   Camarines Sur Polytechnic Colleges
                 </h3>
                 <h1 id="tplReportTitle" style="font-size: 22px; color: #111827; margin: 0; font-weight: 800; line-height: 1.2;">
-                  AquaSense Water Analytics
+                  AgosTech Water Analytics
                 </h1>
                 <p id="tplReportAddress" style="font-size: 11px; color: #64748B; margin: 4px 0 0 0;">
                   Nabua, Camarines Sur, Philippines
@@ -3067,30 +3306,7 @@
       <!-- ════════════════════════ EDIT PROFILE MODAL ════════════════════════ -->
       
 
-      <!-- ════════════════════════ VIEW: DEVICES ════════════════════════ -->
-      <div class="view" id="view-devices">
-
-           <div class="stats-grid" id="devices-stats">
-
-        </div>
-        <div class="panel-full">
-          <div class="panel-head">
-            <div class="panel-title">
-              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              Device Registry
-            </div>
-            <!-- Only visible to admin — injected by JS -->
-            <button class="btn-add-device" id="addDeviceBtn" style="display:none;" onclick="openAddDeviceModal()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Device
-            </button>
-          </div>
-          <table class="data-table">
-            <thead><tr><th>Device ID</th><th>Device Name</th><th>Location</th><th>Last Seen</th><th>Status</th><th id="devDeleteHeader" style="display:none;">Action</th></tr></thead>
-            <tbody id="devices-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+      
 
       <!-- ══════ ADD DEVICE MODAL ══════ -->
       <!-- ════════════════════════ ADD MAINTENANCE LOG MODAL ════════════════════════ -->
@@ -3113,7 +3329,7 @@
                 </div>
                 <div>
                   <div class="modal-title" id="modalTitle">Register New Device</div>
-                  <div class="modal-subtitle">Add an ESP32 node to the AquaSense network</div>
+                  <div class="modal-subtitle">Add an ESP32 node to the AgosTech network</div>
                 </div>
               </div>
               <button class="modal-close-btn" onclick="closeAddDeviceModal()" aria-label="Close">
@@ -3121,14 +3337,13 @@
               </button>
             </div>
 
-            <!-- Error banner inside modal -->
-            <div class="modal-error" id="modalError" style="display:none;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span id="modalErrorText">Something went wrong.</span>
-            </div>
-
             <!-- Form body -->
             <div class="modal-body">
+              <!-- Error banner inside modal -->
+              <div class="modal-error" id="modalError" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="modalErrorText">Something went wrong.</span>
+              </div>
 
               <!-- Row 1: Device Name (Device ID is now auto-assigned by the database) -->
               <div class="modal-field">
@@ -3167,7 +3382,7 @@
                   <span class="modal-input-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                   </span>
-                  <input type="text" id="mMqttTopic" placeholder="e.g. aquasense/ESP-006/data" maxlength="200"/>
+                  <input type="text" id="mMqttTopic" placeholder="e.g. agostech/ESP-006/data" maxlength="200"/>
                 </div>
                 <div class="modal-hint">The topic the ESP32 publishes sensor readings to</div>
               </div>
@@ -3206,7 +3421,7 @@
             <div style="font-size: 13px; color: var(--text-mid); line-height: 1.6; display: flex; flex-direction: column; gap: 16px;">
               <div>
                 <strong style="color: var(--navy); display: block; margin-bottom: 4px;">1. Setup Captive Portal</strong>
-                <p style="margin: 0;">On boot, the ESP32 hosts a hotspot named <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">AquaSense-Setup</code> (Password: <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">aquasense123</code>). Connect and navigate to <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">192.168.4.1</code>.</p>
+                <p style="margin: 0;">On boot, the ESP32 hosts a hotspot named <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">AgosTech-Setup</code> (Password: <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">agostech123</code>). Connect and navigate to <code style="background: var(--off-white); padding: 2px 5px; border-radius: 4px;">192.168.4.1</code>.</p>
               </div>
 
               <div>
@@ -3223,7 +3438,7 @@
                 <p style="margin: 0;">You only need to configure two parameters on the setup webpage:</p>
                 <ul style="margin: 6px 0 0 0; padding-left: 20px; color: var(--text-dark);">
                   <li><b>Device ID:</b> Matches the assigned ID on dashboard.</li>
-                  <li><b>MQTT Topic:</b> Enter the exact topic you registered here (e.g. <code>esp32/aquasense/data</code>).</li>
+                  <li><b>MQTT Topic:</b> Enter the exact topic you registered here (e.g. <code>esp32/agostech/data</code>).</li>
                 </ul>
               </div>
 
@@ -3265,12 +3480,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="locModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="locModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="locModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="locModalErrorText">Something went wrong.</span>
+            </div>
 
             <!-- Building Name -->
             <div class="modal-field">
@@ -3339,12 +3553,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="deleteModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="deleteModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="deleteModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="deleteModalErrorText">Something went wrong.</span>
+            </div>
             <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
               You're about to permanently delete <strong id="deleteModalItemName">this item</strong>.
               Type <strong>CONFIRM</strong> below to proceed.
@@ -3403,12 +3616,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="alertDeleteModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="alertDeleteModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="alertDeleteModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="alertDeleteModalErrorText">Something went wrong.</span>
+            </div>
             <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
               Are you sure you want to delete <strong id="alertDeleteModalItemName">this alert</strong>? It will be permanently removed from the system.
             </p>
@@ -3445,12 +3657,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="maintDeleteModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="maintDeleteModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="maintDeleteModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="maintDeleteModalErrorText">Something went wrong.</span>
+            </div>
             <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
               Are you sure you want to delete maintenance log <strong id="maintDeleteModalItemName">this log</strong>? It will be permanently removed from the system.
             </p>
@@ -3502,12 +3713,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="presetModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="presetModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body" style="padding: 16px 24px;">
+            <div class="modal-error" id="presetModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="presetModalErrorText">Something went wrong.</span>
+            </div>
             <div id="presetModalInfoBanner" style="background: rgba(44,154,209,0.08); border: 1px solid rgba(44,154,209,0.2); padding: 10px 14px; border-radius: 8px; font-size: 12.5px; color: var(--text-dark); margin-bottom: 14px; line-height: 1.5;">
               <!-- Dynamic banner content -->
             </div>
@@ -3566,12 +3776,12 @@
                   <div id="readingDetailPh" style="font-size: 15px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
                   <div id="readingDetailPhRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
                 </div>
-                <div>
+                <div class="gsu-hide-param">
                   <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">TDS (Solids)</div>
                   <div id="readingDetailTds" style="font-size: 15px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
                   <div id="readingDetailTdsRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
                 </div>
-                <div>
+                <div class="gsu-hide-param">
                   <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Ammonia</div>
                   <div id="readingDetailAmmonia" style="font-size: 15px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
                   <div id="readingDetailAmmoniaRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
@@ -3585,7 +3795,7 @@
                   <div id="readingDetailTurbidity" style="font-size: 15px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
                   <div id="readingDetailTurbidityRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
                 </div>
-                <div>
+                <div class="gsu-hide-param">
                   <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Temperature</div>
                   <div id="readingDetailTemp" style="font-size: 15px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
                   <div id="readingDetailTempRemark" style="font-size: 10px; color: var(--text-light); margin-top: 1px;">—</div>
@@ -3711,6 +3921,12 @@
           </div>
 
           <div class="modal-body" style="padding-top: 10px; display: flex; flex-direction: column; gap: 16px;">
+            <!-- Health Action Recommendation -->
+            <div id="deviceDetailHealthActionBox" style="background: rgba(44, 154, 209, 0.08); border: 1px solid rgba(44, 154, 209, 0.2); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; gap: 10px;">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div style="font-size: 12.5px; font-weight: 600;" id="deviceDetailHealthAction">Operating Normally</div>
+            </div>
+
             <!-- Basic Meta Info -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
               <div>
@@ -3759,15 +3975,15 @@
                 <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Turbidity</div>
                 <div id="deviceDetailTurbidity" style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
               </div>
-              <div>
+              <div class="gsu-hide-param">
                 <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">TDS (Solids)</div>
                 <div id="deviceDetailTds" style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
               </div>
-              <div>
+              <div class="gsu-hide-param">
                 <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Temperature</div>
                 <div id="deviceDetailTemp" style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
               </div>
-              <div>
+              <div class="gsu-hide-param">
                 <div style="font-size: 10px; text-transform: uppercase; color: var(--text-light); font-weight: 700;">Ammonia</div>
                 <div id="deviceDetailAmmonia" style="font-size: 16px; font-weight: 700; color: var(--text-dark); margin-top: 2px;">—</div>
               </div>
@@ -3936,12 +4152,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="editUserModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="editUserModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="editUserModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="editUserModalErrorText">Something went wrong.</span>
+            </div>
             <input type="hidden" id="editUserId" />
             <div class="modal-field">
               <label style="font-size: 11px; text-transform: uppercase; color: var(--text-light);">User Name</label>
@@ -3967,8 +4182,9 @@
               <label for="editUserStatusField">Account Status <span class="modal-required">*</span></label>
               <div class="modal-input-wrap">
                 <select id="editUserStatusField" class="filter-select" style="width:100%; height:40px; border-radius:8px; border:1px solid var(--border); padding:0 10px; font-family: 'DM Sans', sans-serif;">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">Active (Approved)</option>
+                  <option value="pending">Pending Approval</option>
+                  <option value="inactive">Inactive (Denied / Suspended)</option>
                 </select>
               </div>
             </div>
@@ -4007,12 +4223,11 @@
             </button>
           </div>
 
-          <div class="modal-error" id="userDeleteModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="userDeleteModalErrorText">Something went wrong.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="userDeleteModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="userDeleteModalErrorText">Something went wrong.</span>
+            </div>
             <p style="font-size:13.5px; color:var(--text-mid); line-height:1.6;">
               Are you sure you want to delete user <strong id="userDeleteModalItemName">this user</strong>? They will lose all access to the system.
             </p>
@@ -4090,7 +4305,7 @@
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
                   <div>
                     <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Title</label>
-                    <input type="text" id="reportHeaderTitleInput" style="width:100%; font-size:12px; padding:6px 10px; height:32px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. AquaSense Water Analytics" oninput="renderLivePdfTemplateCanvas()">
+                    <input type="text" id="reportHeaderTitleInput" style="width:100%; font-size:12px; padding:6px 10px; height:32px; background:var(--bg-input); color:var(--text-dark); border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="e.g. AgosTech Water Analytics" oninput="renderLivePdfTemplateCanvas()">
                   </div>
                   <div>
                     <label class="template-label" style="font-size:11.5px; display:block; margin-bottom:4px;">Report Header Subtitle</label>
@@ -4227,17 +4442,16 @@
             </button>
           </div>
 
-          <div class="modal-error" id="profileModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="profileModalErrorText">Something went wrong.</span>
-          </div>
-
-          <div class="modal-success" id="profileModalSuccess" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <span id="profileModalSuccessText">Profile updated successfully.</span>
-          </div>
-
           <div class="modal-body">
+            <div class="modal-error" id="profileModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="profileModalErrorText">Something went wrong.</span>
+            </div>
+
+            <div class="modal-success" id="profileModalSuccess" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span id="profileModalSuccessText">Profile updated successfully.</span>
+            </div>
 
             <!-- Avatar + role/status summary -->
             <div style="display:flex; align-items:center; gap:14px;">
@@ -4361,14 +4575,13 @@
             </button>
           </div>
 
-          <!-- Error banner inside modal -->
-          <div class="modal-error" id="maintModalError" style="display:none;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span id="maintModalErrorText">Something went wrong.</span>
-          </div>
-
           <!-- Form body -->
           <div class="modal-body">
+            <!-- Error banner inside modal -->
+            <div class="modal-error" id="maintModalError" style="display:none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span id="maintModalErrorText">Something went wrong.</span>
+            </div>
             <!-- Row 1: Target Device -->
             <div class="modal-field">
               <label for="maintDeviceId">Target Device <span class="modal-required">*</span></label>
@@ -4740,7 +4953,7 @@ function renderLivePdfTemplateCanvas() {
   const badgeEl = document.getElementById("previewPaperInfoBadge");
   if (badgeEl) badgeEl.textContent = `Real-time ${paperStr} • ${orientStr}`;
 
-  const titleVal = document.getElementById("reportHeaderTitleInput")?.value.trim() || "AquaSense Water Analytics";
+  const titleVal = document.getElementById("reportHeaderTitleInput")?.value.trim() || "AgosTech Water Analytics";
   const subVal = document.getElementById("reportHeaderSubtitleInput")?.value.trim() || "Camarines Sur Polytechnic Colleges";
   const addrVal = document.getElementById("reportHeaderAddressInput")?.value.trim() || "Nabua, Camarines Sur, Philippines";
 
@@ -5024,7 +5237,7 @@ async function loadSettingsToggles() {
       }
     });
   } catch (err) {
-    console.warn('[AquaSense] Could not load settings:', err);
+    console.warn('[AgosTech] Could not load settings:', err);
   }
 }
 
@@ -5055,7 +5268,7 @@ async function saveNotificationSetting(key, value) {
       throw new Error(data.message || 'Failed to update setting');
     }
   } catch (err) {
-    console.error('[AquaSense] saveNotificationSetting error:', err);
+    console.error('[AgosTech] saveNotificationSetting error:', err);
     showSettingsBanner('Update failed: ' + err.message, true);
     // Revert toggle on error
     await loadSettingsToggles();
@@ -5082,7 +5295,7 @@ async function saveSystemSetting(key, value) {
       throw new Error(data.message || 'Failed to update system setting');
     }
   } catch (err) {
-    console.error('[AquaSense] saveSystemSetting error:', err);
+    console.error('[AgosTech] saveSystemSetting error:', err);
     showSettingsBanner('Update failed: ' + err.message, true);
     // Revert toggle on error
     await loadSettingsToggles();
@@ -5134,7 +5347,7 @@ handleGoogleCallback().then(async () => {
     }
  
   } catch (err) {
-    console.warn("[AquaSense] Could not fetch user from DB, using cached data.");
+    console.warn("[AgosTech] Could not fetch user from DB, using cached data.");
     const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
     if (raw) {
       try { loadUserIntoSidebar(JSON.parse(raw)); } catch(e) {}
@@ -5149,7 +5362,7 @@ const pageMeta = {
   readings:         { title: 'Sensor Readings',           subtitle: 'All recorded readings from ESP32 devices on campus' },
   analytics:        { title: 'Analytics',                subtitle: 'Water quality trends and consumption insights' },
   alerts:           { title: 'Alerts',                   subtitle: 'System-generated alerts for quality anomalies and device issues' },
-  locations:        { title: 'Locations',                subtitle: 'CSPC campus buildings monitored by AquaSense' },
+  locations:        { title: 'Locations',                subtitle: 'CSPC campus buildings monitored by AgosTech' },
   devices:          { title: 'Devices',                  subtitle: 'ESP32 IoT devices registered in the monitoring network' },
   'flow-anomalies': { title: 'Flow Rate Anomalies',      subtitle: 'Per-device flow rate logs and leak detection indicators' },
   'health-tracker': { title: 'Device Health Tracker',     subtitle: 'Live status and uptime metrics for ESP32 devices' },
@@ -5160,6 +5373,7 @@ const pageMeta = {
   'system-logs': { title: 'System Audit Logs',       subtitle: 'Detailed record of system access and operations' },
   settings:    { title: 'Settings',                 subtitle: 'System configuration and notification preferences' },
   reports:     { title: 'Analytics Reports',        subtitle: 'Generate and export role-specific water monitoring summaries' },
+  'compliance-trend': { title: 'Compliance Trend',  subtitle: 'Historical PNSDW 2017 compliance trends across water parameters' },
 };
  
 // ── navigate() — now saves active view to sessionStorage ───────────────────
@@ -5340,6 +5554,11 @@ function applyRoleGating(role) {
     consumptionPanel.style.display = isGsuOrAdmin ? 'block' : 'none';
   }
 
+  // Toggle GSU parameter visibility (GSU sees Flow rate, pH level, and Turbidity only)
+  document.querySelectorAll('.gsu-hide-param').forEach(el => {
+    el.style.display = isGsu ? 'none' : '';
+  });
+
   // Optional: Hide section headers if they are empty
   const systemLabel = Array.from(document.querySelectorAll('.sidebar-nav .nav-section-label'))
     .find(el => el.textContent.trim() === 'System');
@@ -5396,7 +5615,7 @@ async function populateLocationDropdown() {
       sel.appendChild(opt);
     });
   } catch (err) {
-    console.warn('[AquaSense] Could not load locations for modal:', err);
+    console.warn('[AgosTech] Could not load locations for modal:', err);
   }
 }
 
@@ -5529,7 +5748,7 @@ async function submitAddDevice() {
       showModalError(data.message || 'Registration failed. Please try again.');
     }
   } catch (err) {
-    console.error('[AquaSense] addDevice error:', err);
+    console.error('[AgosTech] addDevice error:', err);
     setModalLoading(false);
     showModalError('Network error. Check your connection and try again.');
   }
@@ -5577,14 +5796,13 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
   `;
 
   screen.innerHTML = `
-    <div style="
-      background:#fff;border-radius:20px;padding:48px 40px;
+    <div class="modal-box" style="
+      padding:44px 36px;
       max-width:420px;width:100%;text-align:center;
-      box-shadow:0 24px 80px rgba(8,21,53,0.3);
-      animation:modalIn 0.3s cubic-bezier(0.175,0.885,0.32,1.1);
+      margin:auto;
     ">
       <!-- Pulsing ring -->
-      <div style="position:relative;width:80px;height:80px;margin:0 auto 28px;">
+      <div style="position:relative;width:80px;height:80px;margin:0 auto 24px;">
         <div id="mqttRing" style="
           position:absolute;inset:0;border-radius:50%;
           border:3px solid var(--water-2);
@@ -5594,6 +5812,7 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
           position:absolute;inset:8px;border-radius:50%;
           background:linear-gradient(135deg,var(--navy-mid),var(--navy));
           display:flex;align-items:center;justify-content:center;
+          box-shadow: 0 4px 14px rgba(22, 53, 116, 0.35);
         ">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;">
             <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -5606,19 +5825,20 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
       <div style="font-family:var(--font-heading);font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--text-dark);margin-bottom:8px;">
         Waiting for ESP32…
       </div>
-      <div style="font-size:13px;color:var(--text-mid);margin-bottom:6px;">
-        Listening on MQTT for <strong>${deviceName}</strong>
+      <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:8px;">
+        Listening on MQTT for <strong style="color:var(--text-dark);">${deviceName}</strong>
       </div>
-      <div style="font-size:12px;color:var(--text-light);margin-bottom:32px;line-height:1.6;">
-        Power on your ESP32 now. It will automatically appear as <strong>Online</strong> once it connects to the broker and publishes to its topic.
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:28px;line-height:1.6;max-width:340px;margin-left:auto;margin-right:auto;">
+        Power on your ESP32 now. It will automatically appear as <strong style="color:var(--text-mid);">Online</strong> once it connects to the broker and publishes to its topic.
       </div>
 
       <!-- Status badge — updates live -->
       <div id="mqttStatusBadge" style="
         display:inline-flex;align-items:center;gap:8px;
         background:var(--off-white);border:1.5px solid var(--border);
-        border-radius:30px;padding:8px 20px;margin-bottom:28px;
+        border-radius:30px;padding:8px 20px;margin-bottom:20px;
         font-size:13px;font-weight:600;color:var(--text-mid);
+        transition: all 0.3s ease;
       ">
         <span id="mqttStatusDot" style="
           width:8px;height:8px;border-radius:50%;background:var(--gold);
@@ -5629,16 +5849,18 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
       </div>
 
       <!-- Timeout counter -->
-      <div style="font-size:11px;color:var(--text-light);margin-bottom:28px;">
-        Auto-closes in <span id="mqttCountdown">30</span>s
+      <div style="font-size:11.5px;color:var(--text-light);margin-bottom:24px;font-weight:500;">
+        Auto-closes in <span id="mqttCountdown" style="font-weight:700;color:var(--text-mid);">30</span>s
       </div>
 
       <button onclick="closeMqttConnectingScreen()" style="
-        height:42px;padding:0 28px;background:var(--navy);color:#fff;
+        height:42px;width:100%;max-width:180px;padding:0 24px;
+        background:linear-gradient(135deg,var(--navy-mid),var(--navy));color:#fff;
         border:none;border-radius:10px;font-family:'DM Sans',sans-serif;
         font-size:13.5px;font-weight:600;cursor:pointer;
-        transition:background 0.2s;
-      " onmouseover="this.style.background='var(--navy-mid)'" onmouseout="this.style.background='var(--navy)'">
+        box-shadow:0 4px 14px rgba(8,21,53,0.25);
+        transition:transform 0.15s, opacity 0.2s;
+      " onmouseover="this.style.opacity='0.9';this.style.transform='translateY(-1px)'" onmouseout="this.style.opacity='1';this.style.transform='translateY(0)'">
         Done
       </button>
     </div>
@@ -5676,9 +5898,9 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
         statusDot.style.background    = '#3DD68C';
         statusDot.style.boxShadow     = '0 0 8px rgba(61,214,140,0.7)';
         statusDot.style.animation     = 'pulse-dot 2s ease-in-out infinite';
-        badge.style.borderColor       = '#BBF7D0';
-        badge.style.background        = '#F0FDF4';
-        badge.style.color             = '#0F7050';
+        badge.style.borderColor       = 'rgba(61,214,140,0.4)';
+        badge.style.background        = 'rgba(61,214,140,0.12)';
+        badge.style.color             = '#3DD68C';
         statusText.textContent        = 'Connected — Online';
         screen.querySelector('#mqttRing').style.borderColor = '#3DD68C';
 
@@ -5702,11 +5924,12 @@ function showMqttConnectingScreen(deviceName, mqttTopic) {
       clearInterval(timer);
       if (!resolved) {
         // Timed out — mark offline
-        statusDot.style.background = '#8292B0';
+        statusDot.style.background = 'var(--text-light)';
         statusDot.style.boxShadow  = 'none';
         statusDot.style.animation  = 'none';
-        badge.style.borderColor    = '#DDE3EE';
-        badge.style.color          = '#8292B0';
+        badge.style.borderColor    = 'var(--border)';
+        badge.style.color          = 'var(--text-mid)';
+        badge.style.background     = 'var(--off-white)';
         statusText.textContent     = 'Not detected — saved as Offline';
         screen.querySelector('#mqttRing').style.animation = 'none';
         screen.querySelector('#mqttRing').style.opacity   = '0.2';
@@ -5842,7 +6065,7 @@ async function submitAddLocation() {
       label.style.display   = 'flex';
     }
   } catch (err) {
-    console.error('[AquaSense] addLocation error:', err);
+    console.error('[AgosTech] addLocation error:', err);
     errText.textContent   = 'Network error. Check your connection and try again.';
     errEl.style.display   = 'flex';
     btn.disabled          = false;
@@ -6068,7 +6291,7 @@ async function executeDelete() {
       setDeleteModalLoading(false);
     }
   } catch (err) {
-    console.error('[AquaSense] delete error:', err);
+    console.error('[AgosTech] delete error:', err);
     showDeleteModalError('Network error. Check your connection and try again.');
     setDeleteModalLoading(false);
   }
@@ -6152,7 +6375,7 @@ async function executeAlertDelete() {
       setAlertDeleteModalLoading(false);
     }
   } catch (err) {
-    console.error('[AquaSense] alert delete error:', err);
+    console.error('[AgosTech] alert delete error:', err);
     showAlertDeleteModalError('Network error. Check your connection and try again.');
     setAlertDeleteModalLoading(false);
   }
@@ -6244,7 +6467,7 @@ async function executeMaintDelete() {
       setMaintDeleteModalLoading(false);
     }
   } catch (err) {
-    console.error('[AquaSense] maintenance delete error:', err);
+    console.error('[AgosTech] maintenance delete error:', err);
     showMaintDeleteModalError('Network error. Check your connection and try again.');
     setMaintDeleteModalLoading(false);
   }
@@ -6427,7 +6650,7 @@ async function executeProfileSave() {
       setProfileModalLoading(false);
     }
   } catch (err) {
-    console.error('[AquaSense] profile update error:', err);
+    console.error('[AgosTech] profile update error:', err);
     showProfileModalError('Network error. Check your connection and try again.');
     setProfileModalLoading(false);
   }
@@ -6673,10 +6896,12 @@ window.handleAuditDetailsModalBackdrop = handleAuditDetailsModalBackdrop;
 document.addEventListener('click', (e) => {
   const row = e.target.closest('.device-clickable-row');
   if (!row) return;
+  if (e.target.closest('.delete-device-btn')) return;
 
   const deviceId = parseInt(row.dataset.deviceId, 10);
-  if (window.lastLoadedDevicesHealth) {
-    const device = window.lastLoadedDevicesHealth.find(d => d.device_id === deviceId);
+  const devices = window.lastLoadedDevices || window.lastLoadedDevicesHealth;
+  if (devices) {
+    const device = devices.find(d => d.device_id === deviceId);
     if (device) {
       openDeviceDetailsModal(device);
     }
@@ -6689,18 +6914,20 @@ function openDeviceDetailsModal(device) {
   
   const statusEl = document.getElementById('deviceDetailStatus');
   const isOnline = device.status === 'online';
-  statusEl.innerHTML = `<span class="r-status ${isOnline ? 'safe' : 'offline'}">${device.status.toUpperCase()}</span>`;
+  const isMaint = device.status === 'maintenance';
+  statusEl.innerHTML = `<span class="r-status ${isOnline ? 'safe' : (isMaint ? 'warn' : 'offline')}">${device.status.toUpperCase()}</span>`;
   
-  document.getElementById('deviceDetailUptime').textContent = `${device.uptime_percent}%`;
+  const uptimeVal = device.uptime_percent != null ? device.uptime_percent : (isOnline ? 100 : 0);
+  document.getElementById('deviceDetailUptime').textContent = `${uptimeVal}%`;
   
   const locationText = device.building_name ? `${device.building_name} (${device.area_name || 'General'})` : 'Unassigned';
   document.getElementById('deviceDetailLocation').textContent = locationText;
   document.getElementById('deviceDetailMqtt').textContent = device.mqtt_topic || '—';
   
-  const lastOnlineDate = device.last_online ? new Date(device.last_online).toLocaleString() : 'Never';
+  const lastOnlineDate = device.last_online ? new Date(device.last_online).toLocaleString() : (device.recorded_at ? new Date(device.recorded_at).toLocaleString() : 'Never');
   document.getElementById('deviceDetailLastOnline').textContent = lastOnlineDate;
   
-  const activeCount = device.active_sensors_count !== undefined ? device.active_sensors_count : 5;
+  const activeCount = device.active_sensors_count !== undefined ? device.active_sensors_count : (isOnline ? 5 : 0);
   document.getElementById('deviceDetailActiveSensors').textContent = `${activeCount} of 5 reporting`;
   
   const fmtVal = (val, dec) => (val === null || val === undefined) ? '—' : `${Number(val).toFixed(dec)}`;
@@ -6719,7 +6946,29 @@ function openDeviceDetailsModal(device) {
   } else {
     timeContainer.style.display = 'none';
   }
-  
+
+  // Recommended Health Inspection Box
+  const healthActionBox = document.getElementById('deviceDetailHealthActionBox');
+  const healthAction = document.getElementById('deviceDetailHealthAction');
+  if (healthAction && healthActionBox) {
+    if (device.status === 'offline') {
+      healthActionBox.style.background = 'rgba(239, 68, 68, 0.12)';
+      healthActionBox.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+      healthActionBox.style.color = '#EF4444';
+      healthAction.innerHTML = `Needs physical inspection at <strong>${device.building_name || 'device location'}</strong>`;
+    } else if (device.status === 'maintenance') {
+      healthActionBox.style.background = 'rgba(212, 160, 23, 0.12)';
+      healthActionBox.style.borderColor = 'rgba(212, 160, 23, 0.3)';
+      healthActionBox.style.color = '#D4A017';
+      healthAction.innerHTML = `Under scheduled maintenance review`;
+    } else {
+      healthActionBox.style.background = 'rgba(61, 214, 140, 0.12)';
+      healthActionBox.style.borderColor = 'rgba(61, 214, 140, 0.3)';
+      healthActionBox.style.color = '#3DD68C';
+      healthAction.innerHTML = `Device online & operating normally`;
+    }
+  }
+
   document.getElementById('deviceDetailsModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -6835,7 +7084,7 @@ async function populateReadingsDeviceFilter() {
     });
     sel.dataset.loaded = 'true';
   } catch (err) {
-    console.warn('[AquaSense] Could not load devices for filter:', err);
+    console.warn('[AgosTech] Could not load devices for filter:', err);
   }
 }
 
@@ -6907,7 +7156,7 @@ async function populateMaintDeviceFilter() {
     });
     sel.dataset.loaded = 'true';
   } catch (err) {
-    console.warn('[AquaSense] Could not load devices for maint filter:', err);
+    console.warn('[AgosTech] Could not load devices for maint filter:', err);
   }
 }
 

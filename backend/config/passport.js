@@ -1,10 +1,9 @@
-// config/passport.js — Google OAuth strategy for AquaMonitor
+// config/passport.js — Google OAuth strategy for AgosTech
 const passport      = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const { pool } = require("../config/db");
 
-passport.use(
-  new GoogleStrategy(
+const googleStrategy = new GoogleStrategy(
     {
       clientID:     process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -44,10 +43,14 @@ passport.use(
         }
 
         // ── New user — insert into DB ──────────────────────────────────────
+        const [userCount] = await pool.query("SELECT COUNT(*) AS total FROM users");
+        const role   = (userCount[0].total === 0) ? "admin" : "gsu";
+        const status = "active"; // Google authenticated users are auto-verified
+
         const [result] = await pool.query(
-          `INSERT INTO users (fullname, email, google_id, avatar, role)
-           VALUES (?, ?, ?, ?, 'user')`,
-          [fullname, email, googleId, avatar]
+          `INSERT INTO users (fullname, email, google_id, avatar, role, status)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [fullname, email, googleId, avatar || null, role, status]
         );
 
         const [newUser] = await pool.query(
@@ -61,8 +64,22 @@ passport.use(
         return done(err, null);
       }
     }
-  )
-);
+  );
+
+// Fix Node.js TLS Certificate inspection issues on local dev environments (Windows)
+const https = require("https");
+if (process.env.NODE_ENV !== "production") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  if (googleStrategy._oauth2) {
+    const customAgent = new https.Agent({ rejectUnauthorized: false });
+    if (typeof googleStrategy._oauth2.setAgent === "function") {
+      googleStrategy._oauth2.setAgent(customAgent);
+    }
+    googleStrategy._oauth2._agent = customAgent;
+  }
+}
+
+passport.use(googleStrategy);
 
 // Passport session serialization (needed even if we don't use sessions for JWT)
 passport.serializeUser((user, done) => done(null, user.user_id));

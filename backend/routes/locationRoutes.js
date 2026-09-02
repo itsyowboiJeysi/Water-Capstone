@@ -1,4 +1,4 @@
-// routes/locationRoutes.js — AquaMonitor Locations
+// routes/locationRoutes.js — AgosTech Locations
 const express = require("express");
 const router  = express.Router();
 

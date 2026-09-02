@@ -1,4 +1,4 @@
-// forgotPassword.js — AquaSense Forgot Password Handler
+// forgotPassword.js — AgosTech Forgot Password Handler
 
 async function forgotPassword() {
   const emailInput  = document.getElementById('fpEmail');
@@ -57,7 +57,7 @@ async function forgotPassword() {
     }
 
   } catch (err) {
-    console.error('[AquaSense] forgotPassword fetch error:', err);
+    console.error('[AgosTech] forgotPassword fetch error:', err);
     errorText.textContent = 'Network error. Please check your connection and try again.';
     errorMsg.classList.add('show');
     submitBtn.classList.remove('loading');

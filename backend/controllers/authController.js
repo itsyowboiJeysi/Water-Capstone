@@ -1,4 +1,4 @@
-// authController.js — AquaMonitor Auth
+// authController.js — AgosTech Auth
 const bcrypt   = require("bcryptjs");
 const jwt      = require("jsonwebtoken");
 const crypto   = require("crypto");
@@ -47,16 +47,27 @@ async function register(req, res) {
     // ── Hash password & insert ─────────────────────────────────────────────
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Check if there are any existing users in the system. If 0 users, auto-approve first admin!
+    const [userCount] = await pool.query("SELECT COUNT(*) AS total FROM users");
+    const initialStatus = (userCount[0].total === 0) ? "active" : "pending";
+
     await pool.query(
-      `INSERT INTO users (fullname, email, phone_number, password_hash, role)
-       VALUES (?, ?, ?, ?, ?)`,
-      [fullname, email, phone_number || null, hashedPassword, role]
+      `INSERT INTO users (fullname, email, phone_number, password_hash, role, status)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [fullname, email, phone_number || null, hashedPassword, role, initialStatus]
     );
 
-    return res.status(201).json({ message: "Account created successfully!" });
+    if (initialStatus === "active") {
+      return res.status(201).json({ message: "Initial Administrator account created and activated!" });
+    }
+
+    return res.status(201).json({
+      message: "Account registered successfully! Your registration is pending administrator approval before you can sign in.",
+      pending: true
+    });
 
   } catch (err) {
-    console.error("[AquaMonitor] Register error:", err);
+    console.error("[AgosTech] Register error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -76,7 +87,7 @@ async function login(req, res) {
   try {
     // ── Look up user ───────────────────────────────────────────────────────
     const [rows] = await pool.query(
-      `SELECT user_id, fullname, email, phone_number, password_hash, role
+      `SELECT user_id, fullname, email, phone_number, password_hash, role, status
        FROM users WHERE email = ?`,
       [email]
     );
@@ -93,10 +104,25 @@ async function login(req, res) {
       return res.status(401).json({ message: "Invalid email or password. Please try again." });
     }
 
+    // ── Status Check (Pending or Inactive) ─────────────────────────────────
+    if (user.status === "pending") {
+      return res.status(403).json({
+        message: "Your account is pending administrator approval. Please contact a system administrator to approve your account.",
+        status: "pending"
+      });
+    }
+
+    if (user.status === "inactive") {
+      return res.status(403).json({
+        message: "Your account has been deactivated. Please contact an administrator.",
+        status: "inactive"
+      });
+    }
+
     // ── Sign JWT ───────────────────────────────────────────────────────────
     const token = jwt.sign(
       { id: user.user_id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "aquamonitor_secret",
+      process.env.JWT_SECRET || "agostech_secret",
       { expiresIn: "7d" }
     );
 
@@ -116,11 +142,12 @@ async function login(req, res) {
         email:        user.email,
         phone_number: user.phone_number,
         role:         user.role,
+        status:       user.status,
       }
     });
 
   } catch (err) {
-    console.error("[AquaMonitor] Login error:", err);
+    console.error("[AgosTech] Login error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -215,49 +242,64 @@ async function exchangeCode(req, res) {
 
   try {
     const [rows] = await pool.query(
-      "SELECT * FROM oauth_codes WHERE code = ? AND expires_at > NOW()",
+      "SELECT * FROM oauth_codes WHERE code = ?",
       [code]
     );
 
     if (rows.length === 0) {
-      return res.status(400).json({ message: "Invalid or expired code." });
+      return res.status(401).json({ message: "Invalid or missing code." });
     }
 
-    const { user_id } = rows[0];
+    const record = rows[0];
+    const expDate = new Date(record.expires_at);
+    const nowDate = new Date();
 
+    if (expDate < nowDate) {
+      await pool.query("DELETE FROM oauth_codes WHERE code = ?", [code]);
+      return res.status(401).json({ message: "Authorization code has expired." });
+    }
+
+    const { user_id } = record;
+
+    // Delete used code immediately
     await pool.query("DELETE FROM oauth_codes WHERE code = ?", [code]);
 
     const [users] = await pool.query(
-      "SELECT user_id, fullname, email, role, avatar FROM users WHERE user_id = ?",  // ← user_id not id
+      "SELECT user_id, fullname, email, role, avatar, status FROM users WHERE user_id = ?",
       [user_id]
     );
 
     if (users.length === 0) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "Associated user not found." });
     }
 
-    const user  = users[0];
+    const user = users[0];
+
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Your account has been deactivated." });
+    }
+
     const token = jwt.sign(
-      { id: user.user_id, email: user.email, role: user.role },  // ← user.user_id
-      process.env.JWT_SECRET || "aquamonitor_secret",
+      { id: user.user_id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "agostech_secret",
       { expiresIn: "7d" }
     );
 
     res.json({ 
       token, 
       user: {
-        id:       user.user_id,   // ← user.user_id
+        id:       user.user_id,
         fullname: user.fullname,
         email:    user.email,
         role:     user.role,
         avatar:   user.avatar || null,
+        status:   user.status,
       }
     });
 
   } catch (err) {
-    console.error("[AquaMonitor] exchangeCode error:", err);
-    res.status(500
-    ).json({ message: "Server error." });
+    console.error("[AgosTech] exchangeCode error:", err);
+    res.status(500).json({ message: "Server error exchanging authorization code." });
   }
 }
 
@@ -277,7 +319,7 @@ async function getMe(req, res) {
     res.json({ user: rows[0] });
 
   } catch (err) {
-    console.error("[AquaSense] getMe error:", err);
+    console.error("[AgosTech] getMe error:", err);
     res.status(500).json({ message: "Server error." });
   }
 }
@@ -351,7 +393,7 @@ async function updateMe(req, res) {
     res.json({ message: "Profile updated successfully.", user: updated[0] });
 
   } catch (err) {
-    console.error("[AquaSense] updateMe error:", err);
+    console.error("[AgosTech] updateMe error:", err);
     res.status(500).json({ message: "Server error updating profile." });
   }
 }
@@ -363,7 +405,7 @@ async function getAllUsers(req, res) {
     );
     res.json(rows);
   } catch (err) {
-    console.error("[AquaSense] getAllUsers error:", err);
+    console.error("[AgosTech] getAllUsers error:", err);
     res.status(500).json({ message: "Server error fetching users." });
   }
 }
@@ -377,25 +419,41 @@ async function updateUserRoleStatus(req, res) {
     return res.status(400).json({ message: "Invalid role. Must be admin, gsu, or hsu." });
   }
 
-  const validStatuses = ["active", "inactive"];
+  const validStatuses = ["active", "inactive", "pending"];
   if (status && !validStatuses.includes(status.toLowerCase())) {
-    return res.status(400).json({ message: "Invalid status. Must be active or inactive." });
+    return res.status(400).json({ message: "Invalid status. Must be active, inactive, or pending." });
   }
 
   try {
-    const [existing] = await pool.query("SELECT user_id FROM users WHERE user_id = ?", [id]);
+    const [existing] = await pool.query("SELECT user_id, fullname, email, role, status FROM users WHERE user_id = ?", [id]);
     if (existing.length === 0) {
       return res.status(404).json({ message: "User not found." });
     }
 
+    const prevUser = existing[0];
+    const newRole = role ? role.toLowerCase() : prevUser.role;
+    const newStatus = status ? status.toLowerCase() : prevUser.status;
+
     await pool.query(
-      "UPDATE users SET role = COALESCE(?, role), status = COALESCE(?, status) WHERE user_id = ?",
-      [role ? role.toLowerCase() : null, status ? status.toLowerCase() : null, id]
+      "UPDATE users SET role = ?, status = ? WHERE user_id = ?",
+      [newRole, newStatus, id]
     );
+
+    // Send email notification on status approval or denial
+    const { sendAccountApprovedEmail, sendAccountDeniedEmail } = require("../services/mailer");
+    if (prevUser.status !== "active" && newStatus === "active") {
+      sendAccountApprovedEmail(prevUser.email, prevUser.fullname, newRole).catch(err => {
+        console.error("[AgosTech] Error sending approval email:", err);
+      });
+    } else if (prevUser.status !== "inactive" && newStatus === "inactive") {
+      sendAccountDeniedEmail(prevUser.email, prevUser.fullname).catch(err => {
+        console.error("[AgosTech] Error sending denial email:", err);
+      });
+    }
 
     res.json({ message: "User updated successfully." });
   } catch (err) {
-    console.error("[AquaSense] updateUserRoleStatus error:", err);
+    console.error("[AgosTech] updateUserRoleStatus error:", err);
     res.status(500).json({ message: "Server error updating user." });
   }
 }
@@ -409,15 +467,25 @@ async function deleteUser(req, res) {
   }
 
   try {
-    const [existing] = await pool.query("SELECT user_id FROM users WHERE user_id = ?", [id]);
+    const [existing] = await pool.query("SELECT user_id, fullname, email, status FROM users WHERE user_id = ?", [id]);
     if (existing.length === 0) {
       return res.status(404).json({ message: "User not found." });
+    }
+
+    const targetUser = existing[0];
+
+    // If deleting a pending or inactive registration, send denial email
+    if (targetUser.status === "pending" || targetUser.status === "inactive") {
+      const { sendAccountDeniedEmail } = require("../services/mailer");
+      sendAccountDeniedEmail(targetUser.email, targetUser.fullname).catch(err => {
+        console.error("[AgosTech] Error sending denial email on user delete:", err);
+      });
     }
 
     await pool.query("DELETE FROM users WHERE user_id = ?", [id]);
     res.json({ message: "User deleted successfully." });
   } catch (err) {
-    console.error("[AquaSense] deleteUser error:", err);
+    console.error("[AgosTech] deleteUser error:", err);
     res.status(500).json({ message: "Server error deleting user." });
   }
 }

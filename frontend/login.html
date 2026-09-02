@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AquaMonitor — Sign In</title>
+  <title>AgosTech — Sign In</title>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet"/>
   <script>
     (function() {
@@ -232,6 +232,13 @@
     .error-msg.show { display: flex; }
     .error-msg svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
 
+    .info-msg {
+      display: none; align-items: flex-start; gap: 10px;
+      background: rgba(44, 154, 209, 0.1); border: 1px solid rgba(44, 154, 209, 0.3); border-radius: 10px;
+      padding: 12px 16px; font-size: 13px; color: var(--text-dark); margin-bottom: 18px; line-height: 1.5;
+    }
+    .info-msg.show { display: flex; }
+
     .success-msg {
       display: none; align-items: flex-start; gap: 12px;
       background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px;
@@ -384,6 +391,28 @@
     .btn-primary:active { transform: scale(0.97) !important; }
     .btn-primary:focus-visible { outline: 2px solid var(--water-2) !important; outline-offset: 2px !important; }
 
+    [data-theme="dark"] .btn-primary {
+      background: linear-gradient(135deg, #1A6FA8, #2C9AD1) !important;
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+      box-shadow: 0 4px 16px rgba(44, 154, 209, 0.4) !important;
+    }
+    [data-theme="dark"] .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #2C9AD1, #38BDF8) !important;
+      box-shadow: 0 6px 22px rgba(56, 189, 248, 0.55) !important;
+      transform: translateY(-2px) !important;
+    }
+    [data-theme="dark"] .btn-google {
+      background: rgba(30, 41, 59, 0.85) !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+      color: #F8FAFC !important;
+    }
+    [data-theme="dark"] .btn-google:hover {
+      background: rgba(45, 59, 82, 0.95) !important;
+      border-color: rgba(44, 154, 209, 0.5) !important;
+      color: #FFFFFF !important;
+    }
+
     /* Ambient Background Blobs for Auth */
     .bg-glow-blob-1, .bg-glow-blob-2 {
       position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
@@ -480,7 +509,7 @@
           </svg>
         </div>
         <div class="brand-text">
-          <div class="sys-name">AquaSense</div>
+          <div class="sys-name">AgosTech</div>
           <div class="org-name">CSPC · CCS · BSIT 4G 2026 · GANDARIA</div>
         </div>
       </div>
@@ -508,6 +537,14 @@
       <div class="form-header">
         <h1>Welcome back</h1>
         <p>Sign in to access the monitoring dashboard</p>
+      </div>
+
+      <div class="info-msg" id="pendingNotice" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong style="color: #0EA5E9; display: block; margin-bottom: 2px;">Registration Submitted</strong>
+          <span>Your account is pending administrator approval. An admin will review and activate your account shortly.</span>
+        </div>
       </div>
 
       <div id="errorMsg" class="error-msg">
@@ -610,7 +647,7 @@
 
       <!-- Form -->
       <div id="fpFormWrapper">
-        <p class="fp-hint">Enter the email linked to your AquaSense account and we'll send a password reset link — valid for <strong>1 hour</strong>.</p>
+        <p class="fp-hint">Enter the email linked to your AgosTech account and we'll send a password reset link — valid for <strong>1 hour</strong>.</p>
 
         <form id="forgotForm" novalidate>
           <div class="field">
@@ -649,13 +686,24 @@
 <script src="js/google-auth-handler.js"></script>
 <script src="js/login.js"></script>
 <script>
-  // ── Show account deleted alert if redirected ──────────────────────────────
+  // ── Show account deleted or OAuth error alerts if redirected ─────────────
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('error') === 'account_deleted') {
-    const errorMsg = document.getElementById('errorMsg');
-    const errorText = document.getElementById('errorText');
-    if (errorMsg && errorText) {
+  const errParam  = urlParams.get('error');
+  const errorMsg  = document.getElementById('errorMsg');
+  const errorText = document.getElementById('errorText');
+
+  if (errParam && errorMsg && errorText) {
+    if (errParam === 'account_deleted') {
       errorText.textContent = "Your account no longer exists. Please contact an administrator.";
+      errorMsg.classList.add('show');
+    } else if (errParam === 'google_failed' || errParam === 'auth_failed') {
+      errorText.textContent = "Google Sign-In failed. Please try again or use email/password.";
+      errorMsg.classList.add('show');
+    } else if (errParam === 'server_error') {
+      errorText.textContent = "A server error occurred during authentication. Please try again.";
+      errorMsg.classList.add('show');
+    } else if (errParam === 'google_disabled') {
+      errorText.textContent = "Google Sign-In is currently disabled by the system administrator.";
       errorMsg.classList.add('show');
     }
   }
@@ -807,7 +855,7 @@
         submitBtn.disabled = false;
       }
     } catch (err) {
-      console.error('[AquaSense] forgotPassword error:', err);
+      console.error('[AgosTech] forgotPassword error:', err);
       errorText.textContent = 'Network error. Check your connection and try again.';
       errorMsg.classList.add('show');
       submitBtn.classList.remove('loading');

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// login.js — AquaMonitor Auth
+// login.js — AgosTech Auth
 // Connects to: POST http://localhost:5000/api/auth/login
 // Expects response: { token: "...", user: { ... } }  on success
 //                   { message: "..." }                on failure
@@ -74,7 +74,7 @@ async function login() {
 
   } catch (err) {
     // ── 6. Handle network / server unreachable errors ────────────────────────
-    console.error("[AquaMonitor] Login error:", err);
+    console.error("[AgosTech] Login error:", err);
     errorText.textContent =
       "Unable to reach the server. Please check your connection and try again.";
     errorMsg.classList.add("show");
@@ -110,3 +110,14 @@ function setSuccess() {
     Signed in!
   `;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("pending") === "true") {
+    const pendingNotice = document.getElementById("pendingNotice");
+    if (pendingNotice) {
+      pendingNotice.style.display = "flex";
+      pendingNotice.classList.add("show");
+    }
+  }
+});

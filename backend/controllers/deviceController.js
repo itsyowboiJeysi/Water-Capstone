@@ -1,4 +1,4 @@
-// controllers/deviceController.js — AquaMonitor Devices
+// controllers/deviceController.js — AgosTech Devices
 const { pool } = require("../config/db");
 const { logAudit } = require("../utils/auditLogger");
 
@@ -18,7 +18,7 @@ async function getDevices(req, res) {
     );
     return res.status(200).json(rows);
   } catch (err) {
-    console.error("[AquaMonitor] getDevices error:", err);
+    console.error("[AgosTech] getDevices error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -103,7 +103,7 @@ async function createDevice(req, res) {
     });
 
   } catch (err) {
-    console.error("[AquaMonitor] createDevice error:", err);
+    console.error("[AgosTech] createDevice error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -150,7 +150,7 @@ async function updateDevice(req, res) {
     return res.status(200).json({ message: "Device updated successfully." });
 
   } catch (err) {
-    console.error("[AquaMonitor] updateDevice error:", err);
+    console.error("[AgosTech] updateDevice error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -191,7 +191,7 @@ async function updateDeviceStatus(req, res) {
     return res.status(200).json({ message: "Device status updated." });
 
   } catch (err) {
-    console.error("[AquaMonitor] updateDeviceStatus error:", err);
+    console.error("[AgosTech] updateDeviceStatus error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -225,7 +225,7 @@ async function deleteDevice(req, res) {
     return res.status(200).json({ message: "Device deleted successfully." });
 
   } catch (err) {
-    console.error("[AquaMonitor] deleteDevice error:", err);
+    console.error("[AgosTech] deleteDevice error:", err);
     if (err.code === "ER_ROW_IS_REFERENCED_2" || err.errno === 1451) {
       return res.status(409).json({ message: "Cannot delete — readings or alerts are still linked to this device." });
     }

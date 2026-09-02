@@ -10,7 +10,7 @@ async function verifyToken(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "aquamonitor_secret");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "agostech_secret");
     
     // Check if user still exists in the database
     const [rows] = await pool.query("SELECT user_id FROM users WHERE user_id = ?", [decoded.id]);
@@ -24,7 +24,7 @@ async function verifyToken(req, res, next) {
     if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
       return res.status(403).json({ message: "Invalid or expired token." });
     }
-    console.error("[AquaMonitor] verifyToken error:", err);
+    console.error("[AgosTech] verifyToken error:", err);
     return res.status(500).json({ message: "Server error." });
   }
 }

@@ -1,4 +1,4 @@
-// controllers/locationController.js — AquaMonitor Locations
+// controllers/locationController.js — AgosTech Locations
 const { pool } = require("../config/db");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ async function getLocations(req, res) {
     );
     return res.status(200).json(rows);
   } catch (err) {
-    console.error("[AquaMonitor] getLocations error:", err);
+    console.error("[AgosTech] getLocations error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -61,7 +61,7 @@ async function createLocation(req, res) {
     });
 
   } catch (err) {
-    console.error("[AquaMonitor] createLocation error:", err);
+    console.error("[AgosTech] createLocation error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -97,7 +97,7 @@ async function updateLocation(req, res) {
     return res.status(200).json({ message: "Location updated successfully." });
 
   } catch (err) {
-    console.error("[AquaMonitor] updateLocation error:", err);
+    console.error("[AgosTech] updateLocation error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -120,7 +120,7 @@ async function deleteLocation(req, res) {
 
   } catch (err) {
     // Likely a foreign key constraint (devices still reference this location)
-    console.error("[AquaMonitor] deleteLocation error:", err);
+    console.error("[AgosTech] deleteLocation error:", err);
     if (err.code === "ER_ROW_IS_REFERENCED_2" || err.errno === 1451) {
       return res.status(409).json({ message: "Cannot delete — devices are still assigned to this location." });
     }
